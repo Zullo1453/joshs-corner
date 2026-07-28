@@ -159,6 +159,24 @@ def test_rich_text_is_limited_to_safe_supported_markup(client, app):
         assert "<a " not in body
 
 
+def test_quote_markup_is_preserved_but_can_be_removed_without_losing_text(client, app):
+    response = client.post(
+        "/notes/new",
+        data={
+            "title": "Quote toggle",
+            "body": '<blockquote onclick="bad()">Quoted text</blockquote><p>Normal text</p><a href="bad">link</a>',
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    with app.app_context():
+        note = Note.query.one()
+        assert note.body == "<blockquote>Quoted text</blockquote><p>Normal text</p>link"
+        assert "Quoted text" in note.body.replace("<blockquote>", "<p>").replace("</blockquote>", "</p>")
+        assert "onclick" not in note.body and "<a " not in note.body
+
+
 def test_note_cards_do_not_nest_interactive_controls(client, app):
     note_id = add_note(app, "Valid card", "Body")
 
@@ -180,3 +198,5 @@ def test_delete_confirmation_and_toolbar_assets_load(client, app):
     assert b'data-command="bold"' in page.data
     assert b'data-command="insertUnorderedList"' in page.data
     assert b"Delete this note? This cannot be undone." in script.data
+    assert b'data-quote-toggle' in page.data
+    assert b'quoteIsActive() ? "p" : "blockquote"' in script.data

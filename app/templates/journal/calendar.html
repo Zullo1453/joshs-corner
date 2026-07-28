@@ -33,7 +33,6 @@
               <option value="{{ option_year }}"{% if option_year == year %} selected{% endif %}>{{ option_year }}</option>
             {% endfor %}
           </select>
-          <button class="year-submit" type="submit">Go</button>
         </form>
         <a class="today-button" href="{{ url_for('journal.index', year=today.year, month=today.month) }}">Today</a>
       </nav>

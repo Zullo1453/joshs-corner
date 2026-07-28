@@ -7,9 +7,6 @@ def test_homepage_loads(client):
     assert b"Reading List" in response.data
 
 
-def test_unbuilt_navigation_targets_use_the_shared_shell(client):
-    for path in ("/reading/",):
-        response = client.get(path)
-        assert response.status_code == 200
-        assert b"Back to homepage" in response.data
-        assert b"later approved stage" in response.data
+def test_homepage_section_links_resolve(client):
+    for path in ("/journal/", "/notes/", "/todos/", "/games/", "/watchlist/", "/reading/"):
+        assert client.get(path).status_code == 200

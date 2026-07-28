@@ -30,6 +30,31 @@ if (editor && editorForm && bodyInput) {
     });
   });
 
+  const quoteToggle = document.querySelector("[data-quote-toggle]");
+  const quoteIsActive = () => {
+    const selection = window.getSelection();
+    const node = selection?.anchorNode;
+    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+    return Boolean(element?.closest("blockquote"));
+  };
+  const updateQuoteToggle = () => {
+    if (!quoteToggle) return;
+    const active = quoteIsActive();
+    quoteToggle.setAttribute("aria-pressed", String(active));
+    quoteToggle.classList.toggle("active", active);
+  };
+
+  quoteToggle?.addEventListener("mousedown", (event) => event.preventDefault());
+  quoteToggle?.addEventListener("click", () => {
+    document.execCommand("formatBlock", false, quoteIsActive() ? "p" : "blockquote");
+    editor.focus({ preventScroll: true });
+    updateQuoteToggle();
+    markUnsaved();
+  });
+  document.addEventListener("selectionchange", updateQuoteToggle);
+  editor.addEventListener("keyup", updateQuoteToggle);
+  editor.addEventListener("mouseup", updateQuoteToggle);
+
   document.querySelector("[data-block-command]")?.addEventListener("change", (event) => {
     editor.focus();
     document.execCommand("formatBlock", false, event.target.value);

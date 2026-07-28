@@ -117,8 +117,7 @@
   letter-spacing: 0.03em;
 }
 
-.year-select,
-.year-submit {
+.year-select {
   min-height: 36px;
   border: 1px solid var(--journal-border);
   border-radius: 9px;
@@ -131,15 +130,8 @@
   font-size: 1rem;
 }
 
-.year-submit {
-  padding: 0.35rem 0.6rem;
-  cursor: pointer;
-}
-
 .year-select:hover,
-.year-select:focus-visible,
-.year-submit:hover,
-.year-submit:focus-visible {
+.year-select:focus-visible {
   outline: none;
   border-color: var(--journal-amber);
 }

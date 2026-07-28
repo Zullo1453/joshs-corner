@@ -45,6 +45,8 @@ def test_year_selector_changes_year_and_preserves_month(client):
     assert b"September" in response.data
     assert b'<input type="hidden" name="month" value="9">' in response.data
     assert b'<option value="2031" selected>' in response.data
+    assert b">Go</button>" not in response.data
+    assert b"data-year-selector" in response.data
 
 
 def test_entry_back_link_preserves_selected_month_and_year(client):
