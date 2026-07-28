@@ -36,16 +36,24 @@
           <div class="history-date" id="history-date">
             On this day · {{ today.strftime("%-d %B") if false else today.day ~ " " ~ today.strftime("%B") }}
           </div>
-          {% if historical_entries %}
+          {% if historical_event %}
             <p class="history-fact">
-              {{ historical_entries[0].entry_date.year }} — {{ historical_entries[0].body|striptags|truncate(190) }}
+              {{ historical_event.year_label }} — {{ historical_event.text }}
             </p>
-            <a class="history-source" href="{{ url_for('journal.entry', entry_date=historical_entries[0].entry_date.isoformat()) }}">
-              Open entry{% if historical_entries|length > 1 %} · {{ historical_entries|length }} memories{% endif %}
-            </a>
+            <a
+              class="history-source"
+              href="{{ historical_event.source_url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Wikipedia ↗</a>
           {% else %}
-            <p class="history-fact">Past journal entries from this date will appear here.</p>
-            <span class="history-source">Journal archive</span>
+            <p class="history-fact">Historical event unavailable while offline.</p>
+            <a
+              class="history-source"
+              href="https://en.wikipedia.org/wiki/Wikipedia:On_this_day/Today"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Wikipedia ↗</a>
           {% endif %}
         </div>
       </aside>

@@ -139,7 +139,13 @@
 .history-source {
   color: var(--faint);
   font-size: 0.82rem;
+  text-decoration: none;
   white-space: nowrap;
+}
+
+.history-source:hover,
+.history-source:focus-visible {
+  color: #b8a6dc;
 }
 
 @media (max-width: 900px) {

@@ -3,6 +3,9 @@
 {% block styles %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/journal.css') }}">
 {% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/journal.js') }}" defer></script>
+{% endblock %}
 {% block body_class %}journal-page calendar-page{% endblock %}
 {% block body %}
   <div class="journal-shell">
@@ -21,7 +24,17 @@
           <a class="nav-button" href="{{ url_for('journal.index', year=previous_year, month=previous_month) }}" aria-label="Previous month">←</a>
           <a class="nav-button" href="{{ url_for('journal.index', year=next_year, month=next_month) }}" aria-label="Next month">→</a>
         </div>
-        <div class="month-label" aria-live="polite">{{ month_label }}</div>
+        <form class="month-year-picker" method="get" action="{{ url_for('journal.index') }}">
+          <input type="hidden" name="month" value="{{ month }}">
+          <span class="month-label" aria-live="polite">{{ month_label }}</span>
+          <label class="visually-hidden" for="journal-year">Journal year</label>
+          <select class="year-select" id="journal-year" name="year" data-year-selector>
+            {% for option_year in year_options %}
+              <option value="{{ option_year }}"{% if option_year == year %} selected{% endif %}>{{ option_year }}</option>
+            {% endfor %}
+          </select>
+          <button class="year-submit" type="submit">Go</button>
+        </form>
         <a class="today-button" href="{{ url_for('journal.index', year=today.year, month=today.month) }}">Today</a>
       </nav>
 

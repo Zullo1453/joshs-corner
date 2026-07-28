@@ -15,6 +15,12 @@ python run.py
 
 Open <http://127.0.0.1:5000>. Press `Ctrl+C` in the terminal to stop the server.
 
+The homepage requests one historical event from Wikipedia's public “On this
+day” events feed. Successful results are cached in
+`instance\on_this_day_cache.json`. If the request is unavailable, the matching
+cached event is used; without a cache, the homepage shows a quiet offline
+fallback while the rest of the application continues normally.
+
 ## Tests
 
 ```powershell

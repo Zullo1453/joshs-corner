@@ -1,0 +1,466 @@
+:root {
+  --notes-bg: #121319;
+  --notes-panel: #191b23;
+  --notes-text: #edf0f6;
+  --notes-muted: #9ca3b5;
+  --notes-faint: #6f7688;
+  --notes-line: #343948;
+  --notes-accent: #8d97b7;
+  --notes-accent-soft: rgba(141, 151, 183, 0.18);
+  --notes-favourite: #dfb35f;
+}
+
+.notes-page {
+  min-height: 100vh;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(110, 118, 155, 0.10), transparent 30%),
+    linear-gradient(180deg, #13141a 0%, #101116 100%);
+  color: var(--notes-text);
+}
+
+.notes-shell {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+}
+
+.notes-topbar {
+  display: grid;
+  grid-template-columns: 46px 1fr 46px;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.notes-icon-button {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--notes-line);
+  border-radius: 11px;
+  background: rgba(25, 27, 35, 0.88);
+  color: var(--notes-text);
+  text-decoration: none;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.notes-icon-button:hover,
+.notes-icon-button:focus-visible {
+  outline: none;
+  transform: translateY(-2px);
+  border-color: var(--notes-accent);
+  box-shadow: 0 0 18px rgba(141, 151, 183, 0.18);
+}
+
+.notes-app {
+  min-height: 760px;
+  display: grid;
+  grid-template-columns: 330px 1fr;
+  overflow: hidden;
+  border: 1px solid var(--notes-line);
+  border-radius: 18px;
+  background: var(--notes-panel);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.notes-sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--notes-line);
+  background: linear-gradient(180deg, #181a21, #15171e);
+}
+
+.sidebar-head {
+  padding: 1rem;
+  border-bottom: 1px solid var(--notes-line);
+}
+
+.new-note {
+  width: 100%;
+  padding: 0.78rem 1rem;
+  display: block;
+  border: 1px solid #525a73;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #303545, #262a37);
+  color: #f4f6fa;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.new-note:hover,
+.new-note:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(141, 151, 183, 0.18);
+}
+
+.search-row {
+  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: 1fr 42px;
+  gap: 0.5rem;
+}
+
+.notes-search {
+  width: 100%;
+  min-width: 0;
+  padding: 0.68rem 0.8rem;
+  border: 1px solid var(--notes-line);
+  border-radius: 9px;
+  background: #13151b;
+  color: var(--notes-text);
+  outline: none;
+}
+
+.notes-search:focus {
+  border-color: var(--notes-accent);
+}
+
+.favourite-filter {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--notes-line);
+  border-radius: 9px;
+  background: #13151b;
+  color: #777e90;
+  font-size: 1.12rem;
+  text-decoration: none;
+}
+
+.favourite-filter:hover,
+.favourite-filter:focus-visible,
+.favourite-filter.active {
+  outline: none;
+  border-color: #cfa65b;
+  background: rgba(223, 179, 95, 0.07);
+  color: var(--notes-favourite);
+}
+
+.notes-list {
+  padding: 0.7rem;
+  overflow-y: auto;
+}
+
+.note-card {
+  position: relative;
+  min-height: 98px;
+  margin-bottom: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.note-card:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.note-card.active {
+  border-color: rgba(141, 151, 183, 0.45);
+  background: var(--notes-accent-soft);
+}
+
+.note-card-link {
+  height: 100%;
+  padding: 0.85rem 2.65rem 0.85rem 0.9rem;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.note-card-link:focus-visible {
+  outline: 1px solid var(--notes-accent);
+  outline-offset: -2px;
+  border-radius: 9px;
+}
+
+.note-title,
+.note-preview,
+.note-date {
+  display: block;
+}
+
+.note-title {
+  color: #f0f2f7;
+  font-size: 1.08rem;
+}
+
+.note-preview {
+  margin-top: 0.25rem;
+  color: var(--notes-muted);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.note-date {
+  margin-top: 0.38rem;
+  color: var(--notes-faint);
+  font-size: 0.76rem;
+}
+
+.note-star-form {
+  position: absolute;
+  top: 0.76rem;
+  right: 0.76rem;
+}
+
+.note-star {
+  border: 0;
+  background: transparent;
+  color: #71788a;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.2rem;
+  cursor: pointer;
+}
+
+.note-star:hover,
+.note-star:focus-visible,
+.note-star.favourited {
+  outline: none;
+  color: var(--notes-favourite);
+}
+
+.note-star.favourited {
+  text-shadow: 0 0 7px rgba(223, 179, 95, 0.25);
+}
+
+.notes-list-empty {
+  padding: 1.35rem 0.8rem;
+  color: var(--notes-faint);
+  text-align: center;
+  font-style: italic;
+}
+
+.notes-editor {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #1b1e27, #181a22);
+}
+
+.note-editor-form {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-head {
+  padding: 1.1rem 1.3rem 0.9rem;
+  border-bottom: 1px solid var(--notes-line);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.note-title-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--notes-text);
+  font-family: "EB Garamond", Garamond, serif;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+.save-state {
+  color: var(--notes-faint);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.toolbar {
+  margin-top: 0.95rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.tool-button,
+.tool-select {
+  min-height: 34px;
+  border: 1px solid var(--notes-line);
+  border-radius: 8px;
+  background: #222631;
+  color: var(--notes-text);
+}
+
+.tool-button {
+  min-width: 36px;
+  padding: 0.35rem 0.62rem;
+  cursor: pointer;
+}
+
+.tool-button:hover,
+.tool-button:focus-visible,
+.tool-select:hover,
+.tool-select:focus-visible {
+  outline: none;
+  border-color: var(--notes-accent);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  margin: 0 0.15rem;
+  background: var(--notes-line);
+}
+
+.writing-area {
+  flex: 1;
+  min-height: 0;
+  padding: 1.7rem 1.8rem;
+  display: flex;
+}
+
+.note-body {
+  width: 100%;
+  min-height: 540px;
+  outline: none;
+  background: transparent;
+  color: #e7eaf1;
+  font-family: "EB Garamond", Garamond, serif;
+  font-size: 1.16rem;
+  line-height: 1.75;
+  caret-color: var(--notes-accent);
+}
+
+.note-body:empty::before {
+  content: attr(data-placeholder);
+  color: #62697a;
+  pointer-events: none;
+}
+
+.note-body h1,
+.note-body h2,
+.note-body p,
+.note-body blockquote {
+  margin-top: 0;
+}
+
+.note-body blockquote {
+  margin-left: 0;
+  padding-left: 1rem;
+  border-left: 2px solid var(--notes-accent);
+  color: #cdd2df;
+}
+
+.editor-footer {
+  padding: 0.85rem 1.3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-top: 1px solid var(--notes-line);
+}
+
+.footer-note {
+  color: var(--notes-faint);
+  font-size: 0.84rem;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.delete-button,
+.save-button {
+  padding: 0.68rem 0.95rem;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.delete-button {
+  border: 1px solid #5b3d47;
+  background: transparent;
+  color: #aa7d89;
+}
+
+.save-button {
+  border: 1px solid #59627d;
+  background: linear-gradient(180deg, #46506a, #343b50);
+  color: white;
+}
+
+.delete-button:hover,
+.delete-button:focus-visible,
+.save-button:hover,
+.save-button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.notes-empty-editor {
+  min-height: 620px;
+  place-items: center;
+  justify-content: center;
+  color: var(--notes-muted);
+  text-align: center;
+}
+
+.empty-new-note {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: #c4cadb;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .notes-app {
+    grid-template-columns: 260px 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .notes-page {
+    padding: 0.8rem;
+  }
+
+  .notes-app {
+    min-height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .notes-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--notes-line);
+  }
+
+  .notes-list {
+    max-height: 230px;
+  }
+
+  .notes-editor {
+    min-height: 620px;
+  }
+
+  .writing-area {
+    padding: 1.2rem;
+  }
+
+  .editor-footer {
+    align-items: flex-end;
+  }
+}

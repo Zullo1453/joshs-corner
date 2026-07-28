@@ -2,6 +2,7 @@ import calendar
 from datetime import date
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
@@ -13,7 +14,7 @@ journal_bp = Blueprint("journal", __name__, url_prefix="/journal")
 @journal_bp.get("/")
 def index():
     today = current_date()
-    year = parse_number(request.args.get("year"), today.year, 1, 9999)
+    year = parse_number(request.args.get("year"), today.year, 2, 9998)
     month = parse_number(request.args.get("month"), today.month, 1, 12)
 
     weeks = calendar.Calendar(firstweekday=calendar.MONDAY).monthdatescalendar(year, month)
@@ -31,7 +32,8 @@ def index():
         "journal/calendar.html",
         year=year,
         month=month,
-        month_label=date(year, month, 1).strftime("%B %Y"),
+        month_label=date(year, month, 1).strftime("%B"),
+        year_options=journal_year_options(year, today.year),
         weeks=weeks,
         entry_map=entry_map,
         today=today,
@@ -98,9 +100,12 @@ def current_date():
 
 def parse_entry_date(value):
     try:
-        return date.fromisoformat(value)
+        selected_date = date.fromisoformat(value)
     except (TypeError, ValueError):
         abort(404)
+    if not 2 <= selected_date.year <= 9998:
+        abort(404)
+    return selected_date
 
 
 def parse_number(value, default, minimum, maximum):
@@ -117,7 +122,7 @@ def parse_number(value, default, minimum, maximum):
 
 def parse_return_month(selected_date):
     return (
-        parse_number(request.values.get("return_year"), selected_date.year, 1, 9999),
+        parse_number(request.values.get("return_year"), selected_date.year, 2, 9998),
         parse_number(request.values.get("return_month"), selected_date.month, 1, 12),
     )
 
@@ -125,6 +130,26 @@ def parse_return_month(selected_date):
 def shift_month(year, month, offset):
     month_index = year * 12 + (month - 1) + offset
     shifted_year, shifted_month_index = divmod(month_index, 12)
-    if not 1 <= shifted_year <= 9999:
+    if not 2 <= shifted_year <= 9998:
         return year, month
     return shifted_year, shifted_month_index + 1
+
+
+def journal_year_options(selected_year, current_year):
+    earliest_year, latest_year = db.session.execute(
+        db.select(
+            func.min(func.extract("year", JournalEntry.entry_date)),
+            func.max(func.extract("year", JournalEntry.entry_date)),
+        )
+    ).one()
+
+    if earliest_year is None:
+        first_year = current_year - 10
+        last_year = current_year + 10
+    else:
+        first_year = min(int(earliest_year), current_year) - 5
+        last_year = max(int(latest_year), current_year) + 5
+
+    first_year = max(2, min(first_year, selected_year))
+    last_year = min(9998, max(last_year, selected_year))
+    return range(first_year, last_year + 1)

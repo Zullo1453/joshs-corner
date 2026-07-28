@@ -11,3 +11,9 @@ if (deleteTrigger && deleteForm) {
     }
   });
 }
+
+const yearSelector = document.querySelector("[data-year-selector]");
+
+yearSelector?.addEventListener("change", () => {
+  yearSelector.form?.requestSubmit();
+});

@@ -13,12 +13,64 @@ def test_calendar_page_loads_with_correct_leap_month(client):
     response = client.get("/journal/?year=2024&month=2")
 
     assert response.status_code == 200
-    assert b"February 2024" in response.data
+    assert b"February" in response.data
+    assert b'<option value="2024" selected>' in response.data
     assert b'data-date="2024-02-29"' in response.data
     assert b'data-date="2024-01-29"' in response.data
     assert b'data-date="2024-03-03"' in response.data
     assert b"/journal/?year=2024&amp;month=1" in response.data
     assert b"/journal/?year=2024&amp;month=3" in response.data
+
+
+def test_year_selector_range_uses_saved_entries_and_current_year(client, app, monkeypatch):
+    from app.routes import journal
+
+    monkeypatch.setattr(journal, "current_date", lambda: date(2026, 7, 28))
+    with app.app_context():
+        db.session.add(JournalEntry(entry_date=date(1985, 4, 12), body="Old entry"))
+        db.session.commit()
+
+    response = client.get("/journal/?year=2026&month=7")
+
+    assert b'<option value="1980">' in response.data
+    assert b'<option value="2031">' in response.data
+    assert b'<option value="1979">' not in response.data
+    assert b'<option value="2032">' not in response.data
+
+
+def test_year_selector_changes_year_and_preserves_month(client):
+    response = client.get("/journal/?year=2031&month=9")
+
+    assert response.status_code == 200
+    assert b"September" in response.data
+    assert b'<input type="hidden" name="month" value="9">' in response.data
+    assert b'<option value="2031" selected>' in response.data
+
+
+def test_entry_back_link_preserves_selected_month_and_year(client):
+    response = client.get(
+        "/journal/entry/2031-09-14?return_year=2030&return_month=4"
+    )
+
+    assert response.status_code == 200
+    assert b"/journal/?year=2030&amp;month=4" in response.data
+
+
+def test_month_navigation_crosses_year_boundaries(client):
+    january = client.get("/journal/?year=2030&month=1")
+    december = client.get("/journal/?year=2030&month=12")
+
+    assert b"/journal/?year=2029&amp;month=12" in january.data
+    assert b"/journal/?year=2031&amp;month=1" in december.data
+
+
+def test_today_control_returns_to_current_month_and_year(client, monkeypatch):
+    from app.routes import journal
+
+    monkeypatch.setattr(journal, "current_date", lambda: date(2026, 7, 28))
+    response = client.get("/journal/?year=1999&month=2")
+
+    assert b'href="/journal/?year=2026&amp;month=7">Today</a>' in response.data
 
 
 def test_calendar_marks_today(client, monkeypatch):
@@ -46,6 +98,8 @@ def test_invalid_dates_and_months_are_rejected(client):
     assert client.get("/journal/entry/2026-02-30").status_code == 404
     assert client.get("/journal/?year=2026&month=13").status_code == 404
     assert client.get("/journal/?year=not-a-year&month=7").status_code == 404
+    assert client.get("/journal/?year=1&month=7").status_code == 404
+    assert client.get("/journal/?year=9999&month=7").status_code == 404
 
 
 def test_create_and_update_entry(client, app):
@@ -119,37 +173,17 @@ def test_calendar_entry_marker_and_preview(client, app):
     assert b"Marked day" in response.data
 
 
-def test_on_this_day_matches_previous_years_only(client, app, monkeypatch):
-    from app.routes import home
-
-    monkeypatch.setattr(home, "current_date", lambda: date(2026, 7, 28))
+def test_homepage_does_not_use_journal_entries_for_history(client, app):
     with app.app_context():
-        db.session.add_all(
-            [
-                JournalEntry(entry_date=date(2025, 7, 28), body="Matching history"),
-                JournalEntry(entry_date=date(2026, 7, 28), body="Today should not appear"),
-                JournalEntry(entry_date=date(2024, 7, 27), body="Wrong day"),
-                JournalEntry(entry_date=date(2027, 7, 28), body="Future should not appear"),
-            ]
+        db.session.add(
+            JournalEntry(entry_date=date(2025, 7, 28), body="Private journal history")
         )
         db.session.commit()
 
     response = client.get("/")
 
-    assert b"Matching history" in response.data
-    assert b"Today should not appear" not in response.data
-    assert b"Wrong day" not in response.data
-    assert b"Future should not appear" not in response.data
-    assert b"/journal/entry/2025-07-28" in response.data
-
-
-def test_on_this_day_empty_state(client, monkeypatch):
-    from app.routes import home
-
-    monkeypatch.setattr(home, "current_date", lambda: date(2026, 7, 28))
-    response = client.get("/")
-
-    assert b"Past journal entries from this date will appear here." in response.data
+    assert b"Private journal history" not in response.data
+    assert b"Historical event unavailable while offline." in response.data
 
 
 def test_all_prototypes_remain_unchanged():
