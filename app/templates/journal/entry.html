@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ selected_date.day }} {{ selected_date.strftime("%B %Y") }} · Journal{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/journal.css') }}">
+{% endblock %}
+{% block body_class %}journal-page entry-page{% endblock %}
+{% block body %}
+  <div class="journal-shell entry-shell">
+    <header class="journal-topbar">
+      <a
+        class="journal-icon-button"
+        href="{{ url_for('journal.index', year=return_year, month=return_month) }}"
+        aria-label="Back to journal calendar"
+      >←</a>
+      <div class="journal-page-title"><h1>Journal</h1></div>
+      <a class="journal-icon-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">⌂</a>
+    </header>
+
+    <main class="journal-panel stitched entry-panel">
+      <div class="entry-heading">
+        <div class="eyebrow">{{ selected_date.strftime("%A") }}</div>
+        <h2>{{ selected_date.day }} {{ selected_date.strftime("%B %Y") }}</h2>
+        <p>{% if journal_entry %}Saved journal entry{% else %}New journal entry{% endif %}</p>
+      </div>
+
+      <form
+        class="entry-form"
+        method="post"
+        action="{{ url_for('journal.entry', entry_date=selected_date.isoformat(), return_year=return_year, return_month=return_month) }}"
+      >
+        <div class="writing-wrap">
+          <label class="visually-hidden" for="journal-body">Journal entry</label>
+          <textarea
+            class="journal-text"
+            id="journal-body"
+            name="body"
+            spellcheck="true"
+            placeholder="Write about the day…"
+            autofocus
+          >{{ journal_entry.body if journal_entry else "" }}</textarea>
+        </div>
+
+        <div class="entry-footer">
+          <div class="entry-meta" aria-live="polite">
+            {% if journal_entry %}
+              Last saved {{ journal_entry.updated_at|local_saved_time }}
+            {% else %}
+              Not saved yet
+            {% endif %}
+          </div>
+          <div class="actions">
+            {% if journal_entry %}
+              <button class="delete-button" type="button" data-delete-trigger>Delete entry</button>
+            {% endif %}
+            <button class="save-button" type="submit">Save entry</button>
+          </div>
+        </div>
+      </form>
+
+      {% if journal_entry %}
+        <form
+          method="post"
+          action="{{ url_for('journal.delete_entry', entry_date=selected_date.isoformat(), return_year=return_year, return_month=return_month) }}"
+          data-delete-form
+          hidden
+        ></form>
+      {% endif %}
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/journal.js') }}" defer></script>
+{% endblock %}

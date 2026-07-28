@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+instance/*
+!instance/.gitkeep
+backups/*
+!backups/.gitkeep
+
+.env
+.idea/
+.vscode/

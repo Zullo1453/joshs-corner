@@ -1,0 +1,49 @@
+.internal-page {
+  min-height: 100vh;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(147, 112, 219, 0.10), transparent 34%),
+    var(--bg);
+}
+
+.shell {
+  width: min(1340px, 100%);
+  margin: 0 auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.home-button {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #3a3350;
+  border-radius: 11px;
+  background: rgba(28, 25, 38, 0.9);
+  color: var(--text);
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+.home-button:hover,
+.home-button:focus-visible {
+  outline: none;
+  border-color: #8a6fd8;
+  box-shadow: 0 0 18px rgba(147, 112, 219, 0.25);
+}
+
+.placeholder {
+  min-height: 55vh;
+  display: grid;
+  place-items: center;
+  border: 1px solid #3a3350;
+  border-radius: 15px;
+  background: #1c1926;
+  color: var(--muted);
+  text-align: center;
+}

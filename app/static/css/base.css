@@ -1,0 +1,29 @@
+:root {
+  --bg: #14121a;
+  --panel: #1c1926;
+  --text: #eee9f7;
+  --muted: #9c93b3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "EB Garamond", Garamond, "Times New Roman", serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
+{% block body_class %}home-page{% endblock %}
+{% block body %}
+  <div class="stage">
+    <div class="top-zone">
+      <header class="header-block">
+        <h1>Josh's Corner</h1>
+      </header>
+    </div>
+
+    <main class="grid-block">
+      <nav class="tile-grid" aria-label="Josh's Corner sections">
+        {% set sections = [
+          ("journal.index", "Open Journal", "📖", "Journal"),
+          ("notes.index", "Open General Notes", "🗒️", "General Notes"),
+          ("todos.index", "Open To-Dos", "✓", "To-Dos"),
+          ("games.index", "Open Game Journal", "🗡️", "Game Journal"),
+          ("watchlist.index", "Open Watchlist", "🎬", "Watchlist"),
+          ("reading.index", "Open Reading List", "📚", "Reading List")
+        ] %}
+        {% for endpoint, label, icon, title in sections %}
+          <a class="tile" href="{{ url_for(endpoint) }}" aria-label="{{ label }}">
+            <span class="icon" aria-hidden="true">{{ icon }}</span>
+            <span class="tile-title">{{ title }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+    </main>
+
+    <div class="bottom-zone">
+      <aside class="history-block" aria-labelledby="history-date">
+        <div class="history-card">
+          <div class="history-date" id="history-date">
+            On this day · {{ today.strftime("%-d %B") if false else today.day ~ " " ~ today.strftime("%B") }}
+          </div>
+          {% if historical_entries %}
+            <p class="history-fact">
+              {{ historical_entries[0].entry_date.year }} — {{ historical_entries[0].body|striptags|truncate(190) }}
+            </p>
+            <a class="history-source" href="{{ url_for('journal.entry', entry_date=historical_entries[0].entry_date.isoformat()) }}">
+              Open entry{% if historical_entries|length > 1 %} · {{ historical_entries|length }} memories{% endif %}
+            </a>
+          {% else %}
+            <p class="history-fact">Past journal entries from this date will appear here.</p>
+            <span class="history-source">Journal archive</span>
+          {% endif %}
+        </div>
+      </aside>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Josh's Corner</title>
+<style>
+  @font-face {
+    font-family: "EB Garamond";
+    src: local("EB Garamond");
+  }
+
+  :root {
+    --bg: #14121a;
+    --panel: #1c1926;
+    --panel-soft: rgba(28, 25, 38, 0.84);
+    --text: #eee9f7;
+    --muted: #9c93b3;
+    --faint: #746b8d;
+    --border: #3a3350;
+    --purple: 147, 112, 219;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "EB Garamond", Garamond, "Times New Roman", serif;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* subtle pixel-star scatter */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20% 30%, rgba(200, 180, 255, 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 65% 15%, rgba(200, 180, 255, 0.30), transparent),
+      radial-gradient(1px 1px at 80% 55%, rgba(200, 180, 255, 0.25), transparent),
+      radial-gradient(1px 1px at 35% 70%, rgba(200, 180, 255, 0.30), transparent),
+      radial-gradient(1.5px 1.5px at 90% 85%, rgba(200, 180, 255, 0.25), transparent),
+      radial-gradient(1px 1px at 10% 90%, rgba(200, 180, 255, 0.30), transparent);
+  }
+
+  .stage {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: 1fr auto 1fr;
+  }
+
+  .top-zone,
+  .bottom-zone {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .header-block,
+  .grid-block,
+  .history-block {
+    width: min(1100px, calc(100vw - 3rem));
+    margin: 0 auto;
+  }
+
+  .header-block {
+    text-align: center;
+  }
+
+  .header-block h1 {
+    margin: 0;
+    color: #f1ecfa;
+    font-size: clamp(2.55rem, 4vw, 3.2rem);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+  }
+
+  .grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2rem;
+  }
+
+  .tile {
+    min-height: 180px;
+    padding: 2.35rem 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--panel);
+    color: inherit;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      0 0 18px 2px rgba(var(--purple), 0.38),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      box-shadow 220ms ease,
+      background 180ms ease;
+  }
+
+  .tile:hover,
+  .tile:focus-visible {
+    outline: none;
+    transform: translateY(-3px);
+    border-color: #8a6fd8;
+    background: #201c2c;
+    box-shadow:
+      0 0 34px 7px rgba(var(--purple), 0.68),
+      inset 0 0 20px rgba(var(--purple), 0.035);
+  }
+
+  .tile .icon {
+    display: block;
+    margin-bottom: 0.8rem;
+    font-size: 2.7rem;
+    line-height: 1;
+  }
+
+  .tile .title {
+    font-size: 1.5rem;
+    letter-spacing: 0.03em;
+  }
+
+  .history-card {
+    min-height: 72px;
+    padding: 0.9rem 1.2rem;
+    border: 1px solid rgba(118, 101, 157, 0.45);
+    border-radius: 12px;
+    background: var(--panel-soft);
+    box-shadow: 0 0 18px rgba(var(--purple), 0.15);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .history-date {
+    min-width: 118px;
+    color: #b6a7d5;
+    font-size: 0.78rem;
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing: 0.13em;
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+
+  .history-fact {
+    min-width: 0;
+    margin: 0;
+    color: #d7d0e3;
+    font-size: 1rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .history-source {
+    color: var(--faint);
+    font-size: 0.82rem;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .history-source:hover {
+    color: #b8a6dc;
+  }
+
+  @media (max-width: 900px) {
+    body {
+      overflow-y: auto;
+    }
+
+    .stage {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2rem;
+      padding: 2rem 1rem;
+    }
+
+    .top-zone,
+    .bottom-zone {
+      display: block;
+    }
+
+    .header-block,
+    .grid-block,
+    .history-block {
+      width: min(1100px, calc(100vw - 2rem));
+      margin: 0 auto;
+    }
+
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem;
+    }
+
+    .history-card {
+      grid-template-columns: 1fr;
+      gap: 0.35rem;
+    }
+
+    .history-date {
+      min-width: 0;
+    }
+
+    .history-fact {
+      white-space: normal;
+    }
+
+    .history-source {
+      display: none;
+    }
+  }
+
+  @media (max-width: 540px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .tile {
+      min-height: 145px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="top-zone">
+      <header class="header-block">
+        <h1>Josh's Corner</h1>
+      </header>
+    </div>
+
+    <main class="grid-block">
+      <div class="grid">
+        <a class="tile" href="#" aria-label="Open Journal">
+          <span class="icon" aria-hidden="true">📖</span>
+          <div class="title">Journal</div>
+        </a>
+
+        <a class="tile" href="#" aria-label="Open General Notes">
+          <span class="icon" aria-hidden="true">🗒️</span>
+          <div class="title">General Notes</div>
+        </a>
+
+        <a class="tile" href="#" aria-label="Open To-Dos">
+          <span class="icon" aria-hidden="true">✓</span>
+          <div class="title">To-Dos</div>
+        </a>
+
+        <a class="tile" href="#" aria-label="Open Game Journal">
+          <span class="icon" aria-hidden="true">🗡️</span>
+          <div class="title">Game Journal</div>
+        </a>
+
+        <a class="tile" href="#" aria-label="Open Watchlist">
+          <span class="icon" aria-hidden="true">🎬</span>
+          <div class="title">Watchlist</div>
+        </a>
+
+        <a class="tile" href="#" aria-label="Open Reading List">
+          <span class="icon" aria-hidden="true">📚</span>
+          <div class="title">Reading List</div>
+        </a>
+      </div>
+    </main>
+
+    <div class="bottom-zone">
+      <aside class="history-block" aria-live="polite">
+        <div class="history-card">
+        <div class="history-date" id="history-date">On this day</div>
+        <p class="history-fact" id="history-fact">Finding a moment from history…</p>
+        <a
+          class="history-source"
+          id="history-source"
+          href="https://en.wikipedia.org/wiki/Wikipedia:On_this_day/Today"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Wikipedia ↗</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+<script>
+  const dateLabel = document.getElementById("history-date");
+  const factLabel = document.getElementById("history-fact");
+  const sourceLink = document.getElementById("history-source");
+
+  function shorten(text, maxLength = 190) {
+    const cleaned = text.replace(/\s+/g, " ").trim();
+    if (cleaned.length <= maxLength) return cleaned;
+
+    const shortened = cleaned.slice(0, maxLength);
+    const lastSpace = shortened.lastIndexOf(" ");
+    return shortened.slice(0, lastSpace > 120 ? lastSpace : maxLength).trimEnd() + "…";
+  }
+
+  function formatYear(year) {
+    return year < 0 ? `${Math.abs(year)} BC` : `${year}`;
+  }
+
+  async function fetchTodayInHistory() {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+
+    dateLabel.textContent =
+      "On this day · " +
+      new Intl.DateTimeFormat("en-AU", {
+        day: "numeric",
+        month: "long"
+      }).format(today);
+
+    const endpoints = [
+      `https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/${month}/${day}`,
+      `https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/${month}/${day}`
+    ];
+
+    let data = null;
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          headers: { "Accept": "application/json" }
+        });
+
+        if (!response.ok) continue;
+        data = await response.json();
+        if (Array.isArray(data.events) && data.events.length) break;
+      } catch (error) {
+        // try fallback endpoint
+      }
+    }
+
+    if (!data || !Array.isArray(data.events) || !data.events.length) {
+      factLabel.textContent =
+        "Today’s historical fact could not load. Check your internet connection and refresh.";
+      sourceLink.style.display = "none";
+      return;
+    }
+
+    const conciseEvents = data.events.filter(event => {
+      const length = (event.text || "").length;
+      return length >= 45 && length <= 230;
+    });
+
+    const eventPool = conciseEvents.length ? conciseEvents : data.events;
+
+    const dailySeed =
+      today.getFullYear() * 10000 +
+      (today.getMonth() + 1) * 100 +
+      today.getDate();
+
+    const event = eventPool[dailySeed % eventPool.length];
+    const year = formatYear(event.year);
+    factLabel.textContent = `${year} — ${shorten(event.text)}`;
+
+    const pageUrl =
+      event.pages &&
+      event.pages[0] &&
+      event.pages[0].content_urls &&
+      event.pages[0].content_urls.desktop &&
+      event.pages[0].content_urls.desktop.page;
+
+    if (pageUrl) {
+      sourceLink.href = pageUrl;
+    }
+  }
+
+  fetchTodayInHistory();
+</script>
+</body>
+</html>

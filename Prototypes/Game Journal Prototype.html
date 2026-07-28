@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Journal Prototype</title>
+<style>
+  @font-face {
+    font-family: "EB Garamond";
+    src: local("EB Garamond");
+  }
+
+  :root {
+    --bg: #101512;
+    --panel: #182019;
+    --panel-2: #1d271f;
+    --panel-3: #243027;
+    --text: #eef2e8;
+    --muted: #a8b09f;
+    --faint: #727c6d;
+    --line: #3a483d;
+    --gold: #c8a85b;
+    --gold-soft: rgba(200, 168, 91, 0.14);
+    --green: #45644c;
+    --green-bright: #78927d;
+    --danger: #aa7373;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(77, 108, 82, 0.16), transparent 34%),
+      linear-gradient(180deg, #111713 0%, #0d120f 100%);
+    color: var(--text);
+    font-family: "EB Garamond", Garamond, "Times New Roman", serif;
+  }
+
+  body {
+    min-height: 100vh;
+    padding: 1.25rem;
+  }
+
+  button, input, textarea, select {
+    font: inherit;
+  }
+
+  .shell {
+    max-width: 1340px;
+    margin: 0 auto;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .home-button {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    border: 1px solid var(--line);
+    background: rgba(24, 32, 25, 0.9);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 1.2rem;
+    transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .home-button:hover {
+    transform: translateY(-2px);
+    border-color: var(--gold);
+    box-shadow: 0 0 18px rgba(200, 168, 91, 0.2);
+  }
+
+  .game-app {
+    min-height: 770px;
+    display: grid;
+    grid-template-columns: 345px 1fr;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--panel);
+    box-shadow:
+      0 18px 50px rgba(0, 0, 0, 0.32),
+      0 0 36px rgba(200, 168, 91, 0.05);
+  }
+
+  .library {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(28, 38, 30, 0.98), rgba(20, 28, 22, 0.99));
+  }
+
+  .library-head {
+    padding: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .new-game {
+    width: 100%;
+    padding: 0.78rem 1rem;
+    border: 1px solid #75643c;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #5a4b2e, #443922);
+    color: #fff4d8;
+    cursor: pointer;
+    box-shadow: 0 0 16px rgba(200, 168, 91, 0.09);
+    transition: transform 150ms ease, box-shadow 150ms ease;
+  }
+
+  .new-game:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(200, 168, 91, 0.18);
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: 1fr 122px;
+    gap: 0.55rem;
+    margin-top: 0.8rem;
+  }
+
+  .search,
+  .status-filter {
+    min-height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #111712;
+    color: var(--text);
+    outline: none;
+  }
+
+  .search {
+    width: 100%;
+    padding: 0.65rem 0.78rem;
+  }
+
+  .status-filter {
+    padding: 0.55rem 0.65rem;
+  }
+
+  .search:focus,
+  .status-filter:focus {
+    border-color: var(--gold);
+  }
+
+  .game-list {
+    padding: 0.7rem;
+    overflow-y: auto;
+  }
+
+  .game-card {
+    width: 100%;
+    padding: 0.85rem 0.9rem;
+    margin-bottom: 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 140ms ease, border-color 140ms ease;
+  }
+
+  .game-card:hover {
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .game-card.active {
+    background: var(--gold-soft);
+    border-color: rgba(200, 168, 91, 0.38);
+  }
+
+  .game-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+
+  .game-name {
+    color: #f2f3e8;
+    font-size: 1.08rem;
+  }
+
+  .mini-rating {
+    color: var(--gold);
+    font-size: 0.83rem;
+    white-space: nowrap;
+  }
+
+  .game-preview {
+    margin-top: 0.28rem;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.3;
+  }
+
+  .game-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 0.42rem;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 23px;
+    padding: 0.15rem 0.48rem;
+    border: 1px solid rgba(120, 146, 125, 0.35);
+    border-radius: 999px;
+    color: #aebcaf;
+    background: rgba(69, 100, 76, 0.13);
+    font-size: 0.72rem;
+  }
+
+  .edited {
+    color: var(--faint);
+    font-size: 0.74rem;
+  }
+
+  .editor {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background:
+      linear-gradient(180deg, rgba(26, 35, 28, 0.98), rgba(21, 29, 23, 0.99));
+  }
+
+  .editor-head {
+    padding: 1.1rem 1.3rem 0.95rem;
+    border-bottom: 1px solid var(--line);
+    background: rgba(31, 42, 34, 0.5);
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .game-title-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text);
+    font-family: "EB Garamond", Garamond, serif;
+    font-size: clamp(1.8rem, 3vw, 2.55rem);
+  }
+
+  .save-state {
+    color: var(--faint);
+    font-size: 0.84rem;
+    white-space: nowrap;
+  }
+
+  .detail-row {
+    display: grid;
+    grid-template-columns: 170px 190px 170px 150px;
+    gap: 0.75rem;
+    align-items: end;
+    margin-top: 1rem;
+  }
+
+  .field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .field select,
+  .field input,
+  .rating-control {
+    width: 100%;
+    min-height: 39px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #131a15;
+    color: var(--text);
+  }
+
+  .field select,
+  .field input {
+    padding: 0.55rem 0.65rem;
+    outline: none;
+  }
+
+  .field input:focus,
+  .field select:focus {
+    border-color: var(--gold);
+  }
+
+  .rating-control {
+    display: flex;
+    align-items: center;
+    gap: 0.12rem;
+    padding: 0.35rem 0.55rem;
+  }
+
+  .rating-star {
+    position: relative;
+    width: 1.22rem;
+    height: 1.22rem;
+    border: 0;
+    background: transparent;
+    color: #5e6559;
+    padding: 0;
+    font-size: 1.12rem;
+    line-height: 1;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  .rating-star::before {
+    content: "☆";
+    position: absolute;
+    inset: 0;
+    color: #5e6559;
+  }
+
+  .rating-star::after {
+    content: "★";
+    position: absolute;
+    inset: 0;
+    color: var(--gold);
+    width: var(--fill, 0%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .rating-label {
+    margin-left: 0.45rem;
+    color: var(--muted);
+    font-size: 0.83rem;
+    white-space: nowrap;
+  }
+
+  .section-divider {
+    position: relative;
+    height: 22px;
+    margin: 0.2rem 1.3rem 0;
+  }
+
+  .section-divider::before,
+  .section-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: calc(50% - 20px);
+    height: 1px;
+    background: var(--line);
+  }
+
+  .section-divider::before { left: 0; }
+  .section-divider::after { right: 0; }
+
+  .section-divider span {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -52%);
+    color: var(--gold);
+    font-size: 0.9rem;
+  }
+
+  .writing-area {
+    flex: 1;
+    min-height: 0;
+    padding: 0.8rem 1.8rem 1.4rem;
+  }
+
+  .journal-body {
+    width: 100%;
+    height: 100%;
+    min-height: 500px;
+    resize: none;
+    border: 0;
+    outline: none;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 2rem,
+        rgba(200, 168, 91, 0.055) 2.04rem
+      );
+    color: #e8ece2;
+    font-family: "EB Garamond", Garamond, serif;
+    font-size: 1.14rem;
+    line-height: 2.04rem;
+    caret-color: var(--gold);
+  }
+
+  .journal-body::placeholder {
+    color: #657064;
+  }
+
+  .editor-footer {
+    padding: 0.85rem 1.3rem;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .footer-note {
+    color: var(--faint);
+    font-size: 0.84rem;
+  }
+
+  .footer-actions {
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  .delete-button,
+  .save-button {
+    padding: 0.68rem 0.95rem;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+
+  .delete-button {
+    border: 1px solid #5a3c3c;
+    background: transparent;
+    color: var(--danger);
+  }
+
+  .save-button {
+    border: 1px solid #796638;
+    background: linear-gradient(180deg, #6a5831, #4d4125);
+    color: #fff4d8;
+    box-shadow: 0 0 15px rgba(200, 168, 91, 0.09);
+  }
+
+  @media (max-width: 950px) {
+    .game-app {
+      grid-template-columns: 285px 1fr;
+    }
+
+    .detail-row {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    body {
+      padding: 0.8rem;
+    }
+
+    .game-app {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+
+    .library {
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .game-list {
+      max-height: 250px;
+    }
+
+    .editor {
+      min-height: 660px;
+    }
+
+    .detail-row {
+      grid-template-columns: 1fr;
+    }
+
+    .writing-area {
+      padding-left: 1.2rem;
+      padding-right: 1.2rem;
+    }
+
+    .editor-footer {
+      align-items: flex-end;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="home-button" href="joshs_corner_homepage_history_prototype_v4.html" aria-label="Back to homepage">⌂</a>
+    </header>
+
+    <main class="game-app">
+      <aside class="library">
+        <div class="library-head">
+          <button class="new-game" id="new-game">＋ New Game Journal</button>
+
+          <div class="filter-row">
+            <input class="search" id="search" type="search" placeholder="Search games">
+            <select class="status-filter" id="status-filter" aria-label="Filter games by status">
+              <option value="all">All statuses</option>
+              <option value="Playing">Playing</option>
+              <option value="Completed">Completed</option>
+              <option value="Dropped">Dropped</option>
+              <option value="Backlog">Backlog</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="game-list" id="game-list">
+          <button class="game-card active" data-index="0" data-status="Completed">
+            <div class="game-card-top">
+              <div class="game-name">Elden Ring</div>
+              <div class="mini-rating">★★★★★</div>
+            </div>
+            <div class="game-preview">A world that constantly rewarded curiosity and patience…</div>
+            <div class="game-meta">
+              <span class="status-pill">Completed</span>
+              <span class="edited">Edited today</span>
+            </div>
+          </button>
+
+          <button class="game-card" data-index="1" data-status="Playing">
+            <div class="game-card-top">
+              <div class="game-name">Baldur's Gate 3</div>
+              <div class="mini-rating">★★★★☆</div>
+            </div>
+            <div class="game-preview">The party feels like a group of actual personalities rather than quest markers…</div>
+            <div class="game-meta">
+              <span class="status-pill">Playing</span>
+              <span class="edited">Edited 25 July</span>
+            </div>
+          </button>
+
+          <button class="game-card" data-index="2" data-status="Completed">
+            <div class="game-card-top">
+              <div class="game-name">Red Dead Redemption 2</div>
+              <div class="mini-rating">★★★★★</div>
+            </div>
+            <div class="game-preview">Slow, deliberate and often more interested in atmosphere than momentum…</div>
+            <div class="game-meta">
+              <span class="status-pill">Completed</span>
+              <span class="edited">Edited 17 July</span>
+            </div>
+          </button>
+
+          <button class="game-card" data-index="3" data-status="Dropped">
+            <div class="game-card-top">
+              <div class="game-name">Starfield</div>
+              <div class="mini-rating">★★★☆☆</div>
+            </div>
+            <div class="game-preview">There were pieces I liked, but the exploration loop never quite pulled me in…</div>
+            <div class="game-meta">
+              <span class="status-pill">Dropped</span>
+              <span class="edited">Edited 4 July</span>
+            </div>
+          </button>
+
+          <button class="game-card" data-index="4" data-status="Backlog">
+            <div class="game-card-top">
+              <div class="game-name">Disco Elysium</div>
+              <div class="mini-rating">☆☆☆☆☆</div>
+            </div>
+            <div class="game-preview">Still waiting for the right quiet weekend to begin…</div>
+            <div class="game-meta">
+              <span class="status-pill">Backlog</span>
+              <span class="edited">Added 30 June</span>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <section class="editor">
+        <div class="editor-head">
+          <div class="title-row">
+            <input class="game-title-input" id="game-title" value="Elden Ring" aria-label="Game title">
+            <div class="save-state" id="save-state">Saved</div>
+          </div>
+
+          <div class="detail-row">
+            <div class="field">
+              <label for="game-status">Status</label>
+              <select id="game-status">
+                <option>Playing</option>
+                <option selected>Completed</option>
+                <option>Dropped</option>
+                <option>Backlog</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Rating</label>
+              <div class="rating-control" id="rating-control" aria-label="Game rating">
+                <button class="rating-star" type="button" data-star="1" aria-label="Rate 1 star"></button>
+                <button class="rating-star" type="button" data-star="2" aria-label="Rate 2 stars"></button>
+                <button class="rating-star" type="button" data-star="3" aria-label="Rate 3 stars"></button>
+                <button class="rating-star" type="button" data-star="4" aria-label="Rate 4 stars"></button>
+                <button class="rating-star" type="button" data-star="5" aria-label="Rate 5 stars"></button>
+                <span class="rating-label" id="rating-label">5 / 5</span>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="game-platform">Platform</label>
+              <input id="game-platform" type="text" value="PC" placeholder="e.g. PC">
+            </div>
+
+            <div class="field">
+              <label for="hours-played">Hours played</label>
+              <input id="hours-played" type="number" min="0" step="0.5" value="146" placeholder="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider" aria-hidden="true"><span>◆</span></div>
+
+        <div class="writing-area">
+          <textarea class="journal-body" id="journal-body" spellcheck="true">Elden Ring made exploration feel meaningful again.
+
+The strongest part of the game was how rarely it explained where I should go. Seeing something unusual in the distance was usually enough reason to head toward it, and the world almost always rewarded that curiosity with a new location, item, character or completely unexpected fight.
+
+The combat took time to click, but once it did, each difficult boss felt less like a wall and more like a problem I could gradually understand. The moments where I finally recognised an attack pattern and reacted correctly were genuinely satisfying.
+
+What I will remember most:
+• Discovering Siofra River for the first time
+• The scale of Leyndell
+• Finally defeating Malenia
+• How lonely and beautiful the world often felt
+
+It was demanding, occasionally frustrating, and far larger than it needed to be—but it gave me more memorable moments than almost anything else I have played.</textarea>
+        </div>
+
+        <div class="editor-footer">
+          <div class="footer-note">Last edited today at 9:38 pm</div>
+          <div class="footer-actions">
+            <button class="delete-button" type="button">Delete journal</button>
+            <button class="save-button" type="button" id="save-button">Save journal</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+  const examples = [
+    {
+      title: "Elden Ring",
+      status: "Completed",
+      rating: 5,
+      platform: "PC",
+      hours: 146,
+      body: `Elden Ring made exploration feel meaningful again.
+
+The strongest part of the game was how rarely it explained where I should go. Seeing something unusual in the distance was usually enough reason to head toward it, and the world almost always rewarded that curiosity with a new location, item, character or completely unexpected fight.
+
+The combat took time to click, but once it did, each difficult boss felt less like a wall and more like a problem I could gradually understand. The moments where I finally recognised an attack pattern and reacted correctly were genuinely satisfying.
+
+What I will remember most:
+• Discovering Siofra River for the first time
+• The scale of Leyndell
+• Finally defeating Malenia
+• How lonely and beautiful the world often felt
+
+It was demanding, occasionally frustrating, and far larger than it needed to be—but it gave me more memorable moments than almost anything else I have played.`
+    },
+    {
+      title: "Baldur's Gate 3",
+      status: "Playing",
+      rating: 4,
+      platform: "PC",
+      hours: 52,
+      body: `The most impressive part so far is how reactive everything feels.
+
+Conversations do not seem like decorative pauses between fights. They often change what happens next, and the companions feel like people with their own priorities rather than extensions of the player.
+
+I am still deciding how I feel about the combat pacing, but the writing and freedom have carried it easily.`
+    },
+    {
+      title: "Red Dead Redemption 2",
+      status: "Completed",
+      rating: 5,
+      platform: "PlayStation",
+      hours: 91,
+      body: `This was much slower than most games I usually stick with, but that slowness became its greatest strength.
+
+The camp, the small conversations and the long rides made the world feel inhabited. Arthur's story worked because the game gave it enough space to breathe.`
+    },
+    {
+      title: "Starfield",
+      status: "Dropped",
+      rating: 3,
+      platform: "PC",
+      hours: 24,
+      body: `There were individual pieces I enjoyed, especially the ship building and some of the side stories.
+
+The problem was the space between those pieces. Exploration felt fragmented, and I never developed the urge to keep seeing what was over the next hill because getting there usually meant another menu and loading screen.`
+    },
+    {
+      title: "Disco Elysium",
+      status: "Backlog",
+      rating: 0,
+      platform: "PC",
+      hours: "",
+      body: `Why I want to play it:
+
+• Writing-heavy role-playing
+• Unusual skill system
+• Strong reputation for character and atmosphere
+• Seems suited to a quiet weekend without distractions`
+    }
+  ];
+
+  const cards = document.querySelectorAll(".game-card");
+  const titleInput = document.getElementById("game-title");
+  const statusInput = document.getElementById("game-status");
+  const bodyInput = document.getElementById("journal-body");
+  const saveState = document.getElementById("save-state");
+  const platformInput = document.getElementById("game-platform");
+  const hoursInput = document.getElementById("hours-played");
+  const ratingStars = [...document.querySelectorAll(".rating-star")];
+  const ratingLabel = document.getElementById("rating-label");
+  const newGameButton = document.getElementById("new-game");
+  const saveButton = document.getElementById("save-button");
+  const searchInput = document.getElementById("search");
+  const statusFilter = document.getElementById("status-filter");
+
+  let currentRating = 5;
+
+  function setRating(value) {
+    currentRating = Math.max(0, Math.min(5, value));
+
+    ratingStars.forEach((star, index) => {
+      const starNumber = index + 1;
+      let fill = 0;
+
+      if (currentRating >= starNumber) {
+        fill = 100;
+      } else if (currentRating >= starNumber - 0.5) {
+        fill = 50;
+      }
+
+      star.style.setProperty("--fill", `${fill}%`);
+    });
+
+    ratingLabel.textContent = currentRating ? `${currentRating} / 5` : "Not rated";
+  }
+
+  function openGame(index) {
+    const game = examples[index];
+    titleInput.value = game.title;
+    statusInput.value = game.status;
+    bodyInput.value = game.body;
+    platformInput.value = game.platform;
+    hoursInput.value = game.hours;
+    setRating(game.rating);
+    saveState.textContent = "Saved";
+  }
+
+  cards.forEach((card, index) => {
+    card.addEventListener("click", () => {
+      cards.forEach(item => item.classList.remove("active"));
+      card.classList.add("active");
+      openGame(index);
+    });
+  });
+
+  ratingStars.forEach((star, index) => {
+    star.addEventListener("click", event => {
+      const rect = star.getBoundingClientRect();
+      const clickedLeftHalf = event.clientX - rect.left < rect.width / 2;
+      const value = index + (clickedLeftHalf ? 0.5 : 1);
+
+      setRating(value);
+      saveState.textContent = "Unsaved changes";
+    });
+  });
+
+  [titleInput, statusInput, bodyInput, platformInput, hoursInput].forEach(control => {
+    control.addEventListener("input", () => {
+      saveState.textContent = "Unsaved changes";
+    });
+    control.addEventListener("change", () => {
+      saveState.textContent = "Unsaved changes";
+    });
+  });
+
+  newGameButton.addEventListener("click", () => {
+    cards.forEach(item => item.classList.remove("active"));
+    titleInput.value = "Untitled game";
+    statusInput.value = "Backlog";
+    bodyInput.value = "";
+    bodyInput.placeholder = "Write about your experience with this game…";
+    platformInput.value = "";
+    hoursInput.value = "";
+    setRating(0);
+    saveState.textContent = "New journal";
+    titleInput.focus();
+    titleInput.select();
+  });
+
+  saveButton.addEventListener("click", () => {
+    saveState.textContent = "Saved";
+  });
+
+  function applyFilters() {
+    const query = searchInput.value.trim().toLowerCase();
+    const selectedStatus = statusFilter.value;
+
+    cards.forEach(card => {
+      const name = card.querySelector(".game-name").textContent.toLowerCase();
+      const preview = card.querySelector(".game-preview").textContent.toLowerCase();
+      const status = card.dataset.status;
+
+      const matchesSearch = !query || name.includes(query) || preview.includes(query);
+      const matchesStatus = selectedStatus === "all" || status === selectedStatus;
+
+      card.style.display = matchesSearch && matchesStatus ? "" : "none";
+    });
+  }
+
+  searchInput.addEventListener("input", applyFilters);
+  statusFilter.addEventListener("change", applyFilters);
+</script>
+</body>
+</html>

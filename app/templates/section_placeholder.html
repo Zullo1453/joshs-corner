@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ section_name }} · Josh's Corner{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shell.css') }}">
+{% endblock %}
+{% block body_class %}internal-page{% endblock %}
+{% block body %}
+  <div class="shell">
+    <header class="topbar">
+      <a class="home-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">⌂</a>
+    </header>
+    <main class="placeholder" aria-label="{{ section_name }}">
+      <p>{{ section_name }} will be built in a later approved stage.</p>
+    </main>
+  </div>
+{% endblock %}

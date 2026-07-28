@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Journal · Josh's Corner{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/journal.css') }}">
+{% endblock %}
+{% block body_class %}journal-page calendar-page{% endblock %}
+{% block body %}
+  <div class="journal-shell">
+    <header class="journal-topbar">
+      <a class="journal-icon-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">⌂</a>
+      <div class="journal-page-title">
+        <h1>Journal</h1>
+        <p>choose a day, open a page</p>
+      </div>
+      <div></div>
+    </header>
+
+    <main class="journal-panel stitched calendar-panel">
+      <nav class="calendar-controls" aria-label="Calendar navigation">
+        <div class="month-nav">
+          <a class="nav-button" href="{{ url_for('journal.index', year=previous_year, month=previous_month) }}" aria-label="Previous month">←</a>
+          <a class="nav-button" href="{{ url_for('journal.index', year=next_year, month=next_month) }}" aria-label="Next month">→</a>
+        </div>
+        <div class="month-label" aria-live="polite">{{ month_label }}</div>
+        <a class="today-button" href="{{ url_for('journal.index', year=today.year, month=today.month) }}">Today</a>
+      </nav>
+
+      <div class="weekday-row" aria-hidden="true">
+        {% for weekday in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") %}
+          <div class="weekday">{{ weekday }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="calendar-grid" aria-label="{{ month_label }}">
+        {% for week in weeks %}
+          {% for day in week %}
+            {% set entry = entry_map.get(day) %}
+            <a
+              class="day{% if day.month != month %} muted{% endif %}{% if day == today %} today{% endif %}{% if entry %} has-entry{% endif %}"
+              href="{{ url_for('journal.entry', entry_date=day.isoformat(), return_year=year, return_month=month) }}"
+              data-date="{{ day.isoformat() }}"
+              {% if day == today %}aria-current="date"{% endif %}
+              {% if entry %}data-has-entry="true"{% endif %}
+            >
+              <span class="day-number">{{ day.day }}</span>
+              {% if entry %}
+                <span class="entry-preview">{{ entry.body|striptags|truncate(66) }}</span>
+                <span class="visually-hidden">Journal entry saved</span>
+              {% endif %}
+            </a>
+          {% endfor %}
+        {% endfor %}
+      </div>
+
+      <div class="legend" aria-label="Calendar legend">
+        <div class="legend-item"><span class="legend-ring" aria-hidden="true"></span> Today</div>
+        <div class="legend-item"><span class="legend-dot" aria-hidden="true"></span> Journal entry</div>
+      </div>
+    </main>
+  </div>
+{% endblock %}
