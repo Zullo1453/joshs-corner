@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .extensions import db
 
@@ -50,6 +50,18 @@ class GameJournal(TimestampMixin, db.Model):
     platform: Mapped[str] = mapped_column(String(100), default="", nullable=False)
     hours_played: Mapped[float | None] = mapped_column(Float)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    play_entries: Mapped[list["GamePlayEntry"]] = relationship(
+        back_populates="game", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class GamePlayEntry(TimestampMixin, db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    game_id: Mapped[int] = mapped_column(db.ForeignKey("game_journal.id", ondelete="CASCADE"), nullable=False, index=True)
+    played_on: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    game: Mapped[GameJournal] = relationship(back_populates="play_entries")
 
 
 class WatchlistItem(TimestampMixin, db.Model):

@@ -35,4 +35,5 @@ document.addEventListener("DOMContentLoaded", () => {
   const deleteTrigger = document.querySelector("[data-game-delete]");
   const deleteForm = document.querySelector("[data-game-delete-form]");
   if (deleteTrigger && deleteForm) deleteTrigger.addEventListener("click", () => { if (window.confirm("Delete this game journal permanently?")) deleteForm.requestSubmit(); });
+  document.querySelectorAll("[data-play-delete]").forEach((form) => form.addEventListener("submit", (event) => { if (!window.confirm("Delete this play entry permanently?")) event.preventDefault(); }));
 });

@@ -31,6 +31,7 @@
     </main>
 
     <div class="bottom-zone">
+      <div class="home-panels">
       <aside class="history-block" aria-labelledby="history-date">
         <div class="history-card">
           <div class="history-date" id="history-date">
@@ -57,6 +58,20 @@
           {% endif %}
         </div>
       </aside>
+      <aside class="figure-block" aria-labelledby="figure-title">
+        <div class="figure-card">
+          <div class="figure-kicker" id="figure-title">Interesting Figure of the Day</div>
+          {% if daily_figure %}
+            <div class="figure-value">{{ daily_figure.formatted_value }}</div>
+            <div class="figure-title">{{ daily_figure.indicator.title }} in {{ daily_figure.indicator.scope_label }}</div>
+            <p class="figure-context">{{ daily_figure.indicator.context }}</p>
+            <div class="figure-meta">Latest available: {{ daily_figure.year }} · Source: World Bank{% if daily_figure.state == 'cached' %} · Cached{% elif daily_figure.state == 'previously_cached' %} · Previously cached figure{% elif daily_figure.state == 'fallback' %} · Built-in fallback{% endif %}</div>
+          {% else %}
+            <p class="figure-context">Figure unavailable while offline.</p>
+          {% endif %}
+        </div>
+      </aside>
+      </div>
     </div>
   </div>
 {% endblock %}

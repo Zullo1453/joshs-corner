@@ -9,6 +9,11 @@ class OfflineHistoryService:
         return None
 
 
+class OfflineFigureService:
+    def get_figure(self, selected_date):
+        return None
+
+
 @pytest.fixture()
 def app():
     app = create_app(
@@ -16,6 +21,7 @@ def app():
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
             "ON_THIS_DAY_SERVICE": OfflineHistoryService(),
+            "FIGURE_OF_DAY_SERVICE": OfflineFigureService(),
             "WTF_CSRF_ENABLED": False,
         }
     )

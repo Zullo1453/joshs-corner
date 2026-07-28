@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from datetime import date
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
-from ..models import GameJournal
+from ..models import GameJournal, GamePlayEntry
 
 
 games_bp = Blueprint("games", __name__, url_prefix="/games")
@@ -14,6 +15,7 @@ VALID_STATUSES = ("Playing", "Completed", "Dropped", "Backlog")
 MAX_TITLE_LENGTH = 200
 MAX_PLATFORM_LENGTH = 100
 MAX_HOURS_PLAYED = Decimal("100000")
+MAX_PLAY_BODY_LENGTH = 10000
 
 
 @dataclass
@@ -24,6 +26,13 @@ class GameDraft:
     platform: str = ""
     hours_played: str = ""
     notes: str = ""
+
+
+@dataclass
+class PlayEntryDraft:
+    played_on: str = ""
+    title: str = ""
+    body: str = ""
 
 
 @games_bp.get("/")
@@ -69,7 +78,44 @@ def delete(game_id):
     return redirect_to_games()
 
 
-def render_games(new_game=False, selected_game=None, draft=None, error=None):
+@games_bp.post("/<int:game_id>/play-log")
+def create_play_entry(game_id):
+    game = db.get_or_404(GameJournal, game_id)
+    draft, error = play_entry_from_form()
+    if error:
+        return render_games(selected_game=game, play_draft=draft, play_error=error), 400
+    db.session.add(GamePlayEntry(game=game, **play_entry_values(draft)))
+    db.session.commit()
+    return redirect_to_games(game.id)
+
+
+@games_bp.post("/<int:game_id>/play-log/<int:entry_id>")
+def update_play_entry(game_id, entry_id):
+    game = db.get_or_404(GameJournal, game_id)
+    entry = db.get_or_404(GamePlayEntry, entry_id)
+    if entry.game_id != game.id:
+        abort(404)
+    draft, error = play_entry_from_form()
+    if error:
+        return render_games(selected_game=game, play_draft=draft, play_error=error, editing_entry_id=entry.id), 400
+    for field, value in play_entry_values(draft).items():
+        setattr(entry, field, value)
+    db.session.commit()
+    return redirect_to_games(game.id)
+
+
+@games_bp.post("/<int:game_id>/play-log/<int:entry_id>/delete")
+def delete_play_entry(game_id, entry_id):
+    game = db.get_or_404(GameJournal, game_id)
+    entry = db.get_or_404(GamePlayEntry, entry_id)
+    if entry.game_id != game.id:
+        abort(404)
+    db.session.delete(entry)
+    db.session.commit()
+    return redirect_to_games(game.id)
+
+
+def render_games(new_game=False, selected_game=None, draft=None, error=None, play_draft=None, play_error=None, editing_entry_id=None):
     if new_game and draft is None:
         draft = GameDraft()
     query = request.args.get("q", "").strip()
@@ -107,6 +153,10 @@ def render_games(new_game=False, selected_game=None, draft=None, error=None):
         query=query,
         status=status,
         statuses=VALID_STATUSES,
+        play_entries=sorted(selected_game.play_entries, key=lambda entry: (entry.played_on, entry.created_at, entry.id), reverse=True) if selected_game else [],
+        play_draft=play_draft,
+        play_error=play_error,
+        editing_entry_id=editing_entry_id,
     )
 
 
@@ -155,6 +205,29 @@ def game_values(draft):
         "hours_played": float(Decimal(draft.hours_played)) if draft.hours_played else None,
         "notes": draft.notes,
     }
+
+
+def play_entry_from_form():
+    draft = PlayEntryDraft(
+        played_on=(request.form.get("played_on") or "").strip(),
+        title=(request.form.get("title") or "").strip(),
+        body=request.form.get("body") or "",
+    )
+    try:
+        date.fromisoformat(draft.played_on)
+    except ValueError:
+        return draft, "Choose a valid date played."
+    if len(draft.title) > MAX_TITLE_LENGTH:
+        return draft, f"Play-entry titles must be {MAX_TITLE_LENGTH} characters or fewer."
+    if not draft.body.strip():
+        return draft, "A play-entry body is required."
+    if len(draft.body) > MAX_PLAY_BODY_LENGTH:
+        return draft, f"Play entries must be {MAX_PLAY_BODY_LENGTH} characters or fewer."
+    return draft, None
+
+
+def play_entry_values(draft):
+    return {"played_on": date.fromisoformat(draft.played_on), "title": draft.title, "body": draft.body.strip()}
 
 
 def escape_like(value):

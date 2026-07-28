@@ -39,9 +39,13 @@ def create_app(test_config=None):
         )
 
     from .on_this_day import OnThisDayService
+    from .figure_of_day import FigureOfDayService
 
     app.extensions["on_this_day"] = app.config.get("ON_THIS_DAY_SERVICE") or OnThisDayService(
         Path(app.instance_path) / "on_this_day_cache.json"
+    )
+    app.extensions["figure_of_day"] = app.config.get("FIGURE_OF_DAY_SERVICE") or FigureOfDayService(
+        Path(app.instance_path) / "figure_of_day_cache.json"
     )
 
     @app.template_filter("local_saved_time")

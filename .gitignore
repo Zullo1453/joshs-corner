@@ -13,6 +13,7 @@ backups/*
 *.test.db
 *.tmp.db
 instance/*.db-*
+instance/server.log
 local_config.py
 
 .env

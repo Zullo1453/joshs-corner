@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import GameJournal
+from app.models import GameJournal, GamePlayEntry
 
 
 def add_game(app, title="Game", **values):
@@ -164,3 +164,26 @@ def test_writing_area_uses_a_spaced_line_grid_for_readability(client):
     assert b"background-size:100% 34px" in stylesheet.data
     assert b"background-position:0 9px" in stylesheet.data
     assert b"font:1rem/34px" in stylesheet.data
+
+
+def test_play_entries_are_independent_and_ordered(client, app):
+    game_id = add_game(app, "Logbook", notes="Overall review stays here")
+    first = client.post(f"/games/{game_id}/play-log", data={"played_on": "2026-07-20", "title": "First", "body": "A safe first session."})
+    second = client.post(f"/games/{game_id}/play-log", data={"played_on": "2026-07-21", "title": "Second", "body": "A newer session."})
+    assert first.status_code == 302 and second.status_code == 302
+    page = client.get(f"/games/?game_id={game_id}")
+    assert page.data.index(b"Second") < page.data.index(b"First")
+    with app.app_context():
+        assert GameJournal.query.get(game_id).notes == "Overall review stays here"
+        assert GamePlayEntry.query.count() == 2
+        entry = GamePlayEntry.query.first()
+        client.post(f"/games/{game_id}/play-log/{entry.id}/delete")
+        assert db.session.get(GameJournal, game_id) is not None
+
+
+def test_play_entry_requires_date_and_body_and_handles_missing_game(client, app):
+    assert client.post("/games/999/play-log", data={}).status_code == 404
+    game_id = add_game(app)
+    bad = client.post(f"/games/{game_id}/play-log", data={"played_on": "", "body": ""})
+    assert bad.status_code == 400
+    assert b"valid date" in bad.data
