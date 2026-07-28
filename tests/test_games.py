@@ -1,0 +1,158 @@
+from app.extensions import db
+from app.models import GameJournal
+
+
+def add_game(app, title="Game", **values):
+    with app.app_context():
+        game = GameJournal(title=title, **values)
+        db.session.add(game)
+        db.session.commit()
+        return game.id
+
+
+def game_data(**overrides):
+    values = {
+        "title": "Hollow Knight",
+        "status": "Playing",
+        "rating": "4.5",
+        "platform": "Nintendo Switch",
+        "hours_played": "18.5",
+        "notes": "Exploring the forgotten crossroads.",
+    }
+    values.update(overrides)
+    return values
+
+
+def test_games_page_loads_with_empty_state(client):
+    response = client.get("/games/")
+
+    assert response.status_code == 200
+    assert b"New Game Journal" in response.data
+    assert b"No game journals yet." in response.data
+
+
+def test_create_game_journal(client, app):
+    response = client.post("/games/new", data=game_data(), follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Hollow Knight" in response.data
+    with app.app_context():
+        game = GameJournal.query.one()
+        assert game.status == "Playing"
+        assert game.rating == 4.5
+        assert game.platform == "Nintendo Switch"
+        assert game.hours_played == 18.5
+
+
+def test_blank_title_is_rejected(client, app):
+    response = client.post("/games/new", data=game_data(title="   "))
+
+    assert response.status_code == 400
+    assert b"A game title is required." in response.data
+    with app.app_context():
+        assert GameJournal.query.count() == 0
+
+
+def test_update_game_journal(client, app):
+    game_id = add_game(app, "Before", status="Backlog", notes="Old note")
+
+    response = client.post(
+        f"/games/{game_id}", data=game_data(title="After", status="Completed", notes="New note"), follow_redirects=True
+    )
+
+    assert response.status_code == 200
+    assert b"After" in response.data
+    with app.app_context():
+        game = db.session.get(GameJournal, game_id)
+        assert game.status == "Completed"
+        assert game.notes == "New note"
+
+
+def test_delete_game_journal(client, app):
+    game_id = add_game(app, "Temporary")
+
+    response = client.post(f"/games/{game_id}/delete", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"No game journals yet." in response.data
+    with app.app_context():
+        assert db.session.get(GameJournal, game_id) is None
+
+
+def test_search_by_title_and_notes(client, app):
+    add_game(app, "Outer Wilds", notes="Ancient Nomai messages")
+    add_game(app, "Celeste", notes="Mountain climbing")
+
+    title_response = client.get("/games/?q=outer")
+    notes_response = client.get("/games/?q=nomai")
+
+    assert b"Outer Wilds" in title_response.data and b"Celeste" not in title_response.data
+    assert b"Outer Wilds" in notes_response.data and b"Celeste" not in notes_response.data
+
+
+def test_status_and_combined_filters(client, app):
+    add_game(app, "Active Quest", status="Playing", notes="Forest map")
+    add_game(app, "Old Quest", status="Completed", notes="Forest map")
+    add_game(app, "Other Quest", status="Playing", notes="Desert map")
+
+    filtered = client.get("/games/?status=Playing")
+    combined = client.get("/games/?status=Playing&q=forest")
+
+    assert b"Active Quest" in filtered.data and b"Old Quest" not in filtered.data
+    assert b"Active Quest" in combined.data
+    assert b"Old Quest" not in combined.data and b"Other Quest" not in combined.data
+
+
+def test_platform_and_blank_or_valid_hours_played(client, app):
+    response = client.post("/games/new", data=game_data(hours_played="", platform="PC"), follow_redirects=True)
+    assert response.status_code == 200
+    with app.app_context():
+        game = GameJournal.query.one()
+        assert game.platform == "PC"
+        assert game.hours_played is None
+
+    response = client.post(f"/games/{game.id}", data=game_data(hours_played="123.25"), follow_redirects=True)
+    assert response.status_code == 200
+    with app.app_context():
+        assert db.session.get(GameJournal, game.id).hours_played == 123.25
+
+
+def test_negative_and_excessive_hours_are_rejected(client, app):
+    for hours in ("-1", "100000.5"):
+        response = client.post("/games/new", data=game_data(hours_played=hours))
+        assert response.status_code == 400
+        assert b"Hours played must be between 0 and 100000." in response.data
+    with app.app_context():
+        assert GameJournal.query.count() == 0
+
+
+def test_full_and_half_star_ratings_are_saved(client, app):
+    full = client.post("/games/new", data=game_data(title="Full", rating="5"), follow_redirects=True)
+    half = client.post("/games/new", data=game_data(title="Half", rating="3.5"), follow_redirects=True)
+
+    assert b"5.0 / 5" in full.data
+    assert b"3.5 / 5" in half.data
+    with app.app_context():
+        ratings = {game.title: game.rating for game in GameJournal.query.all()}
+        assert ratings == {"Full": 5.0, "Half": 3.5}
+
+
+def test_invalid_rating_status_and_missing_id_are_handled(client, app):
+    invalid_rating = client.post("/games/new", data=game_data(rating="3.2"))
+    invalid_status = client.post("/games/new", data=game_data(status="Unknown"))
+
+    assert invalid_rating.status_code == 400
+    assert b"half-star increments" in invalid_rating.data
+    assert invalid_status.status_code == 400
+    assert b"valid game status" in invalid_status.data
+    assert client.post("/games/999999/delete").status_code == 404
+    assert client.post("/games/999999").status_code == 404
+
+
+def test_game_controls_and_delete_confirmation_assets(client):
+    page = client.get("/games/new")
+    script = client.get("/static/js/games.js")
+
+    assert b'data-rating-stars' in page.data
+    assert b'data-star="1"' in page.data
+    assert b"Delete this game journal permanently?" in script.data

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Game Journal · Josh's Corner{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/games.css') }}">{% endblock %}
+{% block body_class %}games-page{% endblock %}
+{% block body %}
+<div class="games-shell">
+  <header class="games-topbar"><a class="games-home" href="{{ url_for('home.index') }}" aria-label="Back to homepage">⌂</a></header>
+  <main class="game-app">
+    <aside class="game-sidebar">
+      <div class="game-sidebar-head">
+        <a class="new-game" href="{{ url_for('games.new') }}">＋ New Game Journal</a>
+        <form class="game-filters" method="get" action="{{ url_for('games.index') }}" data-game-filters>
+          <label class="visually-hidden" for="game-search">Search games</label>
+          <input id="game-search" name="q" type="search" value="{{ query }}" placeholder="Search games" autocomplete="off" data-game-search>
+          <label class="visually-hidden" for="game-status-filter">Filter by status</label>
+          <select id="game-status-filter" name="status" data-game-status>
+            <option value="all"{% if status == 'all' %} selected{% endif %}>All statuses</option>
+            {% for option in statuses %}<option value="{{ option }}"{% if status == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
+          </select>
+        </form>
+      </div>
+      <div class="game-list" aria-label="Game journals">
+      {% for listed_game in games %}
+        <article class="game-card{% if selected_game and listed_game.id == selected_game.id %} active{% endif %}">
+          <a class="game-card-link" href="{{ url_for('games.index', game_id=listed_game.id, q=query, status=status) }}"{% if selected_game and listed_game.id == selected_game.id %} aria-current="page"{% endif %}>
+            <span class="game-card-title">{{ listed_game.title }}</span>
+            <span class="game-card-meta"><span class="mini-stars">★</span> {% if listed_game.rating is none %}Not rated{% else %}{{ '%.1f'|format(listed_game.rating) }} / 5{% endif %}</span>
+            <span class="game-card-preview">{{ listed_game.notes|truncate(78) if listed_game.notes else 'No journal notes yet.' }}</span>
+            <span class="game-card-footer"><span class="status-pill {{ listed_game.status|lower }}">{{ listed_game.status }}</span><span>Edited {{ listed_game.updated_at|local_note_datetime }}</span></span>
+          </a>
+        </article>
+      {% else %}
+        <div class="game-list-empty">{% if query or status != 'all' %}No games match these filters.{% else %}No game journals yet.{% endif %}</div>
+      {% endfor %}
+      </div>
+    </aside>
+    {% if new_game or selected_game %}
+      {% set game = selected_game %}
+      {% set values = draft if draft else game %}
+      <section class="game-editor">
+        <form class="game-editor-form" method="post" action="{{ url_for('games.create') if new_game else url_for('games.update', game_id=game.id) }}" data-game-editor>
+          <input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_status" value="{{ status }}">
+          <div class="editor-title-row"><label class="visually-hidden" for="game-title">Game title</label><input id="game-title" name="title" maxlength="200" value="{{ values.title }}" placeholder="Game title" required><span class="save-state" aria-live="polite" data-save-state>{{ 'New game journal' if new_game else 'Saved' }}</span></div>
+          {% if error %}<p class="game-error" role="alert">{{ error }}</p>{% endif %}
+          <div class="game-fields">
+            <label>Status<select name="status">{% for option in statuses %}<option value="{{ option }}"{% if values.status == option %} selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
+            {% set rating = values.rating|float if values.rating not in ('', none) else 0 %}
+            <div class="rating-field"><span id="rating-label">Rating</span><div class="rating-stars" role="group" aria-labelledby="rating-label" data-rating-stars data-rating="{{ rating }}"><input type="hidden" name="rating" value="{{ values.rating }}" data-rating-input>{% for star in range(1, 6) %}<button type="button" class="rating-star" data-star="{{ star }}" aria-label="Set rating to {{ star }} stars" style="--fill:{% if rating >= star %}100{% elif rating == star - 0.5 %}50{% else %}0{% endif %}">★</button>{% endfor %}</div><span class="rating-value" data-rating-value>{% if rating %}{{ '%.1f'|format(rating) }} / 5{% else %}Not rated{% endif %}</span></div>
+            <label>Platform<input name="platform" maxlength="100" value="{{ values.platform }}" placeholder="e.g. Nintendo Switch"></label>
+            <label>Hours played<input name="hours_played" type="number" min="0" max="100000" step="0.5" value="{{ values.hours_played }}" placeholder="Optional"></label>
+          </div>
+          <div class="ornament" aria-hidden="true">◆</div>
+          <label class="notes-label" for="game-notes">Journal notes</label><textarea id="game-notes" name="notes" placeholder="Record your quest…" spellcheck="true">{{ values.notes }}</textarea>
+          <footer class="game-editor-footer"><span>{% if game %}Created {{ game.created_at|local_note_datetime }} · Last edited {{ game.updated_at|local_note_datetime }}{% else %}Not saved yet{% endif %}</span><span class="editor-actions">{% if game %}<button class="game-delete" type="button" data-game-delete>Delete game</button>{% endif %}<button class="game-save" type="submit">Save journal</button></span></footer>
+        </form>
+        {% if game %}<form method="post" action="{{ url_for('games.delete', game_id=game.id) }}" data-game-delete-form hidden><input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_status" value="{{ status }}"></form>{% endif %}
+      </section>
+    {% else %}
+      <section class="game-editor game-empty"><div><p>{% if query or status != 'all' %}No games match these filters.{% else %}Your game journal is waiting for its first quest.{% endif %}</p><a href="{{ url_for('games.new') }}">Start a game journal</a></div></section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/games.js') }}" defer></script>{% endblock %}
