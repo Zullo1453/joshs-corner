@@ -156,3 +156,11 @@ def test_game_controls_and_delete_confirmation_assets(client):
     assert b'data-rating-stars' in page.data
     assert b'data-star="1"' in page.data
     assert b"Delete this game journal permanently?" in script.data
+
+
+def test_writing_area_uses_a_spaced_line_grid_for_readability(client):
+    stylesheet = client.get("/static/css/games.css")
+
+    assert b"background-size:100% 34px" in stylesheet.data
+    assert b"background-position:0 9px" in stylesheet.data
+    assert b"font:1rem/34px" in stylesheet.data

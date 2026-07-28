@@ -1,0 +1,10 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const filters = document.querySelector("[data-watch-filters]"); const search = document.querySelector("[data-watch-search]"); let timer;
+  if (search && filters) search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => filters.requestSubmit(), 350); });
+  document.querySelectorAll("[data-watch-filter]").forEach((filter) => filter.addEventListener("change", () => filters.requestSubmit()));
+  const stars = document.querySelectorAll("[data-watch-stars] .watch-star"), input = document.querySelector("[data-rating-input]"), label = document.querySelector("[data-rating-value]");
+  const setRating = (rating) => { if (!input) return; input.value = rating === 0 ? "0" : rating.toFixed(1); stars.forEach((star) => { const value = Number(star.dataset.star); star.style.setProperty("--fill", rating >= value ? 100 : rating === value - .5 ? 50 : 0); }); if (label) label.textContent = rating ? `${rating.toFixed(1)} / 5` : "Not rated"; };
+  stars.forEach((star) => { star.addEventListener("click", (event) => { const box = star.getBoundingClientRect(); setRating(Number(star.dataset.star) - (event.clientX - box.left < box.width / 2 ? .5 : 0)); }); star.addEventListener("keydown", (event) => { if (event.key === "ArrowLeft") { event.preventDefault(); setRating(Number(star.dataset.star) - .5); } if (["Enter", " ", "ArrowRight"].includes(event.key)) { event.preventDefault(); setRating(Number(star.dataset.star)); } }); });
+  const editor = document.querySelector("[data-watch-editor]"), saved = document.querySelector("[data-save-state]"); if (editor && saved) editor.addEventListener("input", () => { saved.textContent = "Unsaved changes"; });
+  const deletion = document.querySelector("[data-watch-delete]"), deletionForm = document.querySelector("[data-watch-delete-form]"); if (deletion && deletionForm) deletion.addEventListener("click", () => { if (window.confirm("Delete this watchlist item permanently?")) deletionForm.requestSubmit(); });
+});

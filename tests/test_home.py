@@ -8,7 +8,7 @@ def test_homepage_loads(client):
 
 
 def test_unbuilt_navigation_targets_use_the_shared_shell(client):
-    for path in ("/watchlist/", "/reading/"):
+    for path in ("/reading/",):
         response = client.get(path)
         assert response.status_code == 200
         assert b"Back to homepage" in response.data
