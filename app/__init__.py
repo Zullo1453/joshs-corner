@@ -51,6 +51,15 @@ def create_app(test_config=None):
             f"at {hour}:{local_value.strftime('%M %p').lower()}"
         )
 
+    @app.template_filter("local_australian_date")
+    def local_australian_date(value):
+        if value is None:
+            return ""
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        local_value = value.astimezone()
+        return f"{local_value.day} {local_value.strftime('%B %Y')}"
+
     from .routes.games import games_bp
     from .routes.home import home_bp
     from .routes.journal import journal_bp

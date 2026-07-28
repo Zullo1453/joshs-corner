@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}To-Dos · Josh's Corner{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/todos.css') }}">
+{% endblock %}
+{% block body_class %}todos-page{% endblock %}
+{% block body %}
+  <div class="todos-shell">
+    <header class="todos-topbar">
+      <a class="todos-home-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">⌂</a>
+    </header>
+
+    <main class="todo-app">
+      <section class="add-area">
+        <form class="add-row" method="post" action="{{ url_for('todos.create') }}">
+          <label class="visually-hidden" for="todo-input">New to-do</label>
+          <input
+            class="todo-input"
+            id="todo-input"
+            name="text"
+            type="text"
+            value="{{ draft }}"
+            maxlength="{{ max_task_length }}"
+            placeholder="What needs doing?"
+            autocomplete="off"
+            aria-describedby="todo-error"
+            autofocus
+          >
+          <button class="add-button" type="submit">＋ Add To-Do</button>
+        </form>
+        {% if error %}<p class="todo-error" id="todo-error" role="alert">{{ error }}</p>{% endif %}
+      </section>
+
+      <section class="todo-content">
+        <div class="section-head">
+          <h1 class="section-title">To-Do</h1>
+          <div class="remaining-count">{{ active_count }} remaining</div>
+        </div>
+
+        <div class="task-list" aria-label="Active to-dos">
+          {% for todo in active_todos %}
+            <article class="task" data-todo-id="{{ todo.id }}">
+              <form method="post" action="{{ url_for('todos.complete', todo_id=todo.id) }}">
+                <button class="complete-button" type="submit" aria-label="Complete {{ todo.text }}">✓</button>
+              </form>
+              <div class="task-text">{{ todo.text }}</div>
+              <form method="post" action="{{ url_for('todos.delete', todo_id=todo.id) }}" data-delete-form>
+                <button class="remove-button" type="submit" aria-label="Delete {{ todo.text }}">×</button>
+              </form>
+            </article>
+          {% else %}
+            <div class="empty-state">Nothing left to do. Nicely done.</div>
+          {% endfor %}
+        </div>
+
+        <section class="archive{% if archive_open %} open{% endif %}" data-archive>
+          <button class="archive-toggle" type="button" data-archive-toggle aria-expanded="{{ 'true' if archive_open else 'false' }}">
+            <span class="archive-title-wrap">
+              <span class="archive-title">Old To-Dos</span>
+              <span class="archive-count">{{ archived_count }}</span>
+            </span>
+            <span class="chevron" aria-hidden="true">⌄</span>
+          </button>
+
+          <div class="archive-list" aria-label="Old to-dos">
+            {% for todo in archived_todos %}
+              <article class="completed-task" data-todo-id="{{ todo.id }}">
+                <span class="completed-check" aria-hidden="true">✓</span>
+                <span class="completed-info">
+                  <span class="completed-text">{{ todo.text }}</span>
+                  <span class="completed-date">Completed {{ todo.completed_at|local_australian_date }}</span>
+                </span>
+                <span class="completed-actions">
+                  <form method="post" action="{{ url_for('todos.restore', todo_id=todo.id) }}">
+                    <button class="restore-button" type="submit">Restore</button>
+                  </form>
+                  <form method="post" action="{{ url_for('todos.delete', todo_id=todo.id) }}" data-delete-form>
+                    <button class="delete-button" type="submit">Delete</button>
+                  </form>
+                </span>
+              </article>
+            {% else %}
+              <div class="archive-empty">Completed tasks will appear here.</div>
+            {% endfor %}
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/todos.js') }}" defer></script>
+{% endblock %}

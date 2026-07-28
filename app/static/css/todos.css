@@ -1,0 +1,420 @@
+:root {
+  --todo-bg: #10151c;
+  --todo-panel: #171f29;
+  --todo-panel-soft: #1b2632;
+  --todo-panel-hover: #202d3b;
+  --todo-text: #edf5fb;
+  --todo-muted: #9aabb9;
+  --todo-faint: #667887;
+  --todo-line: #304150;
+  --todo-blue: #8fc9ea;
+  --todo-blue-bright: #b8e1f6;
+  --todo-blue-soft: rgba(143, 201, 234, 0.14);
+  --todo-danger: #b77c86;
+}
+
+.todos-page {
+  min-height: 100vh;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(93, 157, 194, 0.12), transparent 34%),
+    linear-gradient(180deg, #111820 0%, #0d1218 100%);
+  color: var(--todo-text);
+}
+
+.todos-shell {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.todos-topbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.todos-home-button {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--todo-line);
+  border-radius: 11px;
+  background: rgba(23, 31, 41, 0.9);
+  color: var(--todo-text);
+  font-size: 1.2rem;
+  text-decoration: none;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.todos-home-button:hover,
+.todos-home-button:focus-visible {
+  outline: none;
+  transform: translateY(-2px);
+  border-color: var(--todo-blue);
+  box-shadow: 0 0 18px rgba(143, 201, 234, 0.2);
+}
+
+.todo-app {
+  overflow: hidden;
+  border: 1px solid var(--todo-line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(24, 33, 43, 0.98), rgba(18, 25, 33, 0.99));
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3), 0 0 34px rgba(143, 201, 234, 0.07);
+}
+
+.add-area {
+  padding: 1.4rem;
+  border-bottom: 1px solid var(--todo-line);
+  background: rgba(28, 39, 51, 0.7);
+}
+
+.add-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+.todo-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.72rem 0.95rem;
+  border: 1px solid #3c5061;
+  border-radius: 11px;
+  outline: none;
+  background: #111820;
+  color: var(--todo-text);
+  font-size: 1.08rem;
+  caret-color: var(--todo-blue);
+}
+
+.todo-input::placeholder {
+  color: #6e8190;
+}
+
+.todo-input:focus {
+  border-color: var(--todo-blue);
+  box-shadow: 0 0 0 3px rgba(143, 201, 234, 0.08);
+}
+
+.add-button {
+  min-height: 48px;
+  padding: 0.72rem 1.15rem;
+  border: 1px solid #6eaaca;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #5f9dbc, #477d99);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(143, 201, 234, 0.15);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.add-button:hover,
+.add-button:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 0 25px rgba(143, 201, 234, 0.25);
+}
+
+.todo-error {
+  margin: 0.65rem 0 0;
+  color: #e3a6ad;
+}
+
+.todo-content {
+  padding: 1.3rem 1.4rem 1.45rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 400;
+  letter-spacing: 0.025em;
+}
+
+.remaining-count {
+  color: var(--todo-muted);
+  font-size: 0.9rem;
+}
+
+.task-list {
+  display: grid;
+  gap: 0.62rem;
+}
+
+.task {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 38px 1fr 36px;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(48, 65, 80, 0.9);
+  border-radius: 11px;
+  background: rgba(25, 34, 44, 0.88);
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.task:hover {
+  transform: translateY(-1px);
+  border-color: rgba(143, 201, 234, 0.4);
+  background: var(--todo-panel-hover);
+}
+
+.complete-button {
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #58758a;
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+
+.complete-button:hover,
+.complete-button:focus-visible {
+  outline: none;
+  border-color: var(--todo-blue);
+  background: var(--todo-blue-soft);
+  color: var(--todo-blue-bright);
+  box-shadow: 0 0 12px rgba(143, 201, 234, 0.18);
+}
+
+.task-text {
+  min-width: 0;
+  color: #e7f0f6;
+  font-size: 1.08rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.remove-button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #677b8b;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.task:hover .remove-button,
+.remove-button:focus-visible {
+  opacity: 1;
+}
+
+.remove-button:hover {
+  color: var(--todo-danger);
+  background: rgba(183, 124, 134, 0.08);
+}
+
+.empty-state,
+.archive-empty {
+  padding: 2rem 1rem;
+  color: var(--todo-muted);
+  text-align: center;
+  font-style: italic;
+}
+
+.archive {
+  margin-top: 1.45rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--todo-line);
+}
+
+.archive-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.archive-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.archive-title {
+  color: #bdcbd5;
+  font-size: 1.18rem;
+}
+
+.archive-count {
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(143, 201, 234, 0.08);
+  color: #8fa6b7;
+  font-size: 0.78rem;
+}
+
+.chevron {
+  color: var(--todo-muted);
+  transition: transform 180ms ease;
+}
+
+.archive.open .chevron {
+  transform: rotate(180deg);
+}
+
+.archive-list {
+  display: none;
+  margin-top: 0.8rem;
+  gap: 0.5rem;
+}
+
+.archive.open .archive-list {
+  display: grid;
+}
+
+.completed-task {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.62rem 0.75rem;
+  border: 1px solid rgba(48, 65, 80, 0.55);
+  border-radius: 10px;
+  background: rgba(15, 21, 28, 0.55);
+}
+
+.completed-check {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #577f96;
+  border-radius: 50%;
+  background: rgba(143, 201, 234, 0.1);
+  color: var(--todo-blue);
+  font-size: 0.82rem;
+}
+
+.completed-info,
+.completed-text,
+.completed-date {
+  min-width: 0;
+  display: block;
+}
+
+.completed-text {
+  color: #9fb0bd;
+  overflow-wrap: anywhere;
+}
+
+.completed-date {
+  margin-top: 0.18rem;
+  color: #687b89;
+  font-size: 0.76rem;
+}
+
+.completed-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.completed-actions form {
+  margin: 0;
+}
+
+.restore-button,
+.delete-button {
+  min-height: 31px;
+  padding: 0.3rem 0.58rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.restore-button {
+  color: #88a8ba;
+}
+
+.restore-button:hover,
+.restore-button:focus-visible {
+  outline: none;
+  border-color: rgba(143, 201, 234, 0.3);
+  background: rgba(143, 201, 234, 0.06);
+}
+
+.delete-button {
+  color: #8d6c73;
+}
+
+.delete-button:hover,
+.delete-button:focus-visible {
+  outline: none;
+  border-color: rgba(183, 124, 134, 0.25);
+  background: rgba(183, 124, 134, 0.06);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 620px) {
+  .todos-page {
+    padding: 0.8rem;
+  }
+
+  .add-row {
+    grid-template-columns: 1fr;
+  }
+
+  .todo-content,
+  .add-area {
+    padding-right: 0.9rem;
+    padding-left: 0.9rem;
+  }
+
+  .task {
+    grid-template-columns: 36px 1fr;
+  }
+
+  .remove-button {
+    display: none;
+  }
+
+  .completed-task {
+    grid-template-columns: 32px 1fr;
+  }
+
+  .completed-actions {
+    grid-column: 2;
+    justify-content: flex-end;
+  }
+}
