@@ -1,9 +1,10 @@
+import os
 from datetime import timezone
 from pathlib import Path
 
 from flask import Flask
 
-from .extensions import db, migrate
+from .extensions import csrf, db, migrate
 
 
 def create_app(test_config=None):
@@ -13,6 +14,8 @@ def create_app(test_config=None):
         SECRET_KEY="local-development-only",
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path.as_posix()}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        WTF_CSRF_TIME_LIMIT=None,
+        BACKUP_SECONDARY_DIR=os.environ.get("JOSHS_CORNER_BACKUP_SECONDARY_DIR"),
     )
 
     if test_config:
@@ -21,6 +24,14 @@ def create_app(test_config=None):
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
+
+    from .backup import create_backup
+
+    @app.cli.command("backup-db")
+    def backup_db_command():
+        """Create and validate a local SQLite backup."""
+        create_backup(database_path, Path(app.root_path).parent / "backups")
 
     from .on_this_day import OnThisDayService
 
@@ -78,5 +89,17 @@ def create_app(test_config=None):
         reading_bp,
     ):
         app.register_blueprint(blueprint)
+
+    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if not app.testing and database_path.exists() and (not app.debug or is_reloader_child):
+        try:
+            create_backup(
+                database_path,
+                Path(app.root_path).parent / "backups",
+                Path(app.config["BACKUP_SECONDARY_DIR"]) if app.config["BACKUP_SECONDARY_DIR"] else None,
+                reuse_recent=True,
+            )
+        except Exception:
+            app.logger.exception("Startup database backup failed")
 
     return app

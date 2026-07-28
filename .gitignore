@@ -9,6 +9,11 @@ instance/*
 !instance/.gitkeep
 backups/*
 !backups/.gitkeep
+*.restore.db
+*.test.db
+*.tmp.db
+instance/*.db-*
+local_config.py
 
 .env
 .idea/

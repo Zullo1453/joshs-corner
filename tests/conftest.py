@@ -16,6 +16,7 @@ def app():
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
             "ON_THIS_DAY_SERVICE": OfflineHistoryService(),
+            "WTF_CSRF_ENABLED": False,
         }
     )
     with app.app_context():

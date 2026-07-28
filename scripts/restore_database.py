@@ -1,0 +1,7 @@
+import argparse
+from pathlib import Path
+from app.backup import restore_backup
+parser = argparse.ArgumentParser(); parser.add_argument("backup"); parser.add_argument("--target", default="restore.test.db"); parser.add_argument("--replace-live", action="store_true")
+args = parser.parse_args(); root = Path(__file__).resolve().parents[1]
+target = root / "instance" / "joshs_corner.db" if args.replace_live else Path(args.target)
+print(restore_backup(Path(args.backup), target, args.replace_live, root / "backups" if args.replace_live else None))
