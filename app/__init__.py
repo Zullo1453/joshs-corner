@@ -20,18 +20,23 @@ def create_app(test_config=None):
 
     if test_config:
         app.config.update(test_config)
+    else:
+        app.config.from_pyfile("local_config.py", silent=True)
 
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
 
-    from .backup import create_backup
+    from .backup import create_backup, create_scheduled_backups
 
     @app.cli.command("backup-db")
     def backup_db_command():
         """Create and validate a local SQLite backup."""
-        create_backup(database_path, Path(app.root_path).parent / "backups")
+        create_scheduled_backups(
+            database_path, Path(app.root_path).parent / "backups",
+            Path(app.config["BACKUP_SECONDARY_DIR"]) if app.config["BACKUP_SECONDARY_DIR"] else None,
+        )
 
     from .on_this_day import OnThisDayService
 
@@ -93,11 +98,10 @@ def create_app(test_config=None):
     is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
     if not app.testing and database_path.exists() and (not app.debug or is_reloader_child):
         try:
-            create_backup(
+            create_scheduled_backups(
                 database_path,
                 Path(app.root_path).parent / "backups",
                 Path(app.config["BACKUP_SECONDARY_DIR"]) if app.config["BACKUP_SECONDARY_DIR"] else None,
-                reuse_recent=True,
             )
         except Exception:
             app.logger.exception("Startup database backup failed")

@@ -1,9 +1,10 @@
 import sqlite3
 from datetime import datetime
+import os
 
 import pytest
 
-from app.backup import apply_retention, create_backup, integrity_check, restore_backup
+from app.backup import _prune_validated, apply_retention, create_backup, create_scheduled_backups, integrity_check, restore_backup
 
 
 def make_database(path):
@@ -26,7 +27,8 @@ def test_backup_restore_and_integrity_use_separate_paths(tmp_path):
 def test_backup_names_are_unique_and_secondary_failure_keeps_local_copy(tmp_path):
     live, backups = tmp_path / "live.db", tmp_path / "backups"; make_database(live)
     first = create_backup(live, backups, now=datetime(2026, 7, 28, 14, 30, 15))
-    second = create_backup(live, backups, now=datetime(2026, 7, 28, 14, 30, 15), secondary_dir=tmp_path / "file")
+    secondary_file = tmp_path / "secondary-file"; secondary_file.write_text("not a folder")
+    second = create_backup(live, backups, now=datetime(2026, 7, 28, 14, 30, 15), secondary_dir=secondary_file)
     assert first != second and first.exists() and second.exists()
 
 
@@ -42,3 +44,39 @@ def test_retention_keeps_recent_weekly_and_monthly_representatives(tmp_path):
         (tmp_path / name).write_bytes(b"x")
     candidates = apply_retention(tmp_path, now=datetime(2026, 7, 28))
     assert (tmp_path / "joshs_corner_2026-07-28_100000.db") not in candidates
+
+
+def test_validated_retention_keeps_ten_rolling_backups_and_never_prunes_invalid_files(tmp_path):
+    live, rolling = tmp_path / "live.db", tmp_path / "rolling"; make_database(live)
+    for day in range(1, 12):
+        timestamp = datetime(2026, 6, day, 12)
+        backup = create_backup(live, rolling, now=timestamp)
+        os.utime(backup, (timestamp.timestamp(), timestamp.timestamp()))
+    invalid = rolling / "joshs_corner_unreadable.db"; invalid.write_text("not a database")
+    _prune_validated(rolling, 10)
+    assert len([path for path in rolling.glob("*.db") if integrity_check(path)]) == 10
+    assert invalid.exists()
+    _prune_validated(rolling, 0)
+    assert len([path for path in rolling.glob("*.db") if integrity_check(path)]) == 1
+
+
+def test_scheduled_monthly_archive_only_copies_monthly_backup_to_secondary(tmp_path):
+    live, root, secondary = tmp_path / "live.db", tmp_path / "backups", tmp_path / "secondary-monthly"
+    make_database(live)
+    monthly = root / "monthly"
+    months = [
+        datetime(2025, 7, 1), datetime(2025, 8, 1), datetime(2025, 9, 1),
+        datetime(2025, 10, 1), datetime(2025, 11, 1), datetime(2025, 12, 1),
+        datetime(2026, 1, 1), datetime(2026, 2, 1), datetime(2026, 3, 1),
+        datetime(2026, 4, 1), datetime(2026, 5, 1), datetime(2026, 6, 1),
+    ]
+    for timestamp in months:
+        backup = create_backup(live, monthly, now=timestamp)
+        os.utime(backup, (timestamp.timestamp(), timestamp.timestamp()))
+    _, archive = create_scheduled_backups(live, root, secondary, now=datetime(2026, 7, 28))
+    assert archive is not None and archive.parent == monthly
+    assert len([path for path in monthly.glob("*.db") if integrity_check(path)]) == 12
+    assert [path.name for path in secondary.glob("*.db")] == [archive.name]
+    _, repeated_archive = create_scheduled_backups(live, root, secondary, now=datetime(2026, 7, 28))
+    assert repeated_archive == archive
+    assert len([path for path in monthly.glob("*.db") if integrity_check(path)]) == 12
