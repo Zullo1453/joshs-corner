@@ -25,3 +25,4 @@ def test_cache_offline_and_fallback_are_safe(tmp_path):
     assert cached.state == "cached"
     fallback = FigureOfDayService(tmp_path / "empty.json", fetcher=lambda *_: (_ for _ in ()).throw(TimeoutError())).get_figure(selected)
     assert fallback.state == "fallback"
+    assert fallback.source_url.startswith("https://data.worldbank.org/")

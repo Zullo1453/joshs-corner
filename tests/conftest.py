@@ -11,7 +11,8 @@ class OfflineHistoryService:
 
 class OfflineFigureService:
     def get_figure(self, selected_date):
-        return None
+        from app.figure_of_day import DailyFigure, INDICATORS
+        return DailyFigure(INDICATORS[0], 67.8, 2024, "fallback")
 
 
 @pytest.fixture()

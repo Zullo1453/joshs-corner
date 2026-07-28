@@ -5,6 +5,9 @@ def test_homepage_loads(client):
     assert b"Josh's Corner" in response.data
     assert b"General Notes" in response.data
     assert b"Reading List" in response.data
+    assert b"World Bank" in response.data
+    assert b'target="_blank"' in response.data
+    assert b'rel="noopener noreferrer"' in response.data
 
 
 def test_homepage_section_links_resolve(client):

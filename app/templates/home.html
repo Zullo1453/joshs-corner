@@ -66,6 +66,7 @@
             <div class="figure-title">{{ daily_figure.indicator.title }} in {{ daily_figure.indicator.scope_label }}</div>
             <p class="figure-context">{{ daily_figure.indicator.context }}</p>
             <div class="figure-meta">Latest available: {{ daily_figure.year }} · Source: World Bank{% if daily_figure.state == 'cached' %} · Cached{% elif daily_figure.state == 'previously_cached' %} · Previously cached figure{% elif daily_figure.state == 'fallback' %} · Built-in fallback{% endif %}</div>
+            {% if daily_figure.source_url %}<a class="figure-source" href="{{ daily_figure.source_url }}" target="_blank" rel="noopener noreferrer">World Bank ↗</a>{% endif %}
           {% else %}
             <p class="figure-context">Figure unavailable while offline.</p>
           {% endif %}

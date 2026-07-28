@@ -19,6 +19,10 @@ class Indicator:
     context: str
     format: str
 
+    @property
+    def source_url(self):
+        return f"https://data.worldbank.org/indicator/{self.code}?locations={self.scope}"
+
 
 INDICATORS = (
     Indicator("SP.URB.TOTL.IN.ZS", "Urban population", "%", "AUS", "Australia", "Share of people living in urban areas.", "percent"),
@@ -57,6 +61,10 @@ class DailyFigure:
     @property
     def formatted_value(self):
         return format_value(self.value, self.indicator.format)
+
+    @property
+    def source_url(self):
+        return self.indicator.source_url
 
 
 class FigureOfDayService:
