@@ -63,10 +63,10 @@
           <div class="figure-kicker" id="figure-title">Interesting Figure of the Day</div>
           {% if daily_figure %}
             <div class="figure-value">{{ daily_figure.formatted_value }}</div>
-            <div class="figure-title">{{ daily_figure.indicator.title }} in {{ daily_figure.indicator.scope_label }}</div>
-            <p class="figure-context">{{ daily_figure.indicator.context }}</p>
-            <div class="figure-meta">Latest available: {{ daily_figure.year }} · Source: World Bank{% if daily_figure.state == 'cached' %} · Cached{% elif daily_figure.state == 'previously_cached' %} · Previously cached figure{% elif daily_figure.state == 'fallback' %} · Built-in fallback{% endif %}</div>
-            {% if daily_figure.source_url %}<a class="figure-source" href="{{ daily_figure.source_url }}" target="_blank" rel="noopener noreferrer">World Bank ↗</a>{% endif %}
+            <div class="figure-title">{{ daily_figure.entry.title }} in {{ daily_figure.entry.scope_label }}</div>
+            <p class="figure-context">{{ daily_figure.entry.context }}</p>
+            <div class="figure-meta">{% if daily_figure.state == 'curated' %}Reference year: {% else %}Latest available: {% endif %}{{ daily_figure.year }} · Source: {{ daily_figure.entry.source_name }}{% if daily_figure.state == 'cached' %} · Cached{% elif daily_figure.state == 'previously_cached' %} · Previously cached figure{% elif daily_figure.state == 'fallback' %} · Built-in fallback{% endif %}</div>
+            {% if daily_figure.source_url %}<a class="figure-source" href="{{ daily_figure.source_url }}" target="_blank" rel="noopener noreferrer">{{ daily_figure.entry.source_name }} ↗</a>{% endif %}
           {% else %}
             <p class="figure-context">Figure unavailable while offline.</p>
           {% endif %}
