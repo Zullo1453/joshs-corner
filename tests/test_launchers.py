@@ -25,3 +25,4 @@ def test_no_browser_launcher_never_opens_a_browser_and_checks_common_problems():
     assert "Start-Process 'http://127.0.0.1:5000'" not in launcher
     assert "Press Ctrl+C to stop the server" in launcher
     assert "Server stopped unexpectedly" in launcher
+    assert "pause" not in launcher.lower()
