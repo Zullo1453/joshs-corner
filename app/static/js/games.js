@@ -32,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("[data-game-editor]");
   const saveState = document.querySelector("[data-save-state]");
   if (form && saveState) form.addEventListener("input", () => { saveState.textContent = "Unsaved changes"; });
+  document.querySelectorAll("[data-submit-lock]").forEach((button) => button.addEventListener("click", () => { setTimeout(() => { button.disabled = true; }, 0); }));
   const deleteTrigger = document.querySelector("[data-game-delete]");
   const deleteForm = document.querySelector("[data-game-delete-form]");
   if (deleteTrigger && deleteForm) deleteTrigger.addEventListener("click", () => { if (window.confirm("Delete this game journal permanently?")) deleteForm.requestSubmit(); });

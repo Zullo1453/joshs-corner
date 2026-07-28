@@ -66,6 +66,16 @@ def update(game_id):
 
     for field, value in game_values(draft).items():
         setattr(game, field, value)
+    play_draft = play_draft_from_form()
+    if play_draft_has_content(play_draft):
+        play_draft, play_error = play_entry_from_form(play_draft)
+        if play_error:
+            db.session.commit()
+            return render_games(
+                selected_game=game, draft=draft, play_draft=play_draft,
+                play_error="Your play-entry draft has not been cleared. " + play_error,
+            ), 400
+        db.session.add(GamePlayEntry(game=game, **play_entry_values(play_draft)))
     db.session.commit()
     return redirect_to_games(game.id)
 
@@ -81,7 +91,7 @@ def delete(game_id):
 @games_bp.post("/<int:game_id>/play-log")
 def create_play_entry(game_id):
     game = db.get_or_404(GameJournal, game_id)
-    draft, error = play_entry_from_form()
+    draft, error = play_entry_from_form(legacy=True)
     if error:
         return render_games(selected_game=game, play_draft=draft, play_error=error), 400
     db.session.add(GamePlayEntry(game=game, **play_entry_values(draft)))
@@ -95,7 +105,7 @@ def update_play_entry(game_id, entry_id):
     entry = db.get_or_404(GamePlayEntry, entry_id)
     if entry.game_id != game.id:
         abort(404)
-    draft, error = play_entry_from_form()
+    draft, error = play_entry_from_form(legacy=True)
     if error:
         return render_games(selected_game=game, play_draft=draft, play_error=error, editing_entry_id=entry.id), 400
     for field, value in play_entry_values(draft).items():
@@ -207,12 +217,20 @@ def game_values(draft):
     }
 
 
-def play_entry_from_form():
-    draft = PlayEntryDraft(
+def play_draft_from_form(legacy=False):
+    return PlayEntryDraft(
         played_on=(request.form.get("played_on") or "").strip(),
-        title=(request.form.get("title") or "").strip(),
-        body=request.form.get("body") or "",
+        title=(request.form.get("play_title") or (request.form.get("title") if legacy else "") or "").strip(),
+        body=request.form.get("play_body") or (request.form.get("body") if legacy else "") or "",
     )
+
+
+def play_draft_has_content(draft):
+    return bool(draft.played_on or draft.title or draft.body.strip())
+
+
+def play_entry_from_form(draft=None, legacy=False):
+    draft = draft or play_draft_from_form(legacy=legacy)
     try:
         date.fromisoformat(draft.played_on)
     except ValueError:

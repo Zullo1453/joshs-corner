@@ -187,3 +187,24 @@ def test_play_entry_requires_date_and_body_and_handles_missing_game(client, app)
     bad = client.post(f"/games/{game_id}/play-log", data={"played_on": "", "body": ""})
     assert bad.status_code == 400
     assert b"valid date" in bad.data
+
+
+def test_save_journal_keeps_or_saves_the_current_play_draft(client, app):
+    game_id = add_game(app, "Draft guard", notes="Before")
+    valid = game_data(title="Draft guard", notes="After")
+    valid.update({"played_on": "2026-07-28", "play_title": "A session", "play_body": "A complete play note."})
+    response = client.post(f"/games/{game_id}", data=valid)
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(GameJournal, game_id).notes == "After"
+        assert GamePlayEntry.query.count() == 1
+
+    partial = game_data(title="Draft guard", notes="Saved overall")
+    partial.update({"played_on": "", "play_title": "Keep this", "play_body": ""})
+    response = client.post(f"/games/{game_id}", data=partial)
+    assert response.status_code == 400
+    assert b"draft has not been cleared" in response.data
+    assert b"Keep this" in response.data
+    with app.app_context():
+        assert db.session.get(GameJournal, game_id).notes == "Saved overall"
+        assert GamePlayEntry.query.count() == 1
