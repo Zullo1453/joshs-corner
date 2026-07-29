@@ -43,6 +43,12 @@ def new():
     return render_watchlist(new_item=True)
 
 
+@watchlist_bp.get("/detail/<int:item_id>")
+def detail(item_id):
+    item = db.get_or_404(WatchlistItem, item_id)
+    return render_template("watchlist/_detail.html", selected_item=item, new_item=False, draft=None, error=None, **watchlist_context())
+
+
 @watchlist_bp.post("/new")
 def create():
     draft, error = item_from_form()
@@ -66,6 +72,8 @@ def update(item_id):
         setattr(item, field, value)
     sync_attachments(item.notes, "watchlist", item.id, request.form.get("notes_attachment_token"))
     db.session.commit()
+    if is_partial_request():
+        return jsonify(watch_save_response(item, request.form))
     return redirect_to_watchlist(item.id)
 
 
@@ -80,7 +88,7 @@ def autosave(item_id):
         setattr(item, field, value)
     sync_attachments(item.notes, "watchlist", item.id, payload.get("notes_attachment_token"))
     db.session.commit()
-    return jsonify(status="saved", item_id=item.id, updated_at=item.updated_at.isoformat())
+    return jsonify(watch_save_response(item, payload))
 
 
 @watchlist_bp.post("/<int:item_id>/delete")
@@ -93,8 +101,17 @@ def delete(item_id):
 
 
 def render_watchlist(new_item=False, selected_item=None, draft=None, error=None):
+    context = watchlist_context()
+    items = context["items"]
     if new_item and draft is None:
         draft = WatchDraft()
+    if selected_item is None and not new_item and items:
+        selected_id = request.args.get("item_id", type=int)
+        selected_item = next((item for item in items if item.id == selected_id), items[0])
+    return render_template("watchlist/index.html", selected_item=selected_item, new_item=new_item, draft=draft, error=error, **context)
+
+
+def watchlist_context():
     query = request.args.get("q", "").strip()
     media_type = request.args.get("type", "all")
     status = request.args.get("status", "all")
@@ -130,25 +147,29 @@ def render_watchlist(new_item=False, selected_item=None, draft=None, error=None)
         .distinct()
         .order_by(WatchlistItem.genre)
     ).scalars().all()
-    if selected_item is None and not new_item and items:
-        selected_id = request.args.get("item_id", type=int)
-        selected_item = next((item for item in items if item.id == selected_id), items[0])
+    return {
+        "items": items,
+        "query": query,
+        "media_type": media_type,
+        "status": status,
+        "genre": genre,
+        "genres": genres,
+        "types": VALID_TYPES,
+        "statuses": VALID_STATUSES,
+    }
 
-    return render_template(
-        "watchlist/index.html",
-        items=items,
-        selected_item=selected_item,
-        new_item=new_item,
-        draft=draft,
-        error=error,
-        query=query,
-        media_type=media_type,
-        status=status,
-        genre=genre,
-        genres=genres,
-        types=VALID_TYPES,
-        statuses=VALID_STATUSES,
-    )
+
+def watch_save_response(item, filters):
+    context = watch_filters(filters)
+    return {"status": "saved", "item_id": item.id, "updated_at": item.updated_at.isoformat(), "sidebar_card_html": render_template("watchlist/_sidebar_card.html", listed_item=item, selected_item=item, **context)}
+
+
+def watch_filters(data):
+    return {"query": data.get("q", "").strip(), "media_type": data.get("filter_type", data.get("type", "all")), "status": data.get("filter_status", data.get("status", "all")), "genre": data.get("filter_genre", data.get("genre", "all")).strip()}
+
+
+def is_partial_request():
+    return request.headers.get("X-Requested-With") == "JoshCornerPartial"
 
 
 def item_from_form():

@@ -1,3 +1,6 @@
+import re
+
+from app import create_app
 from app.extensions import db
 from app.models import WatchlistItem
 
@@ -23,6 +26,31 @@ def test_watchlist_loads_with_empty_state(client):
     assert b"Your watchlist is empty." in response.data
 
 
+def test_watchlist_detail_fragment_and_safe_missing_item(client, app):
+    item_id = add_item(app, "Fragment feature", media_type="Movie", status="Watching", genre="Drama")
+    full = client.get(f"/watchlist/?item_id={item_id}")
+    fragment = client.get(f"/watchlist/detail/{item_id}")
+    assert full.status_code == 200 and b"data-watch-detail-slot" in full.data and b"watch-sidebar" in full.data
+    assert fragment.status_code == 200 and b"data-watch-editor" in fragment.data and b"csrf_token" in fragment.data
+    assert b"watch-sidebar" not in fragment.data
+    assert client.get("/watchlist/detail/999999").status_code == 404
+
+
+def test_watchlist_partial_manual_save_is_csrf_protected_and_returns_sidebar_card(tmp_path):
+    database = tmp_path / "watch-csrf.db"
+    csrf_app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database.as_posix()}", "WTF_CSRF_ENABLED": True})
+    with csrf_app.app_context():
+        db.create_all()
+    item_id = add_item(csrf_app, "Before", media_type="Movie", status="Watching", genre="Drama")
+    client = csrf_app.test_client()
+    fragment = client.get(f"/watchlist/detail/{item_id}")
+    token = re.search(rb'name="csrf_token" value="([^"]+)"', fragment.data).group(1).decode()
+    assert client.post(f"/watchlist/{item_id}", data=item_data(), headers={"X-Requested-With": "JoshCornerPartial"}).status_code == 400
+    saved = client.post(f"/watchlist/{item_id}", data={**item_data(title="Saved title", media_type="Show", status="Finished", genre="Mystery"), "csrf_token": token, "q": "", "filter_type": "all", "filter_status": "all", "filter_genre": "all"}, headers={"X-Requested-With": "JoshCornerPartial", "X-CSRFToken": token})
+    assert saved.status_code == 200 and "Saved title" in saved.json["sidebar_card_html"]
+    assert "Show" in saved.json["sidebar_card_html"] and "Finished" in saved.json["sidebar_card_html"]
+
+
 def test_create_movie_and_show(client, app):
     movie = client.post("/watchlist/new", data=item_data(), follow_redirects=True)
     show = client.post("/watchlist/new", data=item_data(title="Severance", media_type="Show", status="Watching"), follow_redirects=True)
@@ -46,6 +74,7 @@ def test_existing_item_autosaves_and_sanitises_notes(client, app):
     item_id = add_item(app, "Before", media_type="Movie", status="Want to Watch")
     response = client.post(f"/watchlist/{item_id}/autosave", json=item_data(title="After", notes="<p>Safe<script>x</script></p>"))
     assert response.status_code == 200 and response.json["status"] == "saved"
+    assert "Finished" in response.json["sidebar_card_html"]
     with app.app_context():
         item = db.session.get(WatchlistItem, item_id)
         assert item.title == "After" and "script" not in item.notes
@@ -88,3 +117,5 @@ def test_full_and_half_star_ratings_and_assets(client, app):
     assert b"perspective(380px) rotateX(64deg)" in stylesheet.data
     assert b"data-watch-stars" in page.data
     assert b"Delete this watchlist item permanently?" in script.data
+    assert b"history.pushState" in script.data and b"new FormData(form)" in script.data
+    assert b"updateCard(result)" in script.data and b"event.ctrlKey" in script.data
