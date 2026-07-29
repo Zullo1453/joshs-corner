@@ -58,7 +58,7 @@
                 {% if selected_note and note.id == selected_note.id %}aria-current="page"{% endif %}
               >
                 <span class="note-title">{{ note.title }}</span>
-                <span class="note-preview">{{ note.body|striptags|truncate(92) }}</span>
+                <span class="note-preview">{{ note.body|rich_preview(92) }}</span>
                 <span class="note-date">Edited {{ note.updated_at|local_note_datetime }}</span>
               </a>
               <form class="note-star-form" method="post" action="{{ url_for('notes.toggle_favourite', note_id=note.id) }}">

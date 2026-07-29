@@ -2,6 +2,7 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
+from ..attachments import delete_owner_attachments, sync_attachments
 from ..models import Note
 from ..note_content import sanitise_note_html
 
@@ -25,6 +26,8 @@ def create():
         body=sanitise_note_html(request.form.get("body")),
     )
     db.session.add(note)
+    db.session.flush()
+    sync_attachments(note.body, "note", note.id, request.form.get("body_attachment_token"))
     db.session.commit()
     return redirect_to_notes(note.id)
 
@@ -34,6 +37,7 @@ def update(note_id):
     note = db.get_or_404(Note, note_id)
     note.title = normalise_title(request.form.get("title"))
     note.body = sanitise_note_html(request.form.get("body"))
+    sync_attachments(note.body, "note", note.id, request.form.get("body_attachment_token"))
     db.session.commit()
     return redirect_to_notes(note.id)
 
@@ -49,6 +53,7 @@ def toggle_favourite(note_id):
 @notes_bp.post("/<int:note_id>/delete")
 def delete(note_id):
     note = db.get_or_404(Note, note_id)
+    delete_owner_attachments("note", note.id)
     db.session.delete(note)
     db.session.commit()
     return redirect_to_notes()

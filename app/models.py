@@ -92,3 +92,25 @@ class ReadingItem(TimestampMixin, db.Model):
     status: Mapped[str] = mapped_column(String(20), default="To Read", nullable=False)
     rating: Mapped[float | None] = mapped_column(Float)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+
+
+class Attachment(db.Model):
+    """A locally stored image linked to one rich-text record or a draft token."""
+
+    __table_args__ = (
+        CheckConstraint("file_size >= 0", name="attachment_file_size_nonnegative"),
+        CheckConstraint("width > 0", name="attachment_width_positive"),
+        CheckConstraint("height > 0", name="attachment_height_positive"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner_type: Mapped[str] = mapped_column(String(40), default="draft", nullable=False, index=True)
+    owner_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
+    draft_token: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    stored_filename: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    file_size: Mapped[int] = mapped_column(nullable=False)
+    width: Mapped[int] = mapped_column(nullable=False)
+    height: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

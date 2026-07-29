@@ -56,7 +56,7 @@
             >
               <span class="day-number">{{ day.day }}</span>
               {% if entry %}
-                <span class="entry-preview">{{ entry.body|striptags|truncate(66) }}</span>
+                <span class="entry-preview">{{ entry.body|rich_preview(66) }}</span>
                 <span class="visually-hidden">Journal entry saved</span>
               {% endif %}
             </a>

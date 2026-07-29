@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from app.backup import _prune_validated, apply_retention, create_backup, create_scheduled_backups, integrity_check, restore_backup
+from app.backup import _prune_validated, apply_retention, create_backup, create_backup_package, create_scheduled_backups, integrity_check, restore_backup, validate_backup_package
 
 
 def make_database(path):
@@ -76,7 +76,19 @@ def test_scheduled_monthly_archive_only_copies_monthly_backup_to_secondary(tmp_p
     _, archive = create_scheduled_backups(live, root, secondary, now=datetime(2026, 7, 28))
     assert archive is not None and archive.parent == monthly
     assert len([path for path in monthly.glob("*.db") if integrity_check(path)]) == 12
-    assert [path.name for path in secondary.glob("*.db")] == [archive.name]
+    assert archive.suffix == ".zip"
+    assert [path.name for path in secondary.glob("*.zip")] == [archive.name]
     _, repeated_archive = create_scheduled_backups(live, root, secondary, now=datetime(2026, 7, 28))
     assert repeated_archive == archive
     assert len([path for path in monthly.glob("*.db") if integrity_check(path)]) == 12
+
+
+def test_zip_backup_package_and_separate_restore_include_uploads(tmp_path):
+    live, uploads, backups = tmp_path / "live.db", tmp_path / "uploads", tmp_path / "backups"
+    make_database(live); uploads.mkdir(); (uploads / "image.webp").write_bytes(b"image bytes")
+    package = create_backup_package(live, uploads, backups, now=datetime(2026, 7, 28, 14, 30, 15))
+    manifest = validate_backup_package(package)
+    target, restored_uploads = tmp_path / "restored.db", tmp_path / "restored_uploads"
+    restore_backup(package, target, uploads_target=restored_uploads)
+    assert manifest["attachment_count"] == 1 and integrity_check(target)
+    assert (restored_uploads / "image.webp").read_bytes() == b"image bytes"

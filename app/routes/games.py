@@ -6,6 +6,7 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
+from ..attachments import delete_owner_attachments, sync_attachments
 from ..models import GameJournal, GamePlayEntry
 from ..note_content import is_visually_empty_html, sanitise_rich_text_html
 
@@ -54,6 +55,8 @@ def create():
 
     game = GameJournal(**game_values(draft))
     db.session.add(game)
+    db.session.flush()
+    sync_attachments(game.notes, "game", game.id, request.form.get("notes_attachment_token"))
     db.session.commit()
     return redirect_to_games(game.id)
 
@@ -67,6 +70,7 @@ def update(game_id):
 
     for field, value in game_values(draft).items():
         setattr(game, field, value)
+    sync_attachments(game.notes, "game", game.id, request.form.get("notes_attachment_token"))
     play_draft = play_draft_from_form()
     if play_draft_has_content(play_draft):
         play_draft, play_error = play_entry_from_form(play_draft)
@@ -76,7 +80,10 @@ def update(game_id):
                 selected_game=game, draft=draft, play_draft=play_draft,
                 play_error="Your play-entry draft has not been cleared. " + play_error,
             ), 400
-        db.session.add(GamePlayEntry(game=game, **play_entry_values(play_draft)))
+        entry = GamePlayEntry(game=game, **play_entry_values(play_draft))
+        db.session.add(entry)
+        db.session.flush()
+        sync_attachments(entry.body, "game_play", entry.id, request.form.get("play_body_attachment_token"))
     db.session.commit()
     return redirect_to_games(game.id)
 
@@ -84,6 +91,9 @@ def update(game_id):
 @games_bp.post("/<int:game_id>/delete")
 def delete(game_id):
     game = db.get_or_404(GameJournal, game_id)
+    delete_owner_attachments("game", game.id)
+    for entry in game.play_entries:
+        delete_owner_attachments("game_play", entry.id)
     db.session.delete(game)
     db.session.commit()
     return redirect_to_games()
@@ -95,7 +105,10 @@ def create_play_entry(game_id):
     draft, error = play_entry_from_form(legacy=True)
     if error:
         return render_games(selected_game=game, play_draft=draft, play_error=error), 400
-    db.session.add(GamePlayEntry(game=game, **play_entry_values(draft)))
+    entry = GamePlayEntry(game=game, **play_entry_values(draft))
+    db.session.add(entry)
+    db.session.flush()
+    sync_attachments(entry.body, "game_play", entry.id, request.form.get("body_attachment_token"))
     db.session.commit()
     return redirect_to_games(game.id)
 
@@ -111,6 +124,7 @@ def update_play_entry(game_id, entry_id):
         return render_games(selected_game=game, play_draft=draft, play_error=error, editing_entry_id=entry.id), 400
     for field, value in play_entry_values(draft).items():
         setattr(entry, field, value)
+    sync_attachments(entry.body, "game_play", entry.id, request.form.get("body_attachment_token"))
     db.session.commit()
     return redirect_to_games(game.id)
 
@@ -121,6 +135,7 @@ def delete_play_entry(game_id, entry_id):
     entry = db.get_or_404(GamePlayEntry, entry_id)
     if entry.game_id != game.id:
         abort(404)
+    delete_owner_attachments("game_play", entry.id)
     db.session.delete(entry)
     db.session.commit()
     return redirect_to_games(game.id)

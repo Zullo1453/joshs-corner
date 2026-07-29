@@ -5,6 +5,7 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
+from ..attachments import delete_owner_attachments, sync_attachments
 from ..models import WatchlistItem
 from ..note_content import sanitise_rich_text_html
 
@@ -49,6 +50,8 @@ def create():
         return render_watchlist(new_item=True, draft=draft, error=error), 400
     item = WatchlistItem(**item_values(draft))
     db.session.add(item)
+    db.session.flush()
+    sync_attachments(item.notes, "watchlist", item.id, request.form.get("notes_attachment_token"))
     db.session.commit()
     return redirect_to_watchlist(item.id)
 
@@ -61,6 +64,7 @@ def update(item_id):
         return render_watchlist(selected_item=item, draft=draft, error=error), 400
     for field, value in item_values(draft).items():
         setattr(item, field, value)
+    sync_attachments(item.notes, "watchlist", item.id, request.form.get("notes_attachment_token"))
     db.session.commit()
     return redirect_to_watchlist(item.id)
 
@@ -68,6 +72,7 @@ def update(item_id):
 @watchlist_bp.post("/<int:item_id>/delete")
 def delete(item_id):
     item = db.get_or_404(WatchlistItem, item_id)
+    delete_owner_attachments("watchlist", item.id)
     db.session.delete(item)
     db.session.commit()
     return redirect_to_watchlist()

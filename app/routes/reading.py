@@ -6,6 +6,7 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
+from ..attachments import delete_owner_attachments, sync_attachments
 from ..models import ReadingItem
 from ..note_content import sanitise_rich_text_html
 
@@ -44,6 +45,8 @@ def create():
         return render_reading(new_book=True, draft=draft, error=error), 400
     book = ReadingItem(**book_values(draft))
     db.session.add(book)
+    db.session.flush()
+    sync_attachments(book.notes, "reading", book.id, request.form.get("notes_attachment_token"))
     db.session.commit()
     return redirect_to_reading(book.id)
 
@@ -56,6 +59,7 @@ def update(book_id):
         return render_reading(selected_book=book, draft=draft, error=error), 400
     for field, value in book_values(draft).items():
         setattr(book, field, value)
+    sync_attachments(book.notes, "reading", book.id, request.form.get("notes_attachment_token"))
     db.session.commit()
     return redirect_to_reading(book.id)
 
@@ -63,6 +67,7 @@ def update(book_id):
 @reading_bp.post("/<int:book_id>/delete")
 def delete(book_id):
     book = db.get_or_404(ReadingItem, book_id)
+    delete_owner_attachments("reading", book.id)
     db.session.delete(book)
     db.session.commit()
     return redirect_to_reading()

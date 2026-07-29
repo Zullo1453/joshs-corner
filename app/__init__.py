@@ -80,11 +80,15 @@ def create_app(test_config=None):
         local_value = value.astimezone()
         return f"{local_value.day} {local_value.strftime('%B %Y')}"
 
-    from .note_content import sanitise_rich_text_html
+    from .note_content import rich_text_preview, sanitise_rich_text_html
 
     @app.template_filter("sanitise_html")
     def sanitise_html(value):
         return sanitise_rich_text_html(value)
+
+    @app.template_filter("rich_preview")
+    def rich_preview(value, limit=92):
+        return rich_text_preview(value, limit)
 
     from .routes.games import games_bp
     from .routes.home import home_bp
@@ -93,6 +97,7 @@ def create_app(test_config=None):
     from .routes.reading import reading_bp
     from .routes.todos import todos_bp
     from .routes.watchlist import watchlist_bp
+    from .routes.attachments import attachments_bp
 
     for blueprint in (
         home_bp,
@@ -102,6 +107,7 @@ def create_app(test_config=None):
         games_bp,
         watchlist_bp,
         reading_bp,
+        attachments_bp,
     ):
         app.register_blueprint(blueprint)
 

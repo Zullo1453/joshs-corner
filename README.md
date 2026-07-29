@@ -106,3 +106,25 @@ Use Flask-Migrate for every schema change. Before applying a future migration,
 create and validate a backup, check migration status, run
 `python scripts\migrate_safely.py`, then run the integrity and application
 tests.
+
+## Image attachments and package backups
+
+Rich-text editors accept PNG, JPEG, and WebP images from the clipboard, drag
+and drop, or the **Add Image** control. Images stay local in the ignored
+`instance\uploads` directory; they are validated by content, auto-rotated,
+limited to 10 MB input and 2560 px on the longest edge, then stored as WebP or
+transparent PNG. External and data-URL images are not saved.
+
+New backups are validated ZIP packages containing the SQLite copy, matching
+uploads, a manifest, and SHA-256 checksums. Older `.db` backups remain
+restorable, but do not include future image files. A ZIP can be restored to a
+separate database and upload directory with `scripts\restore_database.py`.
+
+For local storage diagnostics, run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\attachment_diagnostics.py
+```
+
+It reports counts, storage size, missing files, and conservative unreferenced
+file candidates. It never deletes images.

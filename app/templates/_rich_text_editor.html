@@ -1,5 +1,6 @@
-<div class="rich-editor" data-rich-editor>
+<div class="rich-editor" data-rich-editor data-upload-url="{{ url_for('attachments.upload') }}">
   <input type="hidden" name="{{ editor_name }}" value="" data-rich-input>
+  <input type="hidden" name="{{ editor_name }}_attachment_token" value="{{ request.form.get(editor_name ~ '_attachment_token', '') }}" data-rich-token>
   <div class="rich-toolbar" role="toolbar" aria-label="Formatting toolbar">
     <select class="rich-tool-select" aria-label="Text style" data-rich-block>
       <option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option>
@@ -14,6 +15,11 @@
     <span class="rich-divider" aria-hidden="true"></span>
     <button type="button" class="rich-tool-button" data-rich-command="undo" aria-label="Undo" title="Undo">↶</button>
     <button type="button" class="rich-tool-button" data-rich-command="redo" aria-label="Redo" title="Redo">↷</button>
+    <span class="rich-divider" aria-hidden="true"></span>
+    <button type="button" class="rich-tool-button rich-image-button" data-rich-image aria-label="Add image" title="Add image">▧ Image</button>
+    <button type="button" class="rich-tool-button" data-rich-remove-image aria-label="Remove selected image" title="Remove selected image">Remove image</button>
+    <input type="file" accept="image/png,image/jpeg,image/webp" data-rich-file hidden>
   </div>
   <div id="{{ editor_id|default('') }}" class="rich-editor-body {{ editor_class|default('') }}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="{{ editor_label }}" data-rich-body data-placeholder="{{ editor_placeholder }}" spellcheck="true">{{ editor_content|sanitise_html|safe }}</div>
+  <p class="rich-upload-message" data-rich-upload-message role="status" aria-live="polite"></p>
 </div>

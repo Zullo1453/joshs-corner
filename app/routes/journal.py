@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
+from ..attachments import delete_owner_attachments, sync_attachments
 from ..models import JournalEntry
 from ..note_content import sanitise_rich_text_html
 
@@ -60,6 +61,8 @@ def entry(entry_date):
             journal_entry.body = body
 
         try:
+            db.session.flush()
+            sync_attachments(body, "journal", journal_entry.id, request.form.get("body_attachment_token"))
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
@@ -90,6 +93,7 @@ def delete_entry(entry_date):
     return_year, return_month = parse_return_month(selected_date)
     journal_entry = JournalEntry.query.filter_by(entry_date=selected_date).one_or_none()
     if journal_entry is not None:
+        delete_owner_attachments("journal", journal_entry.id)
         db.session.delete(journal_entry)
         db.session.commit()
     return redirect(url_for("journal.index", year=return_year, month=return_month))
