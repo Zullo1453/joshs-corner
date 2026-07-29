@@ -47,6 +47,22 @@ def new():
     return render_games(new_game=True)
 
 
+@games_bp.get("/detail/<int:game_id>")
+def detail(game_id):
+    """Return the existing-game editor fragment for progressive navigation."""
+    game = db.get_or_404(GameJournal, game_id)
+    context = games_context()
+    context["play_entries"] = play_entries_for(game)
+    return render_template(
+        "games/_detail.html",
+        selected_game=game,
+        new_game=False,
+        draft=None,
+        error=None,
+        **context,
+    )
+
+
 @games_bp.post("/new")
 def create():
     draft, error = game_from_form()
@@ -66,6 +82,8 @@ def update(game_id):
     game = db.get_or_404(GameJournal, game_id)
     draft, error = game_from_form()
     if error:
+        if is_partial_request():
+            return jsonify(status="error", error=error), 400
         return render_games(selected_game=game, draft=draft, error=error), 400
 
     for field, value in game_values(draft).items():
@@ -76,15 +94,20 @@ def update(game_id):
         play_draft, play_error = play_entry_from_form(play_draft)
         if play_error:
             db.session.commit()
+            error = "Your play-entry draft has not been cleared. " + play_error
+            if is_partial_request():
+                return jsonify(status="error", error=error), 400
             return render_games(
                 selected_game=game, draft=draft, play_draft=play_draft,
-                play_error="Your play-entry draft has not been cleared. " + play_error,
+                play_error=error,
             ), 400
         entry = GamePlayEntry(game=game, **play_entry_values(play_draft))
         db.session.add(entry)
         db.session.flush()
         sync_attachments(entry.body, "game_play", entry.id, request.form.get("play_body_attachment_token"))
     db.session.commit()
+    if is_partial_request():
+        return jsonify(game_save_response(game, request.form))
     return redirect_to_games(game.id)
 
 
@@ -99,7 +122,7 @@ def autosave(game_id):
     payload = request.get_json(silent=True) or {}
     sync_attachments(game.notes, "game", game.id, payload.get("notes_attachment_token"))
     db.session.commit()
-    return jsonify(status="saved", game_id=game.id, updated_at=game.updated_at.isoformat())
+    return jsonify(game_save_response(game, payload))
 
 
 @games_bp.post("/<int:game_id>/delete")
@@ -122,7 +145,12 @@ def create_play_entry(game_id):
     entry = GamePlayEntry(game=game, **play_entry_values(draft))
     db.session.add(entry)
     db.session.flush()
-    sync_attachments(entry.body, "game_play", entry.id, request.form.get("body_attachment_token"))
+    sync_attachments(
+        entry.body,
+        "game_play",
+        entry.id,
+        request.form.get("body_attachment_token") or request.form.get("play_body_attachment_token"),
+    )
     db.session.commit()
     return redirect_to_games(game.id)
 
@@ -173,8 +201,28 @@ def delete_play_entry(game_id, entry_id):
 
 
 def render_games(new_game=False, selected_game=None, draft=None, error=None, play_draft=None, play_error=None, editing_entry_id=None):
+    context = games_context()
+    games = context["games"]
     if new_game and draft is None:
         draft = GameDraft()
+    if selected_game is None and not new_game and games:
+        selected_id = request.args.get("game_id", type=int)
+        selected_game = next((game for game in games if game.id == selected_id), games[0])
+    context["play_entries"] = play_entries_for(selected_game)
+    return render_template(
+        "games/index.html",
+        selected_game=selected_game,
+        new_game=new_game,
+        draft=draft,
+        error=error,
+        play_draft=play_draft,
+        play_error=play_error,
+        editing_entry_id=editing_entry_id,
+        **context,
+    )
+
+
+def games_context():
     query = request.args.get("q", "").strip()
     status = request.args.get("status", "all")
     if status != "all" and status not in VALID_STATUSES:
@@ -196,25 +244,49 @@ def render_games(new_game=False, selected_game=None, draft=None, error=None, pla
         statement.order_by(GameJournal.updated_at.desc(), GameJournal.id.desc())
     ).scalars().all()
 
-    if selected_game is None and not new_game and games:
-        selected_id = request.args.get("game_id", type=int)
-        selected_game = next((game for game in games if game.id == selected_id), games[0])
+    return {
+        "games": games,
+        "query": query,
+        "status": status,
+        "statuses": VALID_STATUSES,
+    }
 
-    return render_template(
-        "games/index.html",
-        games=games,
-        selected_game=selected_game,
-        new_game=new_game,
-        draft=draft,
-        error=error,
-        query=query,
-        status=status,
-        statuses=VALID_STATUSES,
-        play_entries=sorted(selected_game.play_entries, key=lambda entry: (entry.played_on, entry.created_at, entry.id), reverse=True) if selected_game else [],
-        play_draft=play_draft,
-        play_error=play_error,
-        editing_entry_id=editing_entry_id,
+
+def play_entries_for(game):
+    if game is None:
+        return []
+    return sorted(
+        game.play_entries,
+        key=lambda entry: (entry.played_on, entry.created_at, entry.id),
+        reverse=True,
     )
+
+
+def game_save_response(game, filters):
+    """Return authoritative sidebar markup without replacing the sidebar."""
+    context = game_filters(filters)
+    return {
+        "status": "saved",
+        "game_id": game.id,
+        "updated_at": game.updated_at.isoformat(),
+        "sidebar_card_html": render_template(
+            "games/_sidebar_card.html",
+            listed_game=game,
+            selected_game=game,
+            **context,
+        ),
+    }
+
+
+def game_filters(data):
+    return {
+        "query": data.get("q", "").strip(),
+        "status": data.get("filter_status", data.get("status", "all")),
+    }
+
+
+def is_partial_request():
+    return request.headers.get("X-Requested-With") == "JoshCornerPartial"
 
 
 def game_from_form():

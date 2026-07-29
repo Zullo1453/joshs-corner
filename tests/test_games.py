@@ -1,3 +1,6 @@
+import re
+
+from app import create_app
 from app.extensions import db
 from app.models import GameJournal, GamePlayEntry
 
@@ -29,6 +32,119 @@ def test_games_page_loads_with_empty_state(client):
     assert response.status_code == 200
     assert b"New Game Journal" in response.data
     assert b"No game journals yet." in response.data
+
+
+def test_game_detail_fragment_reuses_the_editor_and_invalid_games_are_safe(client, app):
+    first_id = add_game(app, "First game", status="Playing", notes="First notes")
+    second_id = add_game(app, "Second game", status="Completed", notes="Second notes")
+
+    full_page = client.get(f"/games/?game_id={second_id}")
+    fragment = client.get(f"/games/detail/{second_id}")
+
+    assert full_page.status_code == 200
+    assert b"data-game-detail-slot" in full_page.data
+    assert b"game-sidebar" in full_page.data
+    assert f"/games/?game_id={second_id}".encode() in full_page.data
+    assert b"First game" in full_page.data
+    assert fragment.status_code == 200
+    assert b"data-game-editor" in fragment.data
+    assert b'data-game-id="%d"' % second_id in fragment.data
+    assert b"Second game" in fragment.data
+    assert b"game-sidebar" not in fragment.data
+    assert b"<!doctype html>" not in fragment.data.lower()
+    assert client.get("/games/detail/999999").status_code == 404
+
+
+def test_game_partial_save_is_csrf_protected_and_returns_authoritative_sidebar_card(tmp_path):
+    database = tmp_path / "games-csrf.db"
+    csrf_app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database.as_posix()}", "WTF_CSRF_ENABLED": True})
+    with csrf_app.app_context():
+        db.create_all()
+    csrf_client = csrf_app.test_client()
+    game_id = add_game(csrf_app, "Before fragment save", status="Backlog", notes="Before notes")
+    fragment = csrf_client.get(f"/games/detail/{game_id}")
+    token = re.search(rb'name="csrf_token" value="([^"]+)"', fragment.data).group(1).decode()
+
+    blocked = csrf_client.post(
+        f"/games/{game_id}", data=game_data(title="Blocked"), headers={"X-Requested-With": "JoshCornerPartial"}
+    )
+    assert blocked.status_code == 400
+    saved = csrf_client.post(
+        f"/games/{game_id}",
+        data={**game_data(title="Saved after fragment selection", status="Completed", notes="Updated notes"), "csrf_token": token, "q": "", "filter_status": "all"},
+        headers={"X-Requested-With": "JoshCornerPartial", "X-CSRFToken": token},
+    )
+    assert saved.status_code == 200 and saved.json["status"] == "saved"
+    assert "Saved after fragment selection" in saved.json["sidebar_card_html"]
+    assert "Completed" in saved.json["sidebar_card_html"]
+    # A second fragment load represents a Back/Forward return to the editor.
+    history_fragment = csrf_client.get(f"/games/detail/{game_id}")
+    history_token = re.search(rb'name="csrf_token" value="([^"]+)"', history_fragment.data).group(1).decode()
+    saved_again = csrf_client.post(
+        f"/games/{game_id}",
+        data={**game_data(title="Saved after history navigation", notes="History notes"), "csrf_token": history_token, "q": "", "filter_status": "all"},
+        headers={"X-Requested-With": "JoshCornerPartial", "X-CSRFToken": history_token},
+    )
+    assert saved_again.status_code == 200 and saved_again.json["game_id"] == game_id
+    with csrf_app.app_context():
+        assert db.session.get(GameJournal, game_id).notes == "History notes"
+
+
+def test_failed_partial_game_save_returns_json_without_changing_the_saved_game(client, app):
+    game_id = add_game(app, "Saved title", status="Backlog", notes="Saved notes")
+    response = client.post(
+        f"/games/{game_id}",
+        data={**game_data(title="   ", notes="Draft that must stay in the browser"), "q": "", "filter_status": "all"},
+        headers={"X-Requested-With": "JoshCornerPartial"},
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"status": "error", "error": "A game title is required."}
+    with app.app_context():
+        game = db.session.get(GameJournal, game_id)
+        assert game.title == "Saved title"
+        assert game.notes == "Saved notes"
+
+
+def test_game_discrete_autosave_uses_only_the_explicit_payload_and_updates_its_card(client, app):
+    game_id = add_game(app, "Saved title", status="Backlog", notes="Saved notes")
+    response = client.post(
+        f"/games/{game_id}/autosave",
+        json={**game_data(title="Saved title", status="Playing", platform="PC", hours_played="12" , notes="Saved notes"), "q": "", "filter_status": "all"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["game_id"] == game_id
+    assert "Playing" in response.json["sidebar_card_html"]
+    with app.app_context():
+        game = db.session.get(GameJournal, game_id)
+        assert game.title == "Saved title"
+        assert game.notes == "Saved notes"
+        assert game.platform == "PC"
+
+
+def test_game_partial_navigation_client_is_scoped_and_preserves_hybrid_save_behaviour():
+    script = open("app/static/js/games.js", encoding="utf-8").read()
+    detail_template = open("app/templates/games/_detail.html", encoding="utf-8").read()
+
+    assert "[data-sidebar-module='games']" in script
+    assert "data-game-detail-slot" in script
+    assert "fetch(partial" in script
+    assert "history.pushState" in script and '"popstate"' in script
+    assert "slot.innerHTML" in script and "setSelectedGame" in script
+    assert "You have unsaved changes. Leave without saving?" in script
+    assert "event.metaKey" in script and "event.ctrlKey" in script and "event.shiftKey" in script and "event.altKey" in script
+    assert 'link.hasAttribute("download")' in script and "!link.target" in script
+    assert "scrollIntoView" not in script
+    assert "game-navigation-error" in script and "Open normally" in script
+    assert "gameSnapshot" in script and "title: gameSnapshot.title" in script
+    assert 'fetch(form.getAttribute("action")' in script
+    assert "fetch(form.action" not in script
+    assert "JoshsCornerAutosave?.initialise" not in script
+    assert "data-add-play-entry" in script and "data-play-entry-editor" in script
+    assert "destroyGameDetail" in script and "JoshsCornerRichText?.destroy(slot)" in script
+    assert 'name="csrf_token" value="{{ csrf_token() }}"' in detail_template
+    assert "data-game-card-id" in open("app/templates/games/_sidebar_card.html", encoding="utf-8").read()
 
 
 def test_create_game_journal(client, app):
@@ -177,6 +293,17 @@ def test_writing_area_uses_a_spaced_line_grid_for_readability(client):
     assert b"background-size:100% 34px" in stylesheet.data
     assert b"background-position:0 9px" in stylesheet.data
     assert b"font:1rem/34px" in stylesheet.data
+
+
+def test_game_sidebar_scrollbar_is_scoped_to_the_game_theme(client):
+    stylesheet = open("app/static/css/games_partial_navigation.css", encoding="utf-8").read()
+
+    assert ".games-page .game-list" in stylesheet
+    assert "scrollbar-color:var(--gold) var(--panel)" in stylesheet
+    assert ".games-page .game-list::-webkit-scrollbar" in stylesheet
+    assert "::-webkit-scrollbar-track" in stylesheet
+    assert "::-webkit-scrollbar-thumb:hover" in stylesheet
+    assert ".watch-list" not in stylesheet and ".book-list" not in stylesheet and ".notes-list" not in stylesheet
 
 
 def test_play_entries_are_independent_and_ordered(client, app):

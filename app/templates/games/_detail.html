@@ -1,0 +1,36 @@
+{% if new_game or selected_game %}
+  {% set game = selected_game %}{% set values = draft if draft else game %}
+  <section class="game-editor" data-sidebar-detail-focus>
+    <form class="game-editor-form" method="post" action="{{ url_for('games.create') if new_game else url_for('games.update', game_id=game.id) }}" data-game-editor{% if game %} data-game-id="{{ game.id }}" data-autosave-url="{{ url_for('games.autosave', game_id=game.id) }}"{% endif %}>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_status" value="{{ status }}">
+      <div class="editor-title-row"><label class="visually-hidden" for="game-title">Game title</label><input id="game-title" name="title" maxlength="200" value="{{ values.title }}" placeholder="Game title" required><span class="save-state" aria-live="polite" data-save-state>{{ 'New game journal' if new_game else 'Saved' }}</span></div>
+      {% if error %}<p class="game-error" role="alert">{{ error }}</p>{% endif %}
+      <div class="game-fields">
+        <label>Status<select name="status">{% for option in statuses %}<option value="{{ option }}"{% if values.status == option %} selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
+        {% set rating = values.rating|float if values.rating not in ('', none) else 0 %}
+        <div class="rating-field"><span id="rating-label">Rating</span><div class="rating-stars" role="group" aria-labelledby="rating-label" data-rating-stars data-rating="{{ rating }}"><input type="hidden" name="rating" value="{{ values.rating }}" data-rating-input>{% for star in range(1, 6) %}<button type="button" class="rating-star" data-star="{{ star }}" aria-label="Set rating to {{ star }} stars" style="--fill:{% if rating >= star %}100{% elif rating == star - 0.5 %}50{% else %}0{% endif %}">&#9733;</button>{% endfor %}</div><span class="rating-value" data-rating-value>{% if rating %}{{ '%.1f'|format(rating) }} / 5{% else %}Not rated{% endif %}</span></div>
+        <label>Platform<input name="platform" maxlength="100" value="{{ values.platform }}" placeholder="e.g. Nintendo Switch" data-autosave-immediate></label>
+        <label>Hours played<input name="hours_played" type="number" min="0" max="100000" step="0.5" value="{{ values.hours_played }}" placeholder="Optional"></label>
+      </div>
+      <div class="ornament" aria-hidden="true">&#9674;</div>
+      <label class="notes-label">Overall Notes / Review</label>{% set editor_name = "notes" %}{% set editor_content = values.notes %}{% set editor_label = "Overall notes or review" %}{% set editor_placeholder = "Record your overall review&hellip;" %}{% set editor_class = "game-rich-text" %}{% include "_rich_text_editor.html" %}
+      <footer class="game-editor-footer"><span>{% if game %}Created {{ game.created_at|local_note_datetime }} &middot; Last edited {{ game.updated_at|local_note_datetime }}{% else %}Not saved yet{% endif %}</span><span class="editor-actions">{% if game %}<button class="game-delete" type="button" data-game-delete>Delete game</button>{% endif %}<button class="game-save" type="submit" name="action" value="save_journal">Save journal</button></span></footer>
+      {% if game %}
+        <section class="play-log" aria-labelledby="play-log-title">
+          <div class="play-log-heading"><h2 id="play-log-title">Play Log</h2><span>{{ play_entries|length }} entries</span></div>
+          {% if play_error %}<p class="game-error" role="alert">{{ play_error }}</p>{% endif %}
+          <div class="play-entry-form" data-new-play-entry>
+            <label>Date played<input type="date" name="played_on" value="{{ play_draft.played_on if play_draft else '' }}"></label><label>Entry title <small>(optional)</small><input name="play_title" maxlength="200" value="{{ play_draft.title if play_draft else '' }}"></label><label class="play-body-label">What did you play?</label>{% set editor_name = "play_body" %}{% set editor_content = play_draft.body if play_draft else "" %}{% set editor_label = "New play entry body" %}{% set editor_placeholder = "Describe this play session&hellip;" %}{% set editor_class = "game-rich-text" %}{% include "_rich_text_editor.html" %}<button class="game-save" type="submit" formaction="{{ url_for('games.create_play_entry', game_id=game.id) }}" name="action" value="add_play_entry" data-add-play-entry>Add Play Entry</button>
+          </div>
+        </section>
+      {% endif %}
+    </form>
+    {% if game %}
+      <div class="play-timeline">{% for entry in play_entries %}<article class="play-entry"><div class="play-entry-date">{{ entry.played_on.day }} {{ entry.played_on.strftime('%B %Y') }}</div><div class="play-entry-content"><h3>{{ entry.title or 'Play session' }}</h3><div class="rich-display">{{ entry.body|safe }}</div><small>{% if entry.updated_at != entry.created_at %}Updated{% else %}Added{% endif %} {{ entry.updated_at|local_note_datetime }}</small></div><div class="play-entry-actions"><details><summary>Edit</summary><form method="post" action="{{ url_for('games.update_play_entry', game_id=game.id, entry_id=entry.id) }}" data-play-entry-editor data-play-entry-id="{{ entry.id }}" data-autosave-url="{{ url_for('games.autosave_play_entry', game_id=game.id, entry_id=entry.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Date played<input type="date" name="played_on" value="{{ entry.played_on.isoformat() }}" required></label><label>Title<input name="title" maxlength="200" value="{{ entry.title }}"></label>{% set editor_name = "body" %}{% set editor_content = entry.body %}{% set editor_label = "Play entry body" %}{% set editor_placeholder = "Describe this play session&hellip;" %}{% set editor_class = "game-rich-text" %}{% include "_rich_text_editor.html" %}<span class="save-state" aria-live="polite" data-play-save-state>Saved</span><button class="game-save" type="submit">Save entry</button></form></details><form method="post" action="{{ url_for('games.delete_play_entry', game_id=game.id, entry_id=entry.id) }}" data-play-delete><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Delete</button></form></div></article>{% else %}<p class="play-empty">No play entries yet. Add a dated session without changing your overall review.</p>{% endfor %}</div>
+      <form method="post" action="{{ url_for('games.delete', game_id=game.id) }}" data-game-delete-form hidden><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_status" value="{{ status }}"></form>
+    {% endif %}
+  </section>
+{% else %}
+  <section class="game-editor game-empty" data-sidebar-detail-focus><div><p>{% if query or status != 'all' %}No games match these filters.{% else %}Your game journal is waiting for its first quest.{% endif %}</p><a href="{{ url_for('games.new') }}">Start a game journal</a></div></section>
+{% endif %}

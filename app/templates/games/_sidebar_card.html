@@ -1,0 +1,8 @@
+<article class="game-card{% if selected_game and listed_game.id == selected_game.id %} active{% endif %}" data-game-card-id="{{ listed_game.id }}">
+  <a class="game-card-link" data-sidebar-select href="{{ url_for('games.index', game_id=listed_game.id, q=query, status=status) }}"{% if selected_game and listed_game.id == selected_game.id %} aria-current="page"{% endif %}>
+    <span class="game-card-title">{{ listed_game.title }}</span>
+    <span class="game-card-meta"><span class="mini-stars">&#9733;</span> {% if listed_game.rating is none %}Not rated{% else %}{{ '%.1f'|format(listed_game.rating) }} / 5{% endif %}</span>
+    <span class="game-card-preview">{{ listed_game.notes|rich_preview(78) if listed_game.notes else 'No journal notes yet.' }}</span>
+    <span class="game-card-footer"><span class="status-pill {{ listed_game.status|lower }}">{{ listed_game.status }}</span><span>Edited {{ listed_game.updated_at|local_note_datetime }}</span></span>
+  </a>
+</article>
