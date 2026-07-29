@@ -22,6 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let autosaveTimer;
   let worker = null;
   let dirty = false;
+  let textDirty = false;
+  syncNotes();
+  const manualSnapshot = { title: form?.elements.title?.value || "", notes: notesInput?.value || "" };
 
   const setSaveState = (text, state = "") => {
     if (!saveState) return;
@@ -35,13 +38,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const payload = () => {
     syncNotes();
     return {
-      title: form.elements.title.value,
+      title: manualSnapshot.title,
       format: form.elements.format.value,
       book_type: form.elements.book_type.value,
       status: form.elements.status.value,
       release_date: form.elements.release_date.value,
       rating: form.elements.rating.value,
-      notes: notesInput?.value || "",
+      notes: manualSnapshot.notes,
       notes_attachment_token: attachmentToken?.value || "",
     };
   };
@@ -59,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || "Save failed.");
-        if (!dirty) setSaveState("Saved");
+        if (!dirty) setSaveState(textDirty ? "Unsaved changes" : "Saved");
       } catch (error) {
         dirty = true;
         succeeded = false;
@@ -114,27 +117,19 @@ document.addEventListener("DOMContentLoaded", () => {
   form?.querySelectorAll('[name="format"], [name="book_type"], [name="status"], [name="release_date"]').forEach((field) => {
     field.addEventListener("change", () => scheduleAutosave(0));
   });
-  notesBody?.addEventListener("input", () => scheduleAutosave(1000));
-  form?.querySelector('[name="title"]')?.addEventListener("input", () => setSaveState("Unsaved changes"));
+  notesBody?.addEventListener("input", () => { textDirty = true; setSaveState("Unsaved changes"); });
+  form?.querySelector('[name="title"]')?.addEventListener("input", () => { textDirty = true; setSaveState("Unsaved changes"); });
 
   form?.addEventListener("submit", async (event) => {
-    if (!autosaveUrl) return;
-    event.preventDefault();
     syncNotes();
-    await flushAutosave();
-    form.submit();
+    textDirty = false;
   });
   document.querySelectorAll(".book-card-link, .new-book").forEach((link) => {
     link.addEventListener("click", async (event) => {
-      if (!autosaveUrl || (!dirty && !worker) || event.defaultPrevented) return;
-      event.preventDefault();
-      syncNotes();
-      if (await flushAutosave()) window.location.assign(link.href);
+      if (textDirty && !window.confirm("You have unsaved changes. Leave without saving?")) event.preventDefault();
     });
   });
-  window.addEventListener("pagehide", () => {
-    if (dirty || worker) flushAutosave();
-  });
+  window.addEventListener("beforeunload", (event) => { if (textDirty) { event.preventDefault(); event.returnValue = ""; } });
 
   const deleteButton = document.querySelector("[data-book-delete]");
   const deleteForm = document.querySelector("[data-book-delete-form]");

@@ -1,84 +1,22 @@
 (() => {
   const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || "";
-  const richInputs = (form) => form.querySelectorAll("[data-rich-editor]").forEach((root) => {
-    const body = root.querySelector("[data-rich-body]");
-    const input = root.querySelector("[data-rich-input]");
-    if (body && input) input.value = body.innerHTML;
-  });
-
+  const richInputs = (form) => form.querySelectorAll("[data-rich-editor]").forEach((root) => { const body = root.querySelector("[data-rich-body]"), input = root.querySelector("[data-rich-input]"); if (body && input) input.value = body.innerHTML; });
   class AutosaveController {
     constructor(form) {
-      this.form = form;
-      this.url = form.dataset.autosaveUrl;
-      this.state = form.querySelector("[data-save-state]");
-      this.timer = null;
-      this.worker = null;
-      this.dirty = false;
+      this.form = form; this.url = form.dataset.autosaveUrl; this.state = form.querySelector("[data-save-state]"); this.dirtyText = false;
       if (!this.url) return;
-      form.querySelectorAll("select, input[type=date], input[type=number], input[type=checkbox], [data-autosave-immediate]").forEach((field) => field.addEventListener("change", () => this.schedule(0)));
-      form.querySelectorAll("input[type=text], input:not([type]), [data-autosave-text], [data-rich-body]").forEach((field) => field.addEventListener("input", () => this.schedule(1000)));
-      form.addEventListener("submit", async (event) => {
-        if (event.submitter?.matches("[data-autosave-skip]")) return;
-        event.preventDefault();
-        richInputs(form);
-        await this.flush();
-        form.submit();
-      });
-      document.querySelectorAll("[data-sidebar-select]").forEach((link) => link.addEventListener("click", async (event) => {
-        if ((!this.dirty && !this.worker) || event.defaultPrevented) return;
-        event.preventDefault();
-        richInputs(form);
-        if (await this.flush()) window.location.assign(link.href);
-      }));
-      window.addEventListener("pagehide", () => { if (this.dirty || this.worker) this.flush(); });
+      richInputs(form); this.manualValues = this.manualFieldValues();
+      form.querySelectorAll("select, input[type=date], input[type=number], input[type=checkbox], input[name=platform], input[name=genre], [data-autosave-immediate]").forEach((field) => field.addEventListener("change", () => this.saveMenu()));
+      form.querySelectorAll("input[type=text]:not([name=platform]):not([name=genre]), input:not([type]), [data-manual-text], [data-rich-body]").forEach((field) => field.addEventListener("input", () => this.markDirty()));
+      form.addEventListener("submit", () => { richInputs(form); this.dirtyText = false; });
+      document.querySelectorAll("[data-sidebar-select]").forEach((link) => link.addEventListener("click", (event) => { if (this.dirtyText && !window.confirm("You have unsaved changes. Leave without saving?")) event.preventDefault(); }));
+      window.addEventListener("beforeunload", (event) => { if (this.dirtyText) { event.preventDefault(); event.returnValue = ""; } });
     }
-
-    setState(text, kind = "") {
-      if (!this.state) return;
-      this.state.textContent = text;
-      this.state.classList.remove("saving", "failed", "retrying");
-      if (kind) this.state.classList.add(kind);
-    }
-
-    data() {
-      richInputs(this.form);
-      return Object.fromEntries(new FormData(this.form).entries());
-    }
-
-    schedule(delay) {
-      this.dirty = true;
-      clearTimeout(this.timer);
-      this.timer = setTimeout(() => this.flush(), delay);
-    }
-
-    async saveQueued() {
-      let success = true;
-      while (this.dirty) {
-        this.dirty = false;
-        this.setState("Saving…", "saving");
-        try {
-          const response = await fetch(this.url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify(this.data()) });
-          const result = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(result.error || "Save failed.");
-          if (!this.dirty) this.setState("Saved");
-        } catch (_) {
-          this.dirty = true;
-          success = false;
-          this.setState(navigator.onLine ? "Save failed" : "Retrying", navigator.onLine ? "failed" : "retrying");
-          break;
-        }
-      }
-      return success;
-    }
-
-    flush() {
-      clearTimeout(this.timer);
-      if (!this.worker) this.worker = this.saveQueued().finally(() => { this.worker = null; });
-      return this.worker;
-    }
+    setState(text, kind = "") { if (!this.state) return; this.state.textContent = text; this.state.classList.remove("saving", "failed", "retrying"); if (kind) this.state.classList.add(kind); }
+    manualFieldValues() { const values = {}; this.form.querySelectorAll("input[type=text], input:not([type]), [data-rich-input]").forEach((field) => { values[field.name] = field.value; }); return values; }
+    data(menuOnly = false) { richInputs(this.form); const values = Object.fromEntries(new FormData(this.form).entries()); return menuOnly ? { ...values, ...this.manualValues } : values; }
+    markDirty() { this.dirtyText = true; this.setState("Unsaved changes"); }
+    async saveMenu() { this.setState("Saving…", "saving"); try { const response = await fetch(this.url, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify(this.data(true)) }); const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.error || "Save failed."); this.setState(this.dirtyText ? "Unsaved changes" : "Saved"); } catch (_) { this.setState("Save failed", "failed"); } }
   }
-
-  window.JoshsCornerAutosave = {
-    initialise(selector = "[data-autosave-url]") { return [...document.querySelectorAll(selector)].map((form) => new AutosaveController(form)); },
-  };
+  window.JoshsCornerAutosave = { initialise(selector = "[data-autosave-url]") { return [...document.querySelectorAll(selector)].map((form) => new AutosaveController(form)); } };
 })();

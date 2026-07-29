@@ -46,7 +46,7 @@
             <label>Status<select name="status">{% for option in statuses %}<option value="{{ option }}"{% if values.status == option %} selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
             {% set rating = values.rating|float if values.rating not in ('', none) else 0 %}
             <div class="rating-field"><span id="rating-label">Rating</span><div class="rating-stars" role="group" aria-labelledby="rating-label" data-rating-stars data-rating="{{ rating }}"><input type="hidden" name="rating" value="{{ values.rating }}" data-rating-input>{% for star in range(1, 6) %}<button type="button" class="rating-star" data-star="{{ star }}" aria-label="Set rating to {{ star }} stars" style="--fill:{% if rating >= star %}100{% elif rating == star - 0.5 %}50{% else %}0{% endif %}">★</button>{% endfor %}</div><span class="rating-value" data-rating-value>{% if rating %}{{ '%.1f'|format(rating) }} / 5{% else %}Not rated{% endif %}</span></div>
-            <label>Platform<input name="platform" maxlength="100" value="{{ values.platform }}" placeholder="e.g. Nintendo Switch"></label>
+            <label>Platform<input name="platform" maxlength="100" value="{{ values.platform }}" placeholder="e.g. Nintendo Switch" data-autosave-immediate></label>
             <label>Hours played<input name="hours_played" type="number" min="0" max="100000" step="0.5" value="{{ values.hours_played }}" placeholder="Optional"></label>
           </div>
           <div class="ornament" aria-hidden="true">◆</div>
