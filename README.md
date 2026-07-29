@@ -42,9 +42,9 @@ It is also a product-thinking portfolio project: requirements were defined in sm
       <img src="docs/screenshots/reading.png" alt="Reading List with structured tracking and review">
     </td>
     <td width="50%" valign="top">
-      <strong>Local image attachments</strong><br>
-      Shared rich-text tools support validated local image attachments without a cloud upload service.<br><br>
-      <img src="docs/screenshots/rich-text-image-tools.png" alt="Rich-text editor with local image attachment tools">
+      <strong>Watchlist</strong><br>
+      Structured movie and show tracking with filters, ratings, recommendation context, and rich reviews.<br><br>
+      <img src="docs/screenshots/watchlist.png" alt="Watchlist with movie and show tracking">
     </td>
   </tr>
 </table>
