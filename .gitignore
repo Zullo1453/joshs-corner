@@ -15,8 +15,13 @@ backups/*
 instance/*.db-*
 instance/server.log
 instance/uploads/
+instance/*.db
+instance/*.log
+instance/*_cache.json
+instance/local_config.py
 instance/attachment-diagnostic*.json
 *.upload.tmp
+backups/**/*.zip
 local_config.py
 
 .env

@@ -1,130 +1,80 @@
 # Josh's Corner
 
-A private, local Windows application built with Flask and SQLite. It runs only
-on this computer at <http://127.0.0.1:5000>; it does not use GitHub, a cloud
-database, or automatic sharing.
+Josh's Corner is a local-first personal organiser for Windows. It combines a journal, notes, tasks, game play logs, watchlist, reading list, rich text, local image attachments, and daily historical/statistical panels in one private app at `http://127.0.0.1:5000`.
 
-## Starting Josh's Corner
+It is also a product-thinking portfolio project: requirements were defined in small, reviewable stages; approved visual prototypes guided interface decisions; and each addition was checked against usability, privacy, data safety, maintainability, and regression risk rather than treated as an isolated coding exercise.
 
-For the usual desktop experience, double-click:
+## Features
 
-```text
-Start Josh's Corner.bat
-```
+- Journal calendar with one entry per date and historical reminders
+- Searchable, favouritable General Notes
+- Active and archived To-Dos
+- Game Journal with ratings, status, platform, hours, and dated Play Logs
+- Watchlist and Reading List with filters and rich reviews
+- Shared rich-text editors with local PNG, JPEG, and WebP image support
+- Cached Wikipedia historical events and multi-source daily figures
+- SQLite migrations, validated backup packages, safe separate restore, and optional Windows startup automation
 
-It checks the project Python environment, detects an already-running copy,
-warns if another application has port 5000, starts the local server, and opens
-the browser only after the local page responds. Leave that window open while
-using the app; press `Ctrl+C` to stop it.
+## Privacy by design
 
-For a server without opening a browser, use:
+The app is designed for one local user. It binds only to `127.0.0.1`, stores data in local SQLite and upload folders, and does not require an account, cloud database, or public deployment. Runtime databases, uploads, backup packages, caches, logs, and local configuration are excluded from Git.
 
-```text
-Start Josh's Corner - No Browser.bat
-```
+## Stack and architecture
 
-Neither launcher starts Windows automatically. If you later want the app to
-start when you sign in, open **Task Scheduler**, choose **Create Task**, use
-**At log on** as the trigger, and choose the normal launcher above as the
-action. Create that task only if you want this behaviour.
+Python · Flask · SQLite · SQLAlchemy · Alembic · Jinja · vanilla JavaScript and CSS · Pillow · pytest.
 
-## Local setup and tests
+Flask blueprints organise feature areas; SQLAlchemy models and Alembic migrations manage persistence; shared templates and browser code provide the interface. Daily-data services cache network results and fall back safely offline. Attachments are validated by content, auto-rotated, capped at 10 MB input / 2560 px, and stored locally as WebP or transparent PNG.
 
-The project Python environment is stored in `.venv`.
+The delivery approach deliberately balanced user flow and visual refinement with practical resilience: scoped stages, prototype comparison, migration discipline, automated tests, local backup/restore checks, and explicit separation between live data and test or demo data.
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m flask --app run.py db upgrade
-python run.py
-python -m pytest
-```
+New backups are ZIP packages containing a validated SQLite copy, matching uploads, a manifest, and SHA-256 checksums. Older database-only backups remain restorable but do not contain later image files.
 
-The homepage requests one historical event from Wikipedia's public “On this
-day” feed. Successful results are cached in
-`instance\on_this_day_cache.json`. If the request is unavailable, a matching
-cached event is used; without one, the homepage shows a quiet offline fallback
-while the rest of the application continues normally.
+## Clean Windows setup
 
-## Database backups
+1. Install [Python 3.12+](https://www.python.org/downloads/windows/) and add it to PATH.
+2. Clone the repository and open PowerShell in the clone.
+3. Create a virtual environment and install dependencies:
 
-Backups use SQLite's backup API and are checked with `PRAGMA integrity_check`
-before being accepted. The application creates them at startup when due, and
-you can also run:
+   ```powershell
+   py -3.12 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install -r requirements.txt
+   ```
+
+4. Create the empty local database and run the app:
+
+   ```powershell
+   python -m flask --app run.py db upgrade
+   python run.py
+   ```
+
+5. Open `http://127.0.0.1:5000` locally. Run checks with:
+
+   ```powershell
+   python -m pytest -q
+   python -m compileall app scripts
+   ```
+
+The project currently has **115 automated tests**. A clone starts without any personal database, uploads, backups, or local settings.
+
+## Local operations
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\backup_database.py
-```
-
-- A rolling backup is made at most once every three days in
-  `backups\rolling`; the newest 10 validated rolling backups are kept.
-- One validated archive is made per calendar month in `backups\monthly`; the
-  newest 12 validated monthly archives are kept.
-- Only validated backups in their own rolling or monthly folder are pruned.
-  An invalid file is never selected for deletion, and the policy never removes
-  the only valid backup in a folder.
-
-The optional secondary destination is configured only in the ignored
-`instance\local_config.py` file; its machine-specific location is never
-committed to Git.
-
-Only validated monthly archives may be copied there. Rolling backups, the live
-database, temporary/test databases, and unrelated files are never copied.
-Local D: backups succeed independently of this optional copy. A successful
-local file copy is logged separately from cloud sync: a OneDrive red cross,
-sync error, or full cloud storage means the archive is **not** cloud-protected
-until OneDrive itself confirms that it has synced. The app does not change
-OneDrive settings or delete/move other OneDrive files.
-
-To make backups run on a three-day schedule even when you do not open the app,
-you may create a Task Scheduler task manually:
-
-1. In **Task Scheduler**, choose **Create Task** and give it a clear name such
-   as `Josh's Corner backup`.
-2. Add a trigger that repeats every three days at a convenient time.
-3. For **Program/script**, use
-   `<project-root>\.venv\Scripts\python.exe`.
-4. For **Add arguments**, use `scripts\backup_database.py`.
-5. For **Start in**, use `<project-root>`.
-
-No scheduled task is created by the project itself.
-
-## Restore and migrations
-
-Restore testing always targets a separate database:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\restore_database.py backups\monthly\joshs_corner_YYYY-MM-DD_HHMMSS.db --target restore.test.db
-```
-
-Never overwrite `instance\joshs_corner.db` while the application is running.
-Live replacement requires the explicit `--replace-live` option and creates a
-fresh, validated safety backup first. Stop and confirm the exact backup before
-performing that live replacement.
-
-Use Flask-Migrate for every schema change. Before applying a future migration,
-create and validate a backup, check migration status, run
-`python scripts\migrate_safely.py`, then run the integrity and application
-tests.
-
-## Image attachments and package backups
-
-Rich-text editors accept PNG, JPEG, and WebP images from the clipboard, drag
-and drop, or the **Add Image** control. Images stay local in the ignored
-`instance\uploads` directory; they are validated by content, auto-rotated,
-limited to 10 MB input and 2560 px on the longest edge, then stored as WebP or
-transparent PNG. External and data-URL images are not saved.
-
-New backups are validated ZIP packages containing the SQLite copy, matching
-uploads, a manifest, and SHA-256 checksums. Older `.db` backups remain
-restorable, but do not include future image files. A ZIP can be restored to a
-separate database and upload directory with `scripts\restore_database.py`.
-
-For local storage diagnostics, run:
-
-```powershell
 .\.venv\Scripts\python.exe scripts\attachment_diagnostics.py
+.\.venv\Scripts\python.exe scripts\restore_database.py path\to\backup.zip --target restore.test.db
 ```
 
-It reports counts, storage size, missing files, and conservative unreferenced
-file candidates. It never deletes images.
+Restores target a separate location by default. CSRF protection is enabled for POST actions, but this is not an internet-facing application: do not expose Flask's development server publicly.
+
+## Screenshots
+
+Fictional, non-private screenshots are in [`docs/screenshots`](docs/screenshots/). They use a temporary demo database only; no live data, uploaded image, desktop content, local path, or personal name is shown.
+
+## Limitations and future ideas
+
+Josh's Corner is intentionally local-only and has no multi-user authentication. Orphan-image diagnostics report candidates but never automatically delete uncertain files. Possible future directions include export/import, encrypted backups, and richer media metadata.
+
+## Development acknowledgement
+
+Requirements, product direction, review, and testing were human-led. Implementation was developed with assistance from OpenAI Codex; the repository does not claim every line was manually authored.
