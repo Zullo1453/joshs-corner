@@ -30,14 +30,7 @@
       >
         <div class="writing-wrap">
           <label class="visually-hidden" for="journal-body">Journal entry</label>
-          <textarea
-            class="journal-text"
-            id="journal-body"
-            name="body"
-            spellcheck="true"
-            placeholder="Write about the day…"
-            autofocus
-          >{{ journal_entry.body if journal_entry else "" }}</textarea>
+          {% set editor_name = "body" %}{% set editor_id = "journal-body" %}{% set editor_content = journal_entry.body if journal_entry else "" %}{% set editor_label = "Journal entry" %}{% set editor_placeholder = "Write about the day…" %}{% set editor_class = "journal-text" %}{% include "_rich_text_editor.html" %}
         </div>
 
         <div class="entry-footer">

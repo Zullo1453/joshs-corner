@@ -6,6 +6,7 @@ from sqlalchemy import or_
 
 from ..extensions import db
 from ..models import WatchlistItem
+from ..note_content import sanitise_rich_text_html
 
 
 watchlist_bp = Blueprint("watchlist", __name__, url_prefix="/watchlist")
@@ -140,7 +141,7 @@ def item_from_form():
         release_year=(request.form.get("release_year") or "").strip(),
         genre=(request.form.get("genre") or "").strip(),
         recommendation_note=(request.form.get("recommendation_note") or "").strip(),
-        notes=request.form.get("notes") or "",
+        notes=sanitise_rich_text_html(request.form.get("notes") or ""),
     )
     if not draft.title:
         return draft, "A title is required."

@@ -1,0 +1,19 @@
+<div class="rich-editor" data-rich-editor>
+  <input type="hidden" name="{{ editor_name }}" value="" data-rich-input>
+  <div class="rich-toolbar" role="toolbar" aria-label="Formatting toolbar">
+    <select class="rich-tool-select" aria-label="Text style" data-rich-block>
+      <option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option>
+    </select>
+    <button type="button" class="rich-tool-button" data-rich-command="bold" data-command="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
+    <button type="button" class="rich-tool-button" data-rich-command="italic" data-command="italic" aria-label="Italic" title="Italic"><em>I</em></button>
+    <button type="button" class="rich-tool-button" data-rich-command="underline" data-command="underline" aria-label="Underline" title="Underline"><u>U</u></button>
+    <span class="rich-divider" aria-hidden="true"></span>
+    <button type="button" class="rich-tool-button" data-rich-command="insertUnorderedList" data-command="insertUnorderedList" aria-label="Bulleted list" title="Bulleted list">• List</button>
+    <button type="button" class="rich-tool-button" data-rich-command="insertOrderedList" data-command="insertOrderedList" aria-label="Numbered list" title="Numbered list">1. List</button>
+    <button type="button" class="rich-tool-button" data-rich-quote data-quote-toggle aria-label="Toggle quote" aria-pressed="false" title="Toggle quote">“ Quote</button>
+    <span class="rich-divider" aria-hidden="true"></span>
+    <button type="button" class="rich-tool-button" data-rich-command="undo" aria-label="Undo" title="Undo">↶</button>
+    <button type="button" class="rich-tool-button" data-rich-command="redo" aria-label="Redo" title="Redo">↷</button>
+  </div>
+  <div id="{{ editor_id|default('') }}" class="rich-editor-body {{ editor_class|default('') }}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="{{ editor_label }}" data-rich-body data-placeholder="{{ editor_placeholder }}" spellcheck="true">{{ editor_content|sanitise_html|safe }}</div>
+</div>

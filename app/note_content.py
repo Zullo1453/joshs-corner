@@ -1,5 +1,6 @@
 from html import escape
 from html.parser import HTMLParser
+import re
 
 
 ALLOWED_TAGS = {
@@ -42,8 +43,18 @@ class SafeNoteHTMLParser(HTMLParser):
         self.parts.append(escape(data))
 
 
-def sanitise_note_html(value):
+def sanitise_rich_text_html(value):
     parser = SafeNoteHTMLParser()
     parser.feed(value or "")
     parser.close()
     return "".join(parser.parts)
+
+
+def sanitise_note_html(value):
+    """Compatibility name retained for the General Notes routes."""
+    return sanitise_rich_text_html(value)
+
+
+def is_visually_empty_html(value):
+    """Treat editor scaffolding such as <p><br></p> as empty content."""
+    return not re.sub(r"<[^>]+>", "", sanitise_rich_text_html(value)).replace("&nbsp;", " ").strip()

@@ -91,7 +91,6 @@
           >
             <input type="hidden" name="q" value="{{ query }}">
             {% if favourites_only %}<input type="hidden" name="favourites" value="1">{% endif %}
-            <input type="hidden" name="body" value="" data-body-input>
 
             <div class="editor-head">
               <div class="title-row">
@@ -110,37 +109,10 @@
                 </div>
               </div>
 
-              <div class="toolbar" role="toolbar" aria-label="Formatting toolbar">
-                <label class="visually-hidden" for="text-style">Text style</label>
-                <select class="tool-select" id="text-style" aria-label="Text style" data-block-command>
-                  <option value="p">Paragraph</option>
-                  <option value="h1">Heading 1</option>
-                  <option value="h2">Heading 2</option>
-                </select>
-                <button class="tool-button" type="button" data-command="bold" aria-label="Bold"><strong>B</strong></button>
-                <button class="tool-button" type="button" data-command="italic" aria-label="Italic"><em>I</em></button>
-                <button class="tool-button" type="button" data-command="underline" aria-label="Underline"><u>U</u></button>
-                <span class="toolbar-divider" aria-hidden="true"></span>
-                <button class="tool-button" type="button" data-command="insertUnorderedList" aria-label="Bulleted list">• List</button>
-                <button class="tool-button" type="button" data-command="insertOrderedList" aria-label="Numbered list">1. List</button>
-                <button class="tool-button" type="button" data-quote-toggle aria-label="Toggle quote" aria-pressed="false">“ Quote</button>
-                <span class="toolbar-divider" aria-hidden="true"></span>
-                <button class="tool-button" type="button" data-command="undo" aria-label="Undo">↶</button>
-                <button class="tool-button" type="button" data-command="redo" aria-label="Redo">↷</button>
-              </div>
             </div>
 
             <div class="writing-area">
-              <div
-                class="note-body"
-                contenteditable="true"
-                role="textbox"
-                aria-multiline="true"
-                aria-label="Note body"
-                data-note-editor
-                data-placeholder="Start writing…"
-                spellcheck="true"
-              >{{ note.body|safe if note else "" }}</div>
+              {% set editor_name = "body" %}{% set editor_content = note.body if note else "" %}{% set editor_label = "Note body" %}{% set editor_placeholder = "Start writing…" %}{% set editor_class = "note-body" %}{% include "_rich_text_editor.html" %}
             </div>
 
             <div class="editor-footer">

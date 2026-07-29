@@ -80,6 +80,12 @@ def create_app(test_config=None):
         local_value = value.astimezone()
         return f"{local_value.day} {local_value.strftime('%B %Y')}"
 
+    from .note_content import sanitise_rich_text_html
+
+    @app.template_filter("sanitise_html")
+    def sanitise_html(value):
+        return sanitise_rich_text_html(value)
+
     from .routes.games import games_bp
     from .routes.home import home_bp
     from .routes.journal import journal_bp

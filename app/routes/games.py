@@ -7,6 +7,7 @@ from sqlalchemy import or_
 
 from ..extensions import db
 from ..models import GameJournal, GamePlayEntry
+from ..note_content import is_visually_empty_html, sanitise_rich_text_html
 
 
 games_bp = Blueprint("games", __name__, url_prefix="/games")
@@ -177,7 +178,7 @@ def game_from_form():
         rating=(request.form.get("rating") or "").strip(),
         platform=(request.form.get("platform") or "").strip(),
         hours_played=(request.form.get("hours_played") or "").strip(),
-        notes=request.form.get("notes") or "",
+        notes=sanitise_rich_text_html(request.form.get("notes") or ""),
     )
     if not draft.title:
         return draft, "A game title is required."
@@ -221,12 +222,12 @@ def play_draft_from_form(legacy=False):
     return PlayEntryDraft(
         played_on=(request.form.get("played_on") or "").strip(),
         title=(request.form.get("play_title") or (request.form.get("title") if legacy else "") or "").strip(),
-        body=request.form.get("play_body") or (request.form.get("body") if legacy else "") or "",
+        body=sanitise_rich_text_html(request.form.get("play_body") or (request.form.get("body") if legacy else "") or ""),
     )
 
 
 def play_draft_has_content(draft):
-    return bool(draft.played_on or draft.title or draft.body.strip())
+    return bool(draft.played_on or draft.title or not is_visually_empty_html(draft.body))
 
 
 def play_entry_from_form(draft=None, legacy=False):
@@ -237,7 +238,7 @@ def play_entry_from_form(draft=None, legacy=False):
         return draft, "Choose a valid date played."
     if len(draft.title) > MAX_TITLE_LENGTH:
         return draft, f"Play-entry titles must be {MAX_TITLE_LENGTH} characters or fewer."
-    if not draft.body.strip():
+    if is_visually_empty_html(draft.body):
         return draft, "A play-entry body is required."
     if len(draft.body) > MAX_PLAY_BODY_LENGTH:
         return draft, f"Play entries must be {MAX_PLAY_BODY_LENGTH} characters or fewer."
@@ -245,7 +246,7 @@ def play_entry_from_form(draft=None, legacy=False):
 
 
 def play_entry_values(draft):
-    return {"played_on": date.fromisoformat(draft.played_on), "title": draft.title, "body": draft.body.strip()}
+    return {"played_on": date.fromisoformat(draft.played_on), "title": draft.title, "body": "" if is_visually_empty_html(draft.body) else draft.body}
 
 
 def escape_like(value):

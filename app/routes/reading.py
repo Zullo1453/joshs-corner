@@ -7,6 +7,7 @@ from sqlalchemy import or_
 
 from ..extensions import db
 from ..models import ReadingItem
+from ..note_content import sanitise_rich_text_html
 
 
 reading_bp = Blueprint("reading", __name__, url_prefix="/reading")
@@ -98,7 +99,7 @@ def render_reading(new_book=False, selected_book=None, draft=None, error=None):
 
 
 def book_from_form():
-    draft = BookDraft(title=(request.form.get("title") or "").strip(), format=request.form.get("format") or "", release_date=(request.form.get("release_date") or "").strip(), status=request.form.get("status") or "", rating=(request.form.get("rating") or "").strip(), notes=request.form.get("notes") or "")
+    draft = BookDraft(title=(request.form.get("title") or "").strip(), format=request.form.get("format") or "", release_date=(request.form.get("release_date") or "").strip(), status=request.form.get("status") or "", rating=(request.form.get("rating") or "").strip(), notes=sanitise_rich_text_html(request.form.get("notes") or ""))
     if not draft.title:
         return draft, "A book title is required."
     if len(draft.title) > MAX_TITLE_LENGTH:

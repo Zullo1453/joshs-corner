@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
 from ..models import JournalEntry
+from ..note_content import sanitise_rich_text_html
 
 journal_bp = Blueprint("journal", __name__, url_prefix="/journal")
 
@@ -51,7 +52,7 @@ def entry(entry_date):
     journal_entry = JournalEntry.query.filter_by(entry_date=selected_date).one_or_none()
 
     if request.method == "POST":
-        body = request.form.get("body", "")
+        body = sanitise_rich_text_html(request.form.get("body", ""))
         if journal_entry is None:
             journal_entry = JournalEntry(entry_date=selected_date, body=body)
             db.session.add(journal_entry)

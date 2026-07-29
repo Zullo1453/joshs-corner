@@ -92,7 +92,8 @@ def test_opening_an_empty_date_shows_blank_new_entry(client):
     assert b"12 July 2026" in response.data
     assert b"New journal entry" in response.data
     assert b"Not saved yet" in response.data
-    assert b'value=' not in response.data.split(b'id="journal-body"', 1)[1].split(b"</textarea>", 1)[0]
+    assert b'id="journal-body"' in response.data
+    assert b'data-rich-body' in response.data
     assert b"/journal/?year=2026&amp;month=7" in response.data
     assert b"<h1>Journal</h1>" not in response.data
 
