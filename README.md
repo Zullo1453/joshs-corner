@@ -4,6 +4,51 @@ Josh's Corner is a local-first personal organiser for Windows. It combines a jou
 
 It is also a product-thinking portfolio project: requirements were defined in small, reviewable stages; approved visual prototypes guided interface decisions; and each addition was checked against usability, privacy, data safety, maintainability, and regression risk rather than treated as an isolated coding exercise.
 
+## Product tour
+
+**Unified personal dashboard** — six focused areas alongside local-first daily context.
+
+<img src="docs/screenshots/homepage.png" alt="Josh's Corner unified personal dashboard" width="100%">
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>Journal</strong><br>
+      Dated journalling through a monthly calendar and a focused entry editor.<br><br>
+      <img src="docs/screenshots/journal.png" alt="Dated journal calendar and editor">
+    </td>
+    <td width="50%" valign="top">
+      <strong>To-Dos</strong><br>
+      Clear active-task planning with completed work retained in an accessible history.<br><br>
+      <img src="docs/screenshots/todos.png" alt="Active and completed task tracking">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>General Notes</strong><br>
+      Searchable, favouritable rich-text knowledge capture for everyday reference.<br><br>
+      <img src="docs/screenshots/notes.png" alt="Rich-text general notes workspace">
+    </td>
+    <td width="50%" valign="top">
+      <strong>Game Journal and Play Log</strong><br>
+      Game-level reviews, ratings, and dated play-session reflections in one view.<br><br>
+      <img src="docs/screenshots/games.png" alt="Game Journal with game review and dated Play Log">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>Reading List</strong><br>
+      Structured reading tracking with ratings, status, and review insights.<br><br>
+      <img src="docs/screenshots/reading.png" alt="Reading List with structured tracking and review">
+    </td>
+    <td width="50%" valign="top">
+      <strong>Local image attachments</strong><br>
+      Shared rich-text tools support validated local image attachments without a cloud upload service.<br><br>
+      <img src="docs/screenshots/rich-text-image-tools.png" alt="Rich-text editor with local image attachment tools">
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - Journal calendar with one entry per date and historical reminders
