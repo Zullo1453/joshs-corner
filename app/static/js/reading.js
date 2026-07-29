@@ -23,8 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let worker = null;
   let dirty = false;
   let textDirty = false;
-  syncNotes();
-  const manualSnapshot = { title: form?.elements.title?.value || "", notes: notesInput?.value || "" };
 
   const setSaveState = (text, state = "") => {
     if (!saveState) return;
@@ -35,6 +33,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const syncNotes = () => {
     if (notesInput && notesBody) notesInput.value = notesBody.innerHTML;
   };
+  syncNotes();
+  const manualSnapshot = { title: form?.elements.title?.value || "", notes: notesInput?.value || "" };
   const payload = () => {
     syncNotes();
     return {

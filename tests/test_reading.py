@@ -158,6 +158,13 @@ def test_reading_autosave_client_and_scrollbar_are_reading_specific():
     assert ".notes-list" not in stylesheet and ".watch-list" not in stylesheet
 
 
+def test_reading_hybrid_save_initialises_helpers_before_using_them():
+    script = open("app/static/js/reading.js", encoding="utf-8").read()
+    assert script.index("const syncNotes") < script.index("syncNotes();")
+    assert "manualSnapshot" in script and "textDirty" in script
+    assert "Leave without saving?" in script and "beforeunload" in script
+
+
 def test_book_type_migration_preserves_legacy_records_and_reverses(tmp_path):
     database = tmp_path / "reading-migration.db"
     migration_app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database.as_posix()}"})
