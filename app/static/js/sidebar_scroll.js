@@ -16,10 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (Number.isFinite(stored)) list.scrollTop = clamp(stored);
   };
 
-  requestAnimationFrame(() => {
-    restorePosition();
-    requestAnimationFrame(restorePosition);
-  });
+  // Restore before the first post-navigation paint; a second-frame restore caused visible jitter.
+  restorePosition();
   list.addEventListener("scroll", savePosition, { passive: true });
 
   sidebar.querySelectorAll(fallback?.select || "[data-sidebar-select]").forEach((link) => {

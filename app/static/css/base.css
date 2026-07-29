@@ -14,6 +14,17 @@ body {
   min-height: 100%;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+[data-save-state] {
+  display: inline-block;
+  min-inline-size: 8.5ch;
+  min-block-size: 1.25em;
+  text-align: end;
+}
+
 body {
   margin: 0;
   background: var(--bg);

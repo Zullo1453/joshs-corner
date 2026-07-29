@@ -44,6 +44,9 @@ def test_sidebar_scroll_helper_preserves_clamped_module_scoped_positions():
     assert "data-sidebar-filters" in script
     assert "sidebar-selection" in script
     assert "watchlist-page" in script
+    assert script.count("restorePosition()") == 1
+    assert "scrollIntoView" not in script
+    assert "preventScroll: true" in script
 
 
 def test_sidebar_layout_keeps_independent_desktop_scroll_and_stacks_on_mobile():
@@ -54,3 +57,11 @@ def test_sidebar_layout_keeps_independent_desktop_scroll_and_stacks_on_mobile():
     assert "@media (max-width: 700px)" in stylesheet
     assert "overflow: visible" in stylesheet
     assert "height: auto" in stylesheet
+    assert "scrollbar-gutter: stable" in stylesheet
+
+
+def test_stable_scrollbar_and_save_status_reserve_layout_space():
+    stylesheet = open("app/static/css/base.css", encoding="utf-8").read()
+    assert "scrollbar-gutter: stable" in stylesheet
+    assert "[data-save-state]" in stylesheet
+    assert "min-inline-size" in stylesheet
