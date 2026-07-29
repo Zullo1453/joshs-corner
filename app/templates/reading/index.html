@@ -37,29 +37,7 @@
         {% endfor %}
       </div>
     </aside>
-    {% if new_book or selected_book %}
-      {% set book = selected_book %}{% set values = draft if draft else book %}
-      <section class="book-editor" data-sidebar-detail-focus>
-        <form method="post" action="{{ url_for('reading.create') if new_book else url_for('reading.update', book_id=book.id) }}" class="book-editor-form" data-book-editor{% if book %} data-book-id="{{ book.id }}" data-autosave-url="{{ url_for('reading.autosave', book_id=book.id) }}"{% endif %}>
-          <input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_format" value="{{ book_format }}"><input type="hidden" name="filter_type" value="{{ book_type_filter }}"><input type="hidden" name="filter_status" value="{{ status }}"><input type="hidden" name="filter_rating" value="{{ rating_filter }}">
-          <div class="book-title-row"><label class="visually-hidden" for="book-title">Book title</label><input id="book-title" name="title" maxlength="200" value="{{ values.title }}" placeholder="Book title" required><span data-save-state>{{ 'New book' if new_book else 'Saved' }}</span></div>
-          {% if error %}<p class="book-error" role="alert">{{ error }}</p>{% endif %}
-          <div class="book-fields">
-            <label>Format<select name="format">{% for option in formats %}<option value="{{ option }}"{% if values.format == option %} selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
-            <label>Classification<select name="book_type" required><option value=""{% if not values.book_type %} selected{% endif %}{% if new_book %} disabled{% endif %}>Unclassified</option><option value="fiction"{% if values.book_type == 'fiction' %} selected{% endif %}>Fiction</option><option value="non_fiction"{% if values.book_type == 'non_fiction' %} selected{% endif %}>Non-Fiction</option></select></label>
-            <label>Status<select name="status">{% for option in statuses %}<option value="{{ option }}"{% if values.status == option %} selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
-            <label>Release date<input name="release_date" type="date" value="{{ values.release_date or '' }}"></label>
-            {% set rating = values.rating|float if values.rating not in ('', none) else 0 %}
-            <div class="book-rating-field"><span id="book-rating-label">Rating</span><div class="book-stars" role="group" aria-labelledby="book-rating-label" data-book-stars><input type="hidden" name="rating" value="{{ values.rating }}" data-rating-input>{% for star in range(1, 6) %}<button type="button" class="book-star" data-star="{{ star }}" aria-label="Set rating to {{ star }} stars" style="--fill:{% if rating >= star %}100{% elif rating == star - 0.5 %}50{% else %}0{% endif %}">&#9733;</button>{% endfor %}</div><span data-rating-value>{% if rating %}{{ '%.1f'|format(rating) }} / 5{% else %}Not rated{% endif %}</span></div>
-          </div>
-          <div class="book-divider">Key learnings and notes</div><label class="visually-hidden" for="book-notes">Notes</label><textarea id="book-notes" name="notes" placeholder="Key learnings, useful ideas, quotes, and things worth revisiting&hellip;">{{ values.notes }}</textarea>
-          <footer class="book-footer"><span>{% if book %}Created {{ book.created_at|local_note_datetime }} &middot; Last edited {{ book.updated_at|local_note_datetime }}{% else %}Not saved yet{% endif %}</span><span class="book-actions">{% if book %}<button type="button" class="book-delete" data-book-delete>Delete book</button>{% endif %}<button type="submit" class="book-save">Save book</button></span></footer>
-        </form>
-        {% if book %}<form method="post" action="{{ url_for('reading.delete', book_id=book.id) }}" data-book-delete-form hidden><input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_format" value="{{ book_format }}"><input type="hidden" name="filter_type" value="{{ book_type_filter }}"><input type="hidden" name="filter_status" value="{{ status }}"><input type="hidden" name="filter_rating" value="{{ rating_filter }}"></form>{% endif %}
-      </section>
-    {% else %}
-      <section class="book-editor book-empty" data-sidebar-detail-focus><div><p>{% if query or book_format != 'all' or book_type_filter != 'all' or status != 'all' or rating_filter != 'all' %}No books match these filters.{% else %}Your reading list is ready for its first book.{% endif %}</p><a href="{{ url_for('reading.new') }}">Add Book</a></div></section>
-    {% endif %}
+    <div class="reading-detail-slot" data-reading-detail-slot>{% include "reading/_detail.html" %}</div>
   </main>
 </div>
 {% endblock %}

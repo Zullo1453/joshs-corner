@@ -1,23 +1,25 @@
 (() => {
+  const cleanups = new WeakMap();
   const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || "";
   const empty = (html) => {
     const holder = document.createElement("div"); holder.innerHTML = html || "";
     return !holder.querySelector("img") && !holder.textContent.replace(/\u00a0/g, " ").trim();
   };
   const newToken = () => (crypto.randomUUID ? crypto.randomUUID().replaceAll("-", "") : `${Date.now()}${Math.random()}`.replace(".", ""));
-  document.querySelectorAll(".book-preview, .watch-preview").forEach((preview) => {
+  const initialise = (scope = document) => {
+  scope.querySelectorAll(".book-preview, .watch-preview").forEach((preview) => {
     const holder = document.createElement("div"); holder.innerHTML = preview.textContent;
     preview.textContent = holder.textContent.replace(/\s+/g, " ").trim();
   });
   const toolbar = (name) => `<input type="hidden" name="${name}" data-rich-input><input type="hidden" name="${name}_attachment_token" data-rich-token><div class="rich-toolbar" role="toolbar" aria-label="Formatting toolbar"><select class="rich-tool-select" aria-label="Text style" data-rich-block><option value="p">Paragraph</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option></select><button type="button" class="rich-tool-button" data-rich-command="bold" aria-label="Bold"><b>B</b></button><button type="button" class="rich-tool-button" data-rich-command="italic" aria-label="Italic"><i>I</i></button><button type="button" class="rich-tool-button" data-rich-command="underline" aria-label="Underline"><u>U</u></button><button type="button" class="rich-tool-button" data-rich-command="insertUnorderedList" aria-label="Bulleted list">• List</button><button type="button" class="rich-tool-button" data-rich-command="insertOrderedList" aria-label="Numbered list">1. List</button><button type="button" class="rich-tool-button" data-rich-quote aria-label="Toggle quote" aria-pressed="false">“ Quote</button><button type="button" class="rich-tool-button" data-rich-command="undo" aria-label="Undo">↶</button><button type="button" class="rich-tool-button" data-rich-command="redo" aria-label="Redo">↷</button><span class="rich-divider" aria-hidden="true"></span><button type="button" class="rich-tool-button" data-rich-image aria-label="Add image">▧ Image</button><button type="button" class="rich-tool-button" data-rich-remove-image aria-label="Remove selected image">Remove image</button><input type="file" accept="image/png,image/jpeg,image/webp" data-rich-file hidden></div>`;
 
-  document.querySelectorAll('textarea[name="notes"]').forEach((textarea) => {
+  scope.querySelectorAll('textarea[name="notes"]').forEach((textarea) => {
     const root = document.createElement("div"); root.className = "rich-editor"; root.dataset.richEditor = ""; root.dataset.uploadUrl = "/attachments/upload";
     root.innerHTML = `${toolbar("notes")}<div id="${textarea.id}" class="rich-editor-body" contenteditable="true" role="textbox" aria-multiline="true" data-rich-body data-placeholder="${textarea.placeholder}"></div><p class="rich-upload-message" data-rich-upload-message role="status" aria-live="polite"></p>`;
     root.querySelector("[data-rich-body]").innerHTML = textarea.value; textarea.replaceWith(root);
   });
 
-  document.querySelectorAll("[data-rich-editor]").forEach((root) => {
+  scope.querySelectorAll("[data-rich-editor]").forEach((root) => {
     if (root.dataset.ready) return; root.dataset.ready = "1";
     const body = root.querySelector("[data-rich-body]"), input = root.querySelector("[data-rich-input]"), form = root.closest("form");
     const token = root.querySelector("[data-rich-token]"), message = root.querySelector("[data-rich-upload-message]");
@@ -70,6 +72,20 @@
     body.addEventListener("dblclick", (event) => { if (event.target.tagName === "IMG") window.open(event.target.src, "_blank", "noopener"); });
     body.addEventListener("keydown", (event) => { if ((event.key === "Delete" || event.key === "Backspace") && selectedImage) { event.preventDefault(); removeSelected(); } });
     body.addEventListener("input", () => { sync(); rememberCaret(); }); body.addEventListener("keyup", () => { rememberCaret(); updateQuote(); }); body.addEventListener("mouseup", () => { rememberCaret(); updateQuote(); });
-    form?.addEventListener("submit", sync); document.addEventListener("selectionchange", updateQuote);
+    form?.addEventListener("submit", sync);
+    const selectionListener = () => updateQuote();
+    document.addEventListener("selectionchange", selectionListener);
+    cleanups.set(root, () => document.removeEventListener("selectionchange", selectionListener));
   });
+  };
+
+  const destroy = (scope = document) => {
+    scope.querySelectorAll("[data-rich-editor]").forEach((root) => {
+      cleanups.get(root)?.();
+      cleanups.delete(root);
+    });
+  };
+
+  window.JoshsCornerRichText = { initialise, destroy };
+  initialise();
 })();

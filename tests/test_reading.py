@@ -37,6 +37,28 @@ def test_reading_page_loads_with_empty_state(client):
     assert b"Add Book" in response.data and b"Your reading list is empty." in response.data
 
 
+def test_reading_detail_fragment_reuses_editor_and_missing_books_are_safe(client, app):
+    book_id = add_book(app, "Fragment book", format="Written", status="Reading", book_type="fiction", notes="A fragment note")
+    full_page = client.get(f"/reading/?book_id={book_id}")
+    fragment = client.get(f"/reading/detail/{book_id}")
+    assert full_page.status_code == 200
+    assert b"data-reading-detail-slot" in full_page.data
+    assert b"book-sidebar" in full_page.data
+    assert f"/reading/?book_id={book_id}".encode() in full_page.data
+    assert fragment.status_code == 200
+    assert b"data-book-editor" in fragment.data
+    assert b"Fragment book" in fragment.data
+    assert b"book-sidebar" not in fragment.data
+    assert b"<!doctype html>" not in fragment.data.lower()
+    assert client.get("/reading/detail/999999").status_code == 404
+
+
+def test_reading_detail_fragment_validates_filters(client, app):
+    book_id = add_book(app, "Filtered fragment", format="Written", status="Reading", book_type="fiction")
+    assert client.get(f"/reading/detail/{book_id}?type=fiction").status_code == 200
+    assert client.get(f"/reading/detail/{book_id}?type=not-a-type").status_code == 400
+
+
 def test_create_fiction_and_non_fiction_books(client, app):
     client.post("/reading/new", data=book_data(title="The Archive of Ash", book_type="fiction"))
     client.post("/reading/new", data=book_data(title="The Wager", format="Audible", status="Reading", book_type="non_fiction"))
@@ -163,6 +185,32 @@ def test_reading_hybrid_save_initialises_helpers_before_using_them():
     assert script.index("const syncNotes") < script.index("syncNotes();")
     assert "manualSnapshot" in script and "textDirty" in script
     assert "Leave without saving?" in script and "beforeunload" in script
+
+
+def test_reading_partial_navigation_client_is_scoped_and_progressive():
+    script = open("app/static/js/reading.js", encoding="utf-8").read()
+    assert "[data-sidebar-module='reading']" in script
+    assert "data-reading-detail-slot" in script
+    assert "fetch(partial" in script
+    assert "history.pushState" in script and '"popstate"' in script
+    assert "slot.innerHTML" in script
+    assert "setSelectedBook" in script
+    assert "You have unsaved changes. Leave without saving?" in script
+    assert "event.metaKey" in script and "event.ctrlKey" in script and "event.shiftKey" in script and "event.altKey" in script
+    assert "link.hasAttribute(\"download\")" in script and "!link.target" in script
+    assert "scrollIntoView" not in script
+    assert "reading-navigation-error" in script and "Open normally" in script
+    assert "manualSnapshot" in script and "title: manualSnapshot.title" in script
+
+
+def test_reading_rich_text_can_initialise_a_replaced_detail_panel_once():
+    script = open("app/static/js/rich_text.js", encoding="utf-8").read()
+    assert "const initialise = (scope = document)" in script
+    assert "scope.querySelectorAll('textarea[name=\"notes\"]')" in script
+    assert "window.JoshsCornerRichText = { initialise, destroy }" in script
+    assert "if (root.dataset.ready) return" in script
+    assert "cleanups = new WeakMap" in script
+    assert "JoshsCornerRichText?.destroy(slot)" in open("app/static/js/reading.js", encoding="utf-8").read()
 
 
 def test_book_type_migration_preserves_legacy_records_and_reverses(tmp_path):

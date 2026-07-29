@@ -41,6 +41,26 @@ def new():
     return render_reading(new_book=True)
 
 
+@reading_bp.get("/detail/<int:book_id>")
+def detail(book_id):
+    """Return the existing-book editor fragment for progressive navigation.
+
+    The normal Reading List route remains the source of truth for complete,
+    bookmarkable pages.  This endpoint deliberately accepts only a validated
+    integer record ID and renders the same editor partial used by that page.
+    """
+    book = db.get_or_404(ReadingItem, book_id)
+    context = reading_context()
+    return render_template(
+        "reading/_detail.html",
+        selected_book=book,
+        new_book=False,
+        draft=None,
+        error=None,
+        **context,
+    )
+
+
 @reading_bp.post("/new")
 def create():
     draft, error = book_from_form(allow_unclassified=False)
@@ -91,8 +111,24 @@ def delete(book_id):
 
 
 def render_reading(new_book=False, selected_book=None, draft=None, error=None):
+    context = reading_context()
+    books = context["books"]
     if new_book and draft is None:
         draft = BookDraft()
+    if selected_book is None and not new_book and books:
+        selected_id = request.args.get("book_id", type=int)
+        selected_book = next((book for book in books if book.id == selected_id), books[0])
+    return render_template(
+        "reading/index.html",
+        selected_book=selected_book,
+        new_book=new_book,
+        draft=draft,
+        error=error,
+        **context,
+    )
+
+
+def reading_context():
     query = request.args.get("q", "").strip()
     book_format = request.args.get("format", "all")
     book_type_filter = request.args.get("type", "all")
@@ -121,10 +157,17 @@ def render_reading(new_book=False, selected_book=None, draft=None, error=None):
     if rating_filter != "all":
         statement = statement.where(ReadingItem.rating >= float(rating_filter))
     books = db.session.execute(statement.order_by(ReadingItem.updated_at.desc(), ReadingItem.id.desc())).scalars().all()
-    if selected_book is None and not new_book and books:
-        selected_id = request.args.get("book_id", type=int)
-        selected_book = next((book for book in books if book.id == selected_id), books[0])
-    return render_template("reading/index.html", books=books, selected_book=selected_book, new_book=new_book, draft=draft, error=error, query=query, book_format=book_format, book_type_filter=book_type_filter, status=status, rating_filter=rating_filter, formats=VALID_FORMATS, statuses=VALID_STATUSES, book_types=VALID_BOOK_TYPES)
+    return {
+        "books": books,
+        "query": query,
+        "book_format": book_format,
+        "book_type_filter": book_type_filter,
+        "status": status,
+        "rating_filter": rating_filter,
+        "formats": VALID_FORMATS,
+        "statuses": VALID_STATUSES,
+        "book_types": VALID_BOOK_TYPES,
+    }
 
 
 def book_from_form(allow_unclassified):
