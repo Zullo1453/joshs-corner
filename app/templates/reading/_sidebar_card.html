@@ -1,0 +1,8 @@
+<article class="book-card{% if selected_book and listed_book.id == selected_book.id %} active{% endif %}" data-book-card-id="{{ listed_book.id }}">
+  <a class="book-card-link" data-sidebar-select href="{{ url_for('reading.index', book_id=listed_book.id, q=query, format=book_format, type=book_type_filter, status=status, rating=rating_filter) }}"{% if selected_book and listed_book.id == selected_book.id %} aria-current="page"{% endif %}>
+    <span class="book-title">{{ listed_book.title }}</span>
+    <span class="book-rating">&#9733; {% if listed_book.rating is none %}Not rated{% else %}{{ '%.1f'|format(listed_book.rating) }} / 5{% endif %}</span>
+    <span class="book-preview">{{ listed_book.notes|rich_preview }}</span>
+    <span class="book-meta"><span class="book-pill format">{{ listed_book.format }}</span><span class="book-pill type {{ listed_book.book_type or 'unclassified' }}">{{ listed_book.book_type|replace('_', '-')|title if listed_book.book_type else 'Unclassified' }}</span><span class="book-pill status">{{ listed_book.status }}</span><span>Edited {{ listed_book.updated_at|local_note_datetime }}</span></span>
+  </a>
+</article>

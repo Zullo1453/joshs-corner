@@ -2,6 +2,7 @@
   {% set book = selected_book %}{% set values = draft if draft else book %}
   <section class="book-editor" data-sidebar-detail-focus>
     <form method="post" action="{{ url_for('reading.create') if new_book else url_for('reading.update', book_id=book.id) }}" class="book-editor-form" data-book-editor{% if book %} data-book-id="{{ book.id }}" data-autosave-url="{{ url_for('reading.autosave', book_id=book.id) }}"{% endif %}>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_format" value="{{ book_format }}"><input type="hidden" name="filter_type" value="{{ book_type_filter }}"><input type="hidden" name="filter_status" value="{{ status }}"><input type="hidden" name="filter_rating" value="{{ rating_filter }}">
       <div class="book-title-row"><label class="visually-hidden" for="book-title">Book title</label><input id="book-title" name="title" maxlength="200" value="{{ values.title }}" placeholder="Book title" required><span data-save-state>{{ 'New book' if new_book else 'Saved' }}</span></div>
       {% if error %}<p class="book-error" role="alert">{{ error }}</p>{% endif %}

@@ -84,6 +84,8 @@ def update(book_id):
         setattr(book, field, value)
     sync_attachments(book.notes, "reading", book.id, request.form.get("notes_attachment_token"))
     db.session.commit()
+    if is_partial_request():
+        return jsonify(reading_save_response(book, request.form))
     return redirect_to_reading(book.id)
 
 
@@ -98,7 +100,7 @@ def autosave(book_id):
         setattr(book, field, value)
     sync_attachments(book.notes, "reading", book.id, payload.get("notes_attachment_token"))
     db.session.commit()
-    return jsonify(status="saved", book_id=book.id, updated_at=book.updated_at.isoformat())
+    return jsonify(reading_save_response(book, payload))
 
 
 @reading_bp.post("/<int:book_id>/delete")
@@ -168,6 +170,41 @@ def reading_context():
         "statuses": VALID_STATUSES,
         "book_types": VALID_BOOK_TYPES,
     }
+
+
+def reading_save_response(book, filters):
+    """Return server-rendered sidebar data for an in-place Reading List save."""
+    context = reading_filters(filters)
+    return {
+        "status": "saved",
+        "book_id": book.id,
+        "updated_at": book.updated_at.isoformat(),
+        "sidebar_card_html": render_template(
+            "reading/_sidebar_card.html",
+            listed_book=book,
+            selected_book=book,
+            **context,
+        ),
+    }
+
+
+def reading_filters(data):
+    query = data.get("q", "").strip()
+    book_format = data.get("filter_format", data.get("format", "all"))
+    book_type_filter = data.get("filter_type", data.get("type", "all"))
+    status = data.get("filter_status", data.get("status", "all"))
+    rating_filter = data.get("filter_rating", data.get("rating", "all"))
+    return {
+        "query": query,
+        "book_format": book_format,
+        "book_type_filter": book_type_filter,
+        "status": status,
+        "rating_filter": rating_filter,
+    }
+
+
+def is_partial_request():
+    return request.headers.get("X-Requested-With") == "JoshCornerPartial"
 
 
 def book_from_form(allow_unclassified):

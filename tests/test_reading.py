@@ -1,5 +1,6 @@
 from datetime import date
 from pathlib import Path
+import re
 
 from flask_migrate import downgrade, upgrade
 from sqlalchemy import inspect, text
@@ -57,6 +58,41 @@ def test_reading_detail_fragment_validates_filters(client, app):
     book_id = add_book(app, "Filtered fragment", format="Written", status="Reading", book_type="fiction")
     assert client.get(f"/reading/detail/{book_id}?type=fiction").status_code == 200
     assert client.get(f"/reading/detail/{book_id}?type=not-a-type").status_code == 400
+
+
+def test_reading_manual_save_fragments_include_csrf_and_preserve_protection(tmp_path):
+    database = tmp_path / "reading-csrf.db"
+    csrf_app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database.as_posix()}", "WTF_CSRF_ENABLED": True})
+    with csrf_app.app_context():
+        db.create_all()
+    client = csrf_app.test_client()
+    book_id = add_book(csrf_app, "Before partial save", format="Written", status="Reading", book_type="fiction", notes="Before notes")
+    full_page = client.get(f"/reading/?book_id={book_id}")
+    fragment = client.get(f"/reading/detail/{book_id}")
+    full_token = re.search(rb'name="csrf_token" value="([^"]+)"', full_page.data).group(1)
+    fragment_token = re.search(rb'name="csrf_token" value="([^"]+)"', fragment.data).group(1)
+    assert full_token == fragment_token
+    blocked = client.post(f"/reading/{book_id}", data=book_data(title="Blocked", book_type="fiction"), headers={"X-Requested-With": "JoshCornerPartial"})
+    assert blocked.status_code == 400
+    saved = client.post(
+        f"/reading/{book_id}",
+        data={**book_data(title="Saved after partial selection", book_type="non_fiction", notes="Updated notes"), "csrf_token": fragment_token.decode(), "q": "", "filter_format": "all", "filter_type": "all", "filter_status": "all", "filter_rating": "all"},
+        headers={"X-Requested-With": "JoshCornerPartial", "X-CSRFToken": fragment_token.decode()},
+    )
+    assert saved.status_code == 200 and saved.json["status"] == "saved"
+    assert "Saved after partial selection" in saved.json["sidebar_card_html"]
+    assert "Non-Fiction" in saved.json["sidebar_card_html"]
+    # A second fragment load represents Back/Forward returning to the editor.
+    popstate_fragment = client.get(f"/reading/detail/{book_id}")
+    popstate_token = re.search(rb'name="csrf_token" value="([^"]+)"', popstate_fragment.data).group(1)
+    saved_again = client.post(
+        f"/reading/{book_id}",
+        data={**book_data(title="Saved after history navigation", notes="History notes"), "csrf_token": popstate_token.decode(), "q": "", "filter_format": "all", "filter_type": "all", "filter_status": "all", "filter_rating": "all"},
+        headers={"X-Requested-With": "JoshCornerPartial", "X-CSRFToken": popstate_token.decode()},
+    )
+    assert saved_again.status_code == 200
+    with csrf_app.app_context():
+        assert db.session.get(ReadingItem, book_id).title == "Saved after history navigation"
 
 
 def test_create_fiction_and_non_fiction_books(client, app):
@@ -149,6 +185,8 @@ def test_autosave_updates_only_the_selected_book_and_sanitises_notes(client, app
         ),
     )
     assert response.status_code == 200 and response.json["status"] == "saved"
+    assert "Non-Fiction" in response.json["sidebar_card_html"]
+    assert "Finished" in response.json["sidebar_card_html"]
     with app.app_context():
         selected = db.session.get(ReadingItem, selected_id)
         other = db.session.get(ReadingItem, other_id)
@@ -201,6 +239,9 @@ def test_reading_partial_navigation_client_is_scoped_and_progressive():
     assert "scrollIntoView" not in script
     assert "reading-navigation-error" in script and "Open normally" in script
     assert "manualSnapshot" in script and "title: manualSnapshot.title" in script
+    assert "new FormData(form)" in script and '"X-Requested-With": "JoshCornerPartial"' in script
+    assert "updateSidebarCard(result)" in script and "list.scrollTop = scrollTop" in script
+    assert "current.replaceWith(replacement)" in script
 
 
 def test_reading_rich_text_can_initialise_a_replaced_detail_panel_once():

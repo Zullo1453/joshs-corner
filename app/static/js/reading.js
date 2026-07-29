@@ -16,6 +16,21 @@
     });
   };
 
+  const updateSidebarCard = (result) => {
+    if (!result?.sidebar_card_html || !Number.isInteger(Number(result.book_id))) return;
+    const current = document.querySelector(`[data-book-card-id="${Number(result.book_id)}"]`);
+    const list = current?.closest("[data-sidebar-list]");
+    if (!current || !list) return;
+    const template = document.createElement("template");
+    template.innerHTML = result.sidebar_card_html.trim();
+    const replacement = template.content.querySelector(".book-card");
+    if (!replacement) return;
+    const scrollTop = list.scrollTop;
+    current.replaceWith(replacement);
+    list.scrollTop = scrollTop;
+    setSelectedBook(result.book_id);
+  };
+
   const initialiseReadingDetail = (panel) => {
     const form = panel?.querySelector("[data-book-editor]");
     if (!form || form.dataset.readingDetailReady) return activeDetail;
@@ -34,7 +49,7 @@
     };
     const syncNotes = () => { if (notesInput && notesBody) notesInput.value = notesBody.innerHTML; };
     syncNotes();
-    const manualSnapshot = { title: form.elements.title?.value || "", notes: notesInput?.value || "" };
+    let manualSnapshot = { title: form.elements.title?.value || "", notes: notesInput?.value || "" };
     const payload = () => ({
       title: manualSnapshot.title,
       format: form.elements.format.value,
@@ -44,6 +59,11 @@
       rating: form.elements.rating.value,
       notes: manualSnapshot.notes,
       notes_attachment_token: attachmentToken?.value || "",
+      q: form.elements.q?.value || "",
+      filter_format: form.elements.filter_format?.value || "all",
+      filter_type: form.elements.filter_type?.value || "all",
+      filter_status: form.elements.filter_status?.value || "all",
+      filter_rating: form.elements.filter_rating?.value || "all",
     });
     const runQueue = async () => {
       let succeeded = true;
@@ -54,6 +74,7 @@
           const response = await fetch(autosaveUrl, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }, body: JSON.stringify(payload()) });
           const result = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(result.error || "Save failed.");
+          updateSidebarCard(result);
           if (!detail.menuDirty) setSaveState(detail.textDirty ? "Unsaved changes" : "Saved");
         } catch (error) {
           detail.menuDirty = true;
@@ -103,7 +124,35 @@
     form.querySelectorAll('[name="format"], [name="book_type"], [name="status"], [name="release_date"]').forEach((field) => field.addEventListener("change", scheduleAutosave));
     notesBody?.addEventListener("input", markTextDirty);
     form.querySelector('[name="title"]')?.addEventListener("input", markTextDirty);
-    form.addEventListener("submit", () => { syncNotes(); detail.textDirty = false; detail.submitting = true; });
+    const saveManually = async () => {
+      syncNotes();
+      detail.submitting = true;
+      setSaveState("Saving…", "saving");
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "JoshCornerPartial", "X-CSRFToken": csrfToken() },
+          body: new FormData(form),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Save failed.");
+        manualSnapshot = { title: form.elements.title?.value || "", notes: notesInput?.value || "" };
+        detail.textDirty = false;
+        updateSidebarCard(result);
+        setSaveState("Saved");
+      } catch (error) {
+        setSaveState("Save failed", "failed");
+      } finally {
+        detail.submitting = false;
+      }
+    };
+    form.addEventListener("submit", (event) => {
+      syncNotes();
+      if (!form.dataset.bookId) return;
+      event.preventDefault();
+      saveManually();
+    });
     const deleteButton = panel.querySelector("[data-book-delete]");
     const deleteForm = panel.querySelector("[data-book-delete-form]");
     if (deleteButton && deleteForm) deleteButton.addEventListener("click", () => { if (window.confirm("Delete this book permanently?")) deleteForm.requestSubmit(); });
