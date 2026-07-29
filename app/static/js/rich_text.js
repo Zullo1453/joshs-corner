@@ -38,7 +38,7 @@
       const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
       if (range && body.contains(range.commonAncestorContainer)) { range.deleteContents(); range.insertNode(image); range.setStartAfter(image); range.collapse(true); selection.removeAllRanges(); selection.addRange(range); }
       else body.append(image);
-      rememberCaret(); sync(); announce("Image added. Select it and use Remove image before saving if needed.");
+      rememberCaret(); sync(); body.dispatchEvent(new Event("input", {bubbles: true})); announce("Image added. Select it and use Remove image before saving if needed.");
     };
     const upload = async (image) => {
       if (!image) return;
@@ -54,7 +54,7 @@
     };
     const removeSelected = async () => {
       if (!selectedImage) { announce("Select an image first.", true); return; }
-      const match = selectedImage.getAttribute("src")?.match(/^\/attachments\/(\d+)$/); selectedImage.remove(); selectedImage = null; sync(); announce("Image removed.");
+      const match = selectedImage.getAttribute("src")?.match(/^\/attachments\/(\d+)$/); selectedImage.remove(); selectedImage = null; sync(); body.dispatchEvent(new Event("input", {bubbles: true})); announce("Image removed.");
       if (match) fetch(`/attachments/${match[1]}/delete`, {method: "POST", credentials: "same-origin", headers: {"X-CSRFToken": csrfToken()}}).catch(() => {});
     };
     root.querySelectorAll("[data-rich-command]").forEach((button) => button.addEventListener("click", () => { body.focus(); document.execCommand(button.dataset.richCommand, false, null); sync(); updateQuote(); }));

@@ -23,6 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
   list.addEventListener("scroll", savePosition, { passive: true });
 
   sidebar.querySelectorAll(fallback?.select || "[data-sidebar-select]").forEach((link) => {
+    link.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") sessionStorage.setItem(`${selectionKey}:keyboard`, "1");
+    });
     link.addEventListener("click", () => {
       savePosition();
       sessionStorage.setItem(selectionKey, "1");
@@ -34,10 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (sessionStorage.getItem(selectionKey) === "1") {
     sessionStorage.removeItem(selectionKey);
-    const detail = document.querySelector("[data-sidebar-detail-focus]") || document.querySelector(fallback?.detail);
-    if (detail) {
-      detail.tabIndex = -1;
-      requestAnimationFrame(() => detail.focus({ preventScroll: true }));
-    }
+    const keyboardSelection = sessionStorage.getItem(`${selectionKey}:keyboard`) === "1";
+    sessionStorage.removeItem(`${selectionKey}:keyboard`);
+    if (keyboardSelection) requestAnimationFrame(() => document.querySelector("[data-detail-focus-target], input[name=title], [data-rich-body]")?.focus({ preventScroll: true }));
   }
 });

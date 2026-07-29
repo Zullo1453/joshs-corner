@@ -55,6 +55,17 @@ def test_update_note(client, app):
         assert note.body == "<h2>Updated body</h2>"
 
 
+def test_existing_note_autosaves_without_touching_another_note(client, app):
+    note_id = add_note(app, "Before", "Old")
+    other_id = add_note(app, "Other", "Unchanged")
+    response = client.post(f"/notes/{note_id}/autosave", json={"title": "After", "body": "<p>Safe<script>x</script></p>"})
+    assert response.status_code == 200 and response.json["status"] == "saved"
+    with app.app_context():
+        assert db.session.get(Note, note_id).title == "After"
+        assert "script" not in db.session.get(Note, note_id).body
+        assert db.session.get(Note, other_id).body == "Unchanged"
+
+
 def test_delete_note(client, app):
     note_id = add_note(app, "Temporary", "Delete this")
 

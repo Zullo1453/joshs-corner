@@ -132,6 +132,17 @@ def test_create_and_update_entry(client, app):
         assert entries[0].body == "The updated journal entry."
 
 
+def test_existing_entry_autosaves_and_empty_date_is_not_created(client, app):
+    created = client.post("/journal/entry/2026-07-15", data={"body": "Before"})
+    assert created.status_code == 302
+    response = client.post("/journal/entry/2026-07-15/autosave", json={"body": "<p>After<script>x</script></p>"})
+    missing = client.post("/journal/entry/2026-07-16/autosave", json={"body": "Never create this"})
+    assert response.status_code == 200 and missing.status_code == 404
+    with app.app_context():
+        assert JournalEntry.query.filter_by(entry_date=date(2026, 7, 16)).count() == 0
+        assert "script" not in JournalEntry.query.filter_by(entry_date=date(2026, 7, 15)).one().body
+
+
 def test_model_prevents_duplicate_entries_for_one_date(app):
     with app.app_context():
         db.session.add_all(

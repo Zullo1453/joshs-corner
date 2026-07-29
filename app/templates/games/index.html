@@ -38,7 +38,7 @@
       {% set game = selected_game %}
       {% set values = draft if draft else game %}
       <section class="game-editor" data-sidebar-detail-focus>
-        <form class="game-editor-form" method="post" action="{{ url_for('games.create') if new_game else url_for('games.update', game_id=game.id) }}" data-game-editor>
+        <form class="game-editor-form" method="post" action="{{ url_for('games.create') if new_game else url_for('games.update', game_id=game.id) }}" data-game-editor{% if game %} data-autosave-url="{{ url_for('games.autosave', game_id=game.id) }}"{% endif %}>
           <input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_status" value="{{ status }}">
           <div class="editor-title-row"><label class="visually-hidden" for="game-title">Game title</label><input id="game-title" name="title" maxlength="200" value="{{ values.title }}" placeholder="Game title" required><span class="save-state" aria-live="polite" data-save-state>{{ 'New game journal' if new_game else 'Saved' }}</span></div>
           {% if error %}<p class="game-error" role="alert">{{ error }}</p>{% endif %}

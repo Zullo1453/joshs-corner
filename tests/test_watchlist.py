@@ -42,6 +42,15 @@ def test_blank_title_update_and_delete(client, app):
     with app.app_context(): assert db.session.get(WatchlistItem, item_id) is None
 
 
+def test_existing_item_autosaves_and_sanitises_notes(client, app):
+    item_id = add_item(app, "Before", media_type="Movie", status="Want to Watch")
+    response = client.post(f"/watchlist/{item_id}/autosave", json=item_data(title="After", notes="<p>Safe<script>x</script></p>"))
+    assert response.status_code == 200 and response.json["status"] == "saved"
+    with app.app_context():
+        item = db.session.get(WatchlistItem, item_id)
+        assert item.title == "After" and "script" not in item.notes
+
+
 def test_searches_and_combined_filters(client, app):
     add_item(app, "Severance", media_type="Show", status="Watching", genre="Sci-Fi", recommendation_note="Office recommendation", notes="Strange workplace drama")
     add_item(app, "Arrival", media_type="Movie", status="Finished", genre="Drama", recommendation_note="Aliens recommendation", notes="Quiet review")

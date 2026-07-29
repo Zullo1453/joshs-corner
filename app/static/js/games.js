@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
       star.setAttribute("aria-pressed", String(rating === value || rating === value - 0.5));
     });
     if (display) display.textContent = rating ? `${rating.toFixed(1)} / 5` : "Not rated";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
   };
   stars.forEach((star) => {
     star.addEventListener("click", (event) => {
@@ -29,7 +30,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (["Enter", " ", "ArrowRight"].includes(event.key)) { event.preventDefault(); setRating(Number(star.dataset.star)); }
     });
   });
+  document.querySelectorAll('form[action*="/play-log/"]').forEach((playForm) => {
+    if (!playForm.action.endsWith("/delete")) playForm.dataset.autosaveUrl = `${playForm.action}/autosave`;
+  });
   const form = document.querySelector("[data-game-editor]");
+  window.JoshsCornerAutosave?.initialise();
   const saveState = document.querySelector("[data-save-state]");
   if (form && saveState) form.addEventListener("input", () => { saveState.textContent = "Unsaved changes"; });
   document.querySelectorAll("[data-submit-lock]").forEach((button) => button.addEventListener("click", () => { setTimeout(() => { button.disabled = true; }, 0); }));

@@ -27,6 +27,7 @@
         class="entry-form"
         method="post"
         action="{{ url_for('journal.entry', entry_date=selected_date.isoformat(), return_year=return_year, return_month=return_month) }}"
+        {% if journal_entry %}data-autosave-url="{{ url_for('journal.autosave_entry', entry_date=selected_date.isoformat()) }}"{% endif %}
       >
         <div class="writing-wrap">
           <label class="visually-hidden" for="journal-body">Journal entry</label>
@@ -34,7 +35,7 @@
         </div>
 
         <div class="entry-footer">
-          <div class="entry-meta" aria-live="polite">
+          <div class="entry-meta" aria-live="polite" data-save-state>
             {% if journal_entry %}
               Last saved {{ journal_entry.updated_at|local_saved_time }}
             {% else %}

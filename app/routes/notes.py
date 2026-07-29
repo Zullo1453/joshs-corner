@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
@@ -40,6 +40,23 @@ def update(note_id):
     sync_attachments(note.body, "note", note.id, request.form.get("body_attachment_token"))
     db.session.commit()
     return redirect_to_notes(note.id)
+
+
+@notes_bp.post("/<int:note_id>/autosave")
+def autosave(note_id):
+    note = db.get_or_404(Note, note_id)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(status="error", error="Malformed note data."), 400
+    title = payload.get("title")
+    body = payload.get("body")
+    if not isinstance(title, str) or not isinstance(body, str):
+        return jsonify(status="error", error="Malformed note data."), 400
+    note.title = normalise_title(title)
+    note.body = sanitise_note_html(body)
+    sync_attachments(note.body, "note", note.id, payload.get("body_attachment_token"))
+    db.session.commit()
+    return jsonify(status="saved", note_id=note.id, updated_at=note.updated_at.isoformat())
 
 
 @notes_bp.post("/<int:note_id>/favourite")

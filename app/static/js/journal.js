@@ -1,6 +1,8 @@
 const deleteTrigger = document.querySelector("[data-delete-trigger]");
 const deleteForm = document.querySelector("[data-delete-form]");
 
+window.JoshsCornerAutosave?.initialise();
+
 if (deleteTrigger && deleteForm) {
   deleteTrigger.addEventListener("click", () => {
     const confirmed = window.confirm(

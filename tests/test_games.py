@@ -68,6 +68,19 @@ def test_update_game_journal(client, app):
         assert game.notes == "New note"
 
 
+def test_existing_game_and_play_entry_autosave(client, app):
+    game_id = add_game(app, "Before", status="Backlog", notes="Old")
+    game_response = client.post(f"/games/{game_id}/autosave", json=game_data(title="After", notes="<p>Review<script>x</script></p>"))
+    client.post(f"/games/{game_id}/play-log", data={"played_on": "2026-07-20", "title": "First", "body": "Before"})
+    with app.app_context(): entry_id = GamePlayEntry.query.one().id
+    play_response = client.post(f"/games/{game_id}/play-log/{entry_id}/autosave", json={"played_on": "2026-07-21", "title": "Updated", "body": "<p>After</p>"})
+    assert game_response.status_code == 200 and play_response.status_code == 200
+    with app.app_context():
+        assert db.session.get(GameJournal, game_id).title == "After"
+        assert db.session.get(GamePlayEntry, entry_id).title == "Updated"
+        assert GamePlayEntry.query.count() == 1
+
+
 def test_delete_game_journal(client, app):
     game_id = add_game(app, "Temporary")
 

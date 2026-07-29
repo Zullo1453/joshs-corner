@@ -4,6 +4,8 @@ const bodyInput = document.querySelector("[data-body-input]");
 const titleInput = document.querySelector("[data-title-input]");
 const saveState = document.querySelector("[data-save-state]");
 
+window.JoshsCornerAutosave?.initialise();
+
 function markUnsaved() {
   if (saveState) {
     saveState.textContent = "Unsaved changes";

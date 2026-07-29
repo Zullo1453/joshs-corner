@@ -1,7 +1,7 @@
 import calendar
 from datetime import date
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
@@ -97,6 +97,22 @@ def delete_entry(entry_date):
         db.session.delete(journal_entry)
         db.session.commit()
     return redirect(url_for("journal.index", year=return_year, month=return_month))
+
+
+@journal_bp.post("/entry/<entry_date>/autosave")
+def autosave_entry(entry_date):
+    selected_date = parse_entry_date(entry_date)
+    journal_entry = JournalEntry.query.filter_by(entry_date=selected_date).one_or_none()
+    if journal_entry is None:
+        abort(404)
+    payload = request.get_json(silent=True)
+    body = payload.get("body") if isinstance(payload, dict) else None
+    if not isinstance(body, str):
+        return jsonify(status="error", error="Malformed journal data."), 400
+    journal_entry.body = sanitise_rich_text_html(body)
+    sync_attachments(journal_entry.body, "journal", journal_entry.id, payload.get("body_attachment_token"))
+    db.session.commit()
+    return jsonify(status="saved", entry_id=journal_entry.id, updated_at=journal_entry.updated_at.isoformat())
 
 
 def current_date():

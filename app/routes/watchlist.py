@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
@@ -67,6 +67,20 @@ def update(item_id):
     sync_attachments(item.notes, "watchlist", item.id, request.form.get("notes_attachment_token"))
     db.session.commit()
     return redirect_to_watchlist(item.id)
+
+
+@watchlist_bp.post("/<int:item_id>/autosave")
+def autosave(item_id):
+    item = db.get_or_404(WatchlistItem, item_id)
+    payload = request.get_json(silent=True)
+    draft, error = item_from_data(payload)
+    if error:
+        return jsonify(status="error", error=error), 400
+    for field, value in item_values(draft).items():
+        setattr(item, field, value)
+    sync_attachments(item.notes, "watchlist", item.id, payload.get("notes_attachment_token"))
+    db.session.commit()
+    return jsonify(status="saved", item_id=item.id, updated_at=item.updated_at.isoformat())
 
 
 @watchlist_bp.post("/<int:item_id>/delete")
@@ -138,16 +152,16 @@ def render_watchlist(new_item=False, selected_item=None, draft=None, error=None)
 
 
 def item_from_form():
-    draft = WatchDraft(
-        title=(request.form.get("title") or "").strip(),
-        media_type=request.form.get("media_type") or "",
-        status=request.form.get("status") or "",
-        rating=(request.form.get("rating") or "").strip(),
-        release_year=(request.form.get("release_year") or "").strip(),
-        genre=(request.form.get("genre") or "").strip(),
-        recommendation_note=(request.form.get("recommendation_note") or "").strip(),
-        notes=sanitise_rich_text_html(request.form.get("notes") or ""),
-    )
+    return item_from_data(request.form)
+
+
+def item_from_data(data):
+    if not hasattr(data, "get"):
+        return WatchDraft(), "Malformed watchlist data."
+    fields = {name: data.get(name, "") for name in ("title", "media_type", "status", "rating", "release_year", "genre", "recommendation_note", "notes")}
+    if not all(isinstance(value, str) for value in fields.values()):
+        return WatchDraft(), "Malformed watchlist data."
+    draft = WatchDraft(title=fields["title"].strip(), media_type=fields["media_type"].strip(), status=fields["status"].strip(), rating=fields["rating"].strip(), release_year=fields["release_year"].strip(), genre=fields["genre"].strip(), recommendation_note=fields["recommendation_note"].strip(), notes=sanitise_rich_text_html(fields["notes"]))
     if not draft.title:
         return draft, "A title is required."
     if len(draft.title) > MAX_TITLE_LENGTH:

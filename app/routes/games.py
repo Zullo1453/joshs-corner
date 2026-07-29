@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from datetime import date
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
@@ -88,6 +88,20 @@ def update(game_id):
     return redirect_to_games(game.id)
 
 
+@games_bp.post("/<int:game_id>/autosave")
+def autosave(game_id):
+    game = db.get_or_404(GameJournal, game_id)
+    draft, error = game_from_data(request.get_json(silent=True))
+    if error:
+        return jsonify(status="error", error=error), 400
+    for field, value in game_values(draft).items():
+        setattr(game, field, value)
+    payload = request.get_json(silent=True) or {}
+    sync_attachments(game.notes, "game", game.id, payload.get("notes_attachment_token"))
+    db.session.commit()
+    return jsonify(status="saved", game_id=game.id, updated_at=game.updated_at.isoformat())
+
+
 @games_bp.post("/<int:game_id>/delete")
 def delete(game_id):
     game = db.get_or_404(GameJournal, game_id)
@@ -127,6 +141,23 @@ def update_play_entry(game_id, entry_id):
     sync_attachments(entry.body, "game_play", entry.id, request.form.get("body_attachment_token"))
     db.session.commit()
     return redirect_to_games(game.id)
+
+
+@games_bp.post("/<int:game_id>/play-log/<int:entry_id>/autosave")
+def autosave_play_entry(game_id, entry_id):
+    game = db.get_or_404(GameJournal, game_id)
+    entry = db.get_or_404(GamePlayEntry, entry_id)
+    if entry.game_id != game.id:
+        abort(404)
+    payload = request.get_json(silent=True)
+    draft, error = play_entry_from_data(payload)
+    if error:
+        return jsonify(status="error", error=error), 400
+    for field, value in play_entry_values(draft).items():
+        setattr(entry, field, value)
+    sync_attachments(entry.body, "game_play", entry.id, payload.get("body_attachment_token"))
+    db.session.commit()
+    return jsonify(status="saved", entry_id=entry.id, updated_at=entry.updated_at.isoformat())
 
 
 @games_bp.post("/<int:game_id>/play-log/<int:entry_id>/delete")
@@ -187,14 +218,16 @@ def render_games(new_game=False, selected_game=None, draft=None, error=None, pla
 
 
 def game_from_form():
-    draft = GameDraft(
-        title=(request.form.get("title") or "").strip(),
-        status=request.form.get("status") or "",
-        rating=(request.form.get("rating") or "").strip(),
-        platform=(request.form.get("platform") or "").strip(),
-        hours_played=(request.form.get("hours_played") or "").strip(),
-        notes=sanitise_rich_text_html(request.form.get("notes") or ""),
-    )
+    return game_from_data(request.form)
+
+
+def game_from_data(data):
+    if not hasattr(data, "get"):
+        return GameDraft(), "Malformed game data."
+    fields = {name: data.get(name, "") for name in ("title", "status", "rating", "platform", "hours_played", "notes")}
+    if not all(isinstance(value, str) for value in fields.values()):
+        return GameDraft(), "Malformed game data."
+    draft = GameDraft(title=fields["title"].strip(), status=fields["status"].strip(), rating=fields["rating"].strip(), platform=fields["platform"].strip(), hours_played=fields["hours_played"].strip(), notes=sanitise_rich_text_html(fields["notes"]))
     if not draft.title:
         return draft, "A game title is required."
     if len(draft.title) > MAX_TITLE_LENGTH:
@@ -258,6 +291,15 @@ def play_entry_from_form(draft=None, legacy=False):
     if len(draft.body) > MAX_PLAY_BODY_LENGTH:
         return draft, f"Play entries must be {MAX_PLAY_BODY_LENGTH} characters or fewer."
     return draft, None
+
+
+def play_entry_from_data(data):
+    if not hasattr(data, "get"):
+        return PlayEntryDraft(), "Malformed play-entry data."
+    fields = {name: data.get(name, "") for name in ("played_on", "title", "body")}
+    if not all(isinstance(value, str) for value in fields.values()):
+        return PlayEntryDraft(), "Malformed play-entry data."
+    return play_entry_from_form(PlayEntryDraft(played_on=fields["played_on"].strip(), title=fields["title"].strip(), body=sanitise_rich_text_html(fields["body"])))
 
 
 def play_entry_values(draft):
