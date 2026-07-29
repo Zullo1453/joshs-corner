@@ -45,6 +45,10 @@ def test_sidebar_scroll_helper_preserves_clamped_module_scoped_positions():
     assert "sidebar-selection" in script
     assert "watchlist-page" in script
     assert script.count("restorePosition()") == 1
+    assert "DOMContentLoaded" not in script
+    assert "rawValue === null" in script
+    assert "sidebar-restoring" in script
+    assert script.index('sidebar.classList.add("sidebar-restoring")') < script.index("list.scrollTop = clamp(stored)") < script.index('sidebar.classList.remove("sidebar-restoring")')
     assert "scrollIntoView" not in script
     assert "preventScroll: true" in script
 
@@ -58,6 +62,7 @@ def test_sidebar_layout_keeps_independent_desktop_scroll_and_stacks_on_mobile():
     assert "overflow: visible" in stylesheet
     assert "height: auto" in stylesheet
     assert "scrollbar-gutter: stable" in stylesheet
+    assert ".sidebar-restoring" in stylesheet
 
 
 def test_stable_scrollbar_and_save_status_reserve_layout_space():

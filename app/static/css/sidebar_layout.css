@@ -1,4 +1,11 @@
 @media (min-width: 701px) {
+  .sidebar-restoring .notes-list,
+  .sidebar-restoring .book-list,
+  .sidebar-restoring .watch-list,
+  .sidebar-restoring .game-list {
+    visibility: hidden;
+  }
+
   .notes-app {
     height: min(860px, calc(100vh - 120px));
     min-height: 620px;

@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+(() => {
   const fallback = document.body.classList.contains("watchlist-page")
     ? { module: "watchlist", sidebar: ".watch-sidebar", list: ".watch-list", filters: "[data-watch-filters]", select: ".watch-card-link", detail: ".watch-editor" }
     : null;
@@ -12,11 +12,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const clamp = (value) => Math.min(Math.max(0, value), Math.max(0, list.scrollHeight - list.clientHeight));
   const savePosition = () => sessionStorage.setItem(scrollKey, String(Math.round(list.scrollTop)));
   const restorePosition = () => {
-    const stored = Number(sessionStorage.getItem(scrollKey));
-    if (Number.isFinite(stored)) list.scrollTop = clamp(stored);
+    const rawValue = sessionStorage.getItem(scrollKey);
+    if (rawValue === null) return false;
+    const stored = Number(rawValue);
+    if (!Number.isFinite(stored)) return false;
+    sidebar.classList.add("sidebar-restoring");
+    list.scrollTop = clamp(stored);
+    sidebar.classList.remove("sidebar-restoring");
+    return true;
   };
 
-  // Restore before the first post-navigation paint; a second-frame restore caused visible jitter.
+  // This deferred script runs immediately after parsing, before normal first paint.
   restorePosition();
   list.addEventListener("scroll", savePosition, { passive: true });
 
@@ -39,4 +45,4 @@ document.addEventListener("DOMContentLoaded", () => {
     sessionStorage.removeItem(`${selectionKey}:keyboard`);
     if (keyboardSelection) requestAnimationFrame(() => document.querySelector("[data-detail-focus-target], input[name=title], [data-rich-body]")?.focus({ preventScroll: true }));
   }
-});
+})();
