@@ -1,0 +1,28 @@
+.reading-page .book-list {
+  scrollbar-width: auto;
+  scrollbar-color: #b9823e #21170f;
+}
+
+.reading-page .book-list::-webkit-scrollbar {
+  width: 13px;
+}
+
+.reading-page .book-list::-webkit-scrollbar-track {
+  background: #21170f;
+  border-left: 1px solid #4a3b30;
+}
+
+.reading-page .book-list::-webkit-scrollbar-thumb {
+  min-height: 44px;
+  border: 3px solid #21170f;
+  border-radius: 999px;
+  background: #b9823e;
+}
+
+.reading-page .book-list::-webkit-scrollbar-thumb:hover {
+  background: #e0ad62;
+}
+
+[data-save-state].saving { color: #e0ad62; }
+[data-save-state].failed { color: #e19a92; }
+[data-save-state].retrying { color: #e0c67d; }

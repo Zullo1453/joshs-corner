@@ -111,6 +111,53 @@ def test_invalid_values_missing_book_and_interface_assets(client):
     assert b"All types" in page.data and b"Non-Fiction" in page.data
 
 
+def test_autosave_updates_only_the_selected_book_and_sanitises_notes(client, app):
+    selected_id = add_book(app, "Selected", format="Written", status="To Read", book_type="fiction", notes="Before")
+    other_id = add_book(app, "Other", format="Audible", status="Reading", book_type="non_fiction", notes="Unchanged")
+    response = client.post(
+        f"/reading/{selected_id}/autosave",
+        json=book_data(
+            title="Selected",
+            format="Audible",
+            book_type="non_fiction",
+            status="Finished",
+            rating="4.5",
+            release_date="2024-01-05",
+            notes="<p>Safe <script>bad()</script>notes</p>",
+        ),
+    )
+    assert response.status_code == 200 and response.json["status"] == "saved"
+    with app.app_context():
+        selected = db.session.get(ReadingItem, selected_id)
+        other = db.session.get(ReadingItem, other_id)
+        assert (selected.format, selected.book_type, selected.status, selected.rating) == ("Audible", "non_fiction", "Finished", 4.5)
+        assert selected.release_date == date(2024, 1, 5)
+        assert "script" not in selected.notes and "Safe" in selected.notes
+        assert other.notes == "Unchanged"
+        assert ReadingItem.query.count() == 2
+
+
+def test_autosave_rejects_invalid_or_malformed_data_without_writing(client, app):
+    book_id = add_book(app, "Stable", format="Written", status="To Read", book_type="fiction", notes="Original")
+    invalid = client.post(f"/reading/{book_id}/autosave", json=book_data(title="Stable", rating="3.2"))
+    malformed = client.post(f"/reading/{book_id}/autosave", json=["not", "a", "book"])
+    assert invalid.status_code == 400 and invalid.json["status"] == "error"
+    assert malformed.status_code == 400 and malformed.json["status"] == "error"
+    with app.app_context():
+        assert db.session.get(ReadingItem, book_id).notes == "Original"
+
+
+def test_reading_autosave_client_and_scrollbar_are_reading_specific():
+    script = open("app/static/js/reading.js", encoding="utf-8").read()
+    stylesheet = open("app/static/css/reading_autosave.css", encoding="utf-8").read()
+    assert "autosave" in script and "X-CSRFToken" in script
+    assert "setTimeout(flushAutosave, delay)" in script
+    assert "Saving…" in script and "Save failed" in script and "Offline / retrying" in script
+    assert ".reading-page .book-list" in stylesheet
+    assert "::-webkit-scrollbar" in stylesheet and "scrollbar-color" in stylesheet
+    assert ".notes-list" not in stylesheet and ".watch-list" not in stylesheet
+
+
 def test_book_type_migration_preserves_legacy_records_and_reverses(tmp_path):
     database = tmp_path / "reading-migration.db"
     migration_app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database.as_posix()}"})

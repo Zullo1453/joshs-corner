@@ -13,10 +13,10 @@
     </header>
 
     <main class="notes-app">
-      <aside class="notes-sidebar">
+      <aside class="notes-sidebar" data-sidebar-module="notes">
         <div class="sidebar-head">
-          <a class="new-note" href="{{ url_for('notes.new') }}">＋ New Note</a>
-          <form class="search-row" method="get" action="{{ url_for('notes.index') }}" data-search-form>
+          <a class="new-note" href="{{ url_for('notes.new') }}" data-sidebar-select>＋ New Note</a>
+          <form class="search-row" method="get" action="{{ url_for('notes.index') }}" data-search-form data-sidebar-filters>
             {% if favourites_only %}<input type="hidden" name="favourites" value="1">{% endif %}
             <label class="visually-hidden" for="notes-search">Search notes</label>
             <input
@@ -49,11 +49,12 @@
           </form>
         </div>
 
-        <div class="notes-list" aria-label="Notes">
+        <div class="notes-list" aria-label="Notes" data-sidebar-list>
           {% for note in notes %}
             <article class="note-card{% if selected_note and note.id == selected_note.id %} active{% endif %}" data-note-id="{{ note.id }}">
               <a
                 class="note-card-link"
+                data-sidebar-select
                 href="{{ url_for('notes.index', note_id=note.id, q=query, favourites=1 if favourites_only else none) }}"
                 {% if selected_note and note.id == selected_note.id %}aria-current="page"{% endif %}
               >
@@ -82,7 +83,7 @@
 
       {% if new_note or selected_note %}
         {% set note = selected_note %}
-        <section class="notes-editor">
+        <section class="notes-editor" data-sidebar-detail-focus>
           <form
             class="note-editor-form"
             method="post"
@@ -140,7 +141,7 @@
           {% endif %}
         </section>
       {% else %}
-        <section class="notes-editor notes-empty-editor">
+        <section class="notes-editor notes-empty-editor" data-sidebar-detail-focus>
           <div>
             {% if query or favourites_only %}
               <p>No notes match these filters.</p>

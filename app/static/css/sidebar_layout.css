@@ -1,0 +1,63 @@
+@media (min-width: 701px) {
+  .notes-app {
+    height: min(860px, calc(100vh - 120px));
+    min-height: 620px;
+  }
+
+  .reading-app,
+  .watch-app,
+  .game-app {
+    height: calc(100vh - 59px);
+    min-height: 620px;
+  }
+
+  .notes-sidebar,
+  .book-sidebar,
+  .watch-sidebar,
+  .game-sidebar,
+  .notes-editor,
+  .book-editor,
+  .watch-editor,
+  .game-editor {
+    min-height: 0;
+  }
+
+  .notes-list,
+  .book-list,
+  .watch-list,
+  .game-list {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .notes-editor,
+  .book-editor,
+  .watch-editor,
+  .game-editor {
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .notes-app,
+  .reading-app,
+  .watch-app,
+  .game-app {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .notes-list,
+  .book-list,
+  .watch-list,
+  .game-list,
+  .notes-editor,
+  .book-editor,
+  .watch-editor,
+  .game-editor {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

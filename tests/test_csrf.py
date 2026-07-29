@@ -21,6 +21,7 @@ def test_csrf_rejects_missing_or_invalid_post_tokens():
     "/games/new",
     "/watchlist/new",
     "/reading/new",
+    "/reading/1/autosave",
 ])
 def test_csrf_protects_every_section(endpoint):
     app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", "WTF_CSRF_ENABLED": True})

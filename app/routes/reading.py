@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
 from ..extensions import db
@@ -67,6 +67,20 @@ def update(book_id):
     return redirect_to_reading(book.id)
 
 
+@reading_bp.post("/<int:book_id>/autosave")
+def autosave(book_id):
+    book = db.get_or_404(ReadingItem, book_id)
+    payload = request.get_json(silent=True)
+    draft, error = book_from_data(payload, allow_unclassified=True)
+    if error:
+        return jsonify(status="error", error=error), 400
+    for field, value in book_values(draft).items():
+        setattr(book, field, value)
+    sync_attachments(book.notes, "reading", book.id, payload.get("notes_attachment_token"))
+    db.session.commit()
+    return jsonify(status="saved", book_id=book.id, updated_at=book.updated_at.isoformat())
+
+
 @reading_bp.post("/<int:book_id>/delete")
 def delete(book_id):
     book = db.get_or_404(ReadingItem, book_id)
@@ -114,7 +128,35 @@ def render_reading(new_book=False, selected_book=None, draft=None, error=None):
 
 
 def book_from_form(allow_unclassified):
-    draft = BookDraft(title=(request.form.get("title") or "").strip(), format=request.form.get("format") or "", book_type=(request.form.get("book_type") or "").strip(), release_date=(request.form.get("release_date") or "").strip(), status=request.form.get("status") or "", rating=(request.form.get("rating") or "").strip(), notes=sanitise_rich_text_html(request.form.get("notes") or ""))
+    return book_from_data(request.form, allow_unclassified)
+
+
+def book_from_data(data, allow_unclassified):
+    if not isinstance(data, dict) and not hasattr(data, "get"):
+        return BookDraft(), "Malformed book data."
+
+    def text_value(name):
+        value = data.get(name, "")
+        return value.strip() if isinstance(value, str) else None
+
+    title = text_value("title")
+    book_format = text_value("format")
+    book_type = text_value("book_type")
+    release_date = text_value("release_date")
+    status = text_value("status")
+    rating = text_value("rating")
+    notes = text_value("notes")
+    if None in (title, book_format, book_type, release_date, status, rating, notes):
+        return BookDraft(), "Malformed book data."
+    draft = BookDraft(
+        title=title,
+        format=book_format,
+        book_type=book_type,
+        release_date=release_date,
+        status=status,
+        rating=rating,
+        notes=sanitise_rich_text_html(notes),
+    )
     if not draft.title:
         return draft, "A book title is required."
     if len(draft.title) > MAX_TITLE_LENGTH:

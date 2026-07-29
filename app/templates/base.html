@@ -7,11 +7,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/rich_text.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_layout.css') }}">
     {% block styles %}{% endblock %}
   </head>
   <body class="{% block body_class %}{% endblock %}">
     {% block body %}{% endblock %}
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/sidebar_scroll.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/rich_text.js') }}" defer></script>
     {% block scripts %}{% endblock %}
   </body>

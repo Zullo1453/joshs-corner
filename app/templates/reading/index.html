@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Reading List &middot; Josh's Corner{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reading.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reading.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/reading_autosave.css') }}">{% endblock %}
 {% block body_class %}reading-page{% endblock %}
 {% block body %}
 <div class="reading-shell">
   <header class="reading-topbar"><a href="{{ url_for('home.index') }}" aria-label="Back to homepage">&#8962;</a></header>
   <main class="reading-app">
-    <aside class="book-sidebar">
+    <aside class="book-sidebar" data-sidebar-module="reading">
       <div class="book-sidebar-head">
-        <a class="new-book" href="{{ url_for('reading.new') }}">&#65291; Add Book</a>
-        <form method="get" action="{{ url_for('reading.index') }}" class="book-filters" data-book-filters>
+        <a class="new-book" href="{{ url_for('reading.new') }}" data-sidebar-select>&#65291; Add Book</a>
+        <form method="get" action="{{ url_for('reading.index') }}" class="book-filters" data-book-filters data-sidebar-filters>
           <label class="visually-hidden" for="book-search">Search reading list</label>
           <input id="book-search" name="q" type="search" value="{{ query }}" placeholder="Search reading list" autocomplete="off" data-book-search>
           <label class="visually-hidden" for="format-filter">Format</label>
@@ -22,10 +22,10 @@
           <select id="rating-filter" name="rating" data-book-filter><option value="all">All ratings</option><option value="5"{% if rating_filter == '5' %} selected{% endif %}>5 stars</option><option value="4"{% if rating_filter == '4' %} selected{% endif %}>4+ stars</option><option value="3"{% if rating_filter == '3' %} selected{% endif %}>3+ stars</option></select>
         </form>
       </div>
-      <div class="book-list" aria-label="Books">
+      <div class="book-list" aria-label="Books" data-sidebar-list>
         {% for listed_book in books %}
           <article class="book-card{% if selected_book and listed_book.id == selected_book.id %} active{% endif %}">
-            <a class="book-card-link" href="{{ url_for('reading.index', book_id=listed_book.id, q=query, format=book_format, type=book_type_filter, status=status, rating=rating_filter) }}"{% if selected_book and listed_book.id == selected_book.id %} aria-current="page"{% endif %}>
+            <a class="book-card-link" data-sidebar-select href="{{ url_for('reading.index', book_id=listed_book.id, q=query, format=book_format, type=book_type_filter, status=status, rating=rating_filter) }}"{% if selected_book and listed_book.id == selected_book.id %} aria-current="page"{% endif %}>
               <span class="book-title">{{ listed_book.title }}</span>
               <span class="book-rating">&#9733; {% if listed_book.rating is none %}Not rated{% else %}{{ '%.1f'|format(listed_book.rating) }} / 5{% endif %}</span>
               <span class="book-preview">{{ listed_book.notes|rich_preview }}</span>
@@ -39,8 +39,8 @@
     </aside>
     {% if new_book or selected_book %}
       {% set book = selected_book %}{% set values = draft if draft else book %}
-      <section class="book-editor">
-        <form method="post" action="{{ url_for('reading.create') if new_book else url_for('reading.update', book_id=book.id) }}" class="book-editor-form" data-book-editor>
+      <section class="book-editor" data-sidebar-detail-focus>
+        <form method="post" action="{{ url_for('reading.create') if new_book else url_for('reading.update', book_id=book.id) }}" class="book-editor-form" data-book-editor{% if book %} data-book-id="{{ book.id }}" data-autosave-url="{{ url_for('reading.autosave', book_id=book.id) }}"{% endif %}>
           <input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_format" value="{{ book_format }}"><input type="hidden" name="filter_type" value="{{ book_type_filter }}"><input type="hidden" name="filter_status" value="{{ status }}"><input type="hidden" name="filter_rating" value="{{ rating_filter }}">
           <div class="book-title-row"><label class="visually-hidden" for="book-title">Book title</label><input id="book-title" name="title" maxlength="200" value="{{ values.title }}" placeholder="Book title" required><span data-save-state>{{ 'New book' if new_book else 'Saved' }}</span></div>
           {% if error %}<p class="book-error" role="alert">{{ error }}</p>{% endif %}
@@ -58,7 +58,7 @@
         {% if book %}<form method="post" action="{{ url_for('reading.delete', book_id=book.id) }}" data-book-delete-form hidden><input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="filter_format" value="{{ book_format }}"><input type="hidden" name="filter_type" value="{{ book_type_filter }}"><input type="hidden" name="filter_status" value="{{ status }}"><input type="hidden" name="filter_rating" value="{{ rating_filter }}"></form>{% endif %}
       </section>
     {% else %}
-      <section class="book-editor book-empty"><div><p>{% if query or book_format != 'all' or book_type_filter != 'all' or status != 'all' or rating_filter != 'all' %}No books match these filters.{% else %}Your reading list is ready for its first book.{% endif %}</p><a href="{{ url_for('reading.new') }}">Add Book</a></div></section>
+      <section class="book-editor book-empty" data-sidebar-detail-focus><div><p>{% if query or book_format != 'all' or book_type_filter != 'all' or status != 'all' or rating_filter != 'all' %}No books match these filters.{% else %}Your reading list is ready for its first book.{% endif %}</p><a href="{{ url_for('reading.new') }}">Add Book</a></div></section>
     {% endif %}
   </main>
 </div>
