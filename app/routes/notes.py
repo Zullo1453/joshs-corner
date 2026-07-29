@@ -19,6 +19,12 @@ def new():
     return render_notes(new_note=True)
 
 
+@notes_bp.get("/detail/<int:note_id>")
+def detail(note_id):
+    note = db.get_or_404(Note, note_id)
+    return render_template("notes/_detail.html", selected_note=note, new_note=False, **notes_context())
+
+
 @notes_bp.post("/new")
 def create():
     note = Note(
@@ -39,6 +45,8 @@ def update(note_id):
     note.body = sanitise_note_html(request.form.get("body"))
     sync_attachments(note.body, "note", note.id, request.form.get("body_attachment_token"))
     db.session.commit()
+    if is_partial_request():
+        return jsonify(note_save_response(note, request.form))
     return redirect_to_notes(note.id)
 
 
@@ -56,7 +64,7 @@ def autosave(note_id):
     note.body = sanitise_note_html(body)
     sync_attachments(note.body, "note", note.id, payload.get("body_attachment_token"))
     db.session.commit()
-    return jsonify(status="saved", note_id=note.id, updated_at=note.updated_at.isoformat())
+    return jsonify(note_save_response(note, payload))
 
 
 @notes_bp.post("/<int:note_id>/favourite")
@@ -64,6 +72,8 @@ def toggle_favourite(note_id):
     note = db.get_or_404(Note, note_id)
     note.is_favourite = not note.is_favourite
     db.session.commit()
+    if is_partial_request():
+        return jsonify(note_save_response(note, request.form))
     return redirect_to_notes(note.id)
 
 
@@ -77,6 +87,16 @@ def delete(note_id):
 
 
 def render_notes(new_note=False):
+    context = notes_context()
+    notes = context["notes"]
+    selected_note = None
+    if not new_note and notes:
+        selected_id = request.args.get("note_id", type=int)
+        selected_note = next((note for note in notes if note.id == selected_id), notes[0])
+    return render_template("notes/index.html", selected_note=selected_note, new_note=new_note, **context)
+
+
+def notes_context():
     query = request.args.get("q", "").strip()
     favourites_only = request.args.get("favourites") == "1"
     statement = db.select(Note)
@@ -96,19 +116,17 @@ def render_notes(new_note=False):
         statement.order_by(Note.updated_at.desc(), Note.id.desc())
     ).scalars().all()
 
-    selected_note = None
-    if not new_note and notes:
-        selected_id = request.args.get("note_id", type=int)
-        selected_note = next((note for note in notes if note.id == selected_id), notes[0])
+    return {"notes": notes, "query": query, "favourites_only": favourites_only}
 
-    return render_template(
-        "notes/index.html",
-        notes=notes,
-        selected_note=selected_note,
-        new_note=new_note,
-        query=query,
-        favourites_only=favourites_only,
-    )
+
+def note_save_response(note, filters):
+    query = filters.get("q", "").strip()
+    favourites_only = filters.get("favourites") == "1"
+    return {"status": "saved", "note_id": note.id, "updated_at": note.updated_at.isoformat(), "sidebar_card_html": render_template("notes/_sidebar_card.html", note=note, selected_note=note, query=query, favourites_only=favourites_only)}
+
+
+def is_partial_request():
+    return request.headers.get("X-Requested-With") == "JoshCornerPartial"
 
 
 def normalise_title(value):

@@ -51,6 +51,8 @@
 
         <div class="notes-list" aria-label="Notes" data-sidebar-list>
           {% for note in notes %}
+            {% include "notes/_sidebar_card.html" %}
+            {% if false %}
             <article class="note-card{% if selected_note and note.id == selected_note.id %} active{% endif %}" data-note-id="{{ note.id }}">
               <a
                 class="note-card-link"
@@ -72,7 +74,7 @@
                   aria-pressed="{{ 'true' if note.is_favourite else 'false' }}"
                 >{{ "★" if note.is_favourite else "☆" }}</button>
               </form>
-            </article>
+            </article>{% endif %}
           {% else %}
             <div class="notes-list-empty">
               {% if query or favourites_only %}No notes match these filters.{% else %}No notes yet.{% endif %}
@@ -81,7 +83,8 @@
         </div>
       </aside>
 
-      {% if new_note or selected_note %}
+      <div class="notes-detail-slot" data-notes-detail-slot>{% include "notes/_detail.html" %}</div>
+      {% if false %}
         {% set note = selected_note %}
         <section class="notes-editor" data-sidebar-detail-focus>
           <form

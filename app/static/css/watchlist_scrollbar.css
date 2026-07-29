@@ -1,0 +1,9 @@
+.watchlist-page .watch-list {
+  scrollbar-width: auto;
+  scrollbar-color: var(--cyan) var(--navy);
+}
+
+.watchlist-page .watch-list::-webkit-scrollbar { width: 12px; }
+.watchlist-page .watch-list::-webkit-scrollbar-track { background: var(--navy); border-radius: 8px; }
+.watchlist-page .watch-list::-webkit-scrollbar-thumb { background: #3d8fa5; border: 3px solid var(--navy); border-radius: 8px; }
+.watchlist-page .watch-list::-webkit-scrollbar-thumb:hover { background: var(--cyan); }

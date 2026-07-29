@@ -146,6 +146,12 @@
   overflow-y: auto;
 }
 
+.notes-page .notes-list { scrollbar-width: auto; scrollbar-color: var(--notes-accent) var(--notes-panel); }
+.notes-page .notes-list::-webkit-scrollbar { width: 12px; }
+.notes-page .notes-list::-webkit-scrollbar-track { background: var(--notes-panel); border-radius: 8px; }
+.notes-page .notes-list::-webkit-scrollbar-thumb { background: var(--notes-accent); border: 3px solid var(--notes-panel); border-radius: 8px; }
+.notes-page .notes-list::-webkit-scrollbar-thumb:hover { background: #a9b4d4; }
+
 .note-card {
   position: relative;
   min-height: 98px;
