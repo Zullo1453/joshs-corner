@@ -83,11 +83,16 @@ class WatchlistItem(TimestampMixin, db.Model):
 class ReadingItem(TimestampMixin, db.Model):
     __table_args__ = (
         CheckConstraint("rating IS NULL OR (rating >= 0 AND rating <= 5)", name="reading_rating_range"),
+        CheckConstraint(
+            "book_type IS NULL OR book_type IN ('fiction', 'non_fiction')",
+            name="reading_book_type_valid",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     format: Mapped[str] = mapped_column(String(10), default="Written", nullable=False)
+    book_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     release_date: Mapped[date | None] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(20), default="To Read", nullable=False)
     rating: Mapped[float | None] = mapped_column(Float)
