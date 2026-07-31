@@ -44,6 +44,7 @@ def history():
         activity_description=activity_description,
         project_activity_description=project_activity_description,
         history_project_activities=project_activities_for_date(selected_date),
+        rollover_disabled_todos=rollover_disabled_for_date(selected_date),
     )
 
 
@@ -130,6 +131,8 @@ def project_task_today(project_id, todo_id):
     todo.current_location, todo.scheduled_date = DATED, today
     todo.original_date = todo.original_date or today
     todo.carried_from_date = None
+    if source is None:
+        todo.rollover_enabled = True
     record_activity(todo, "project_task_moved_to_today", source_date=source, destination_date=today)
     record_project_activity(project, "project_task_moved_to_today", todo=todo, source_date=source, destination_date=today)
     db.session.commit()
@@ -145,6 +148,8 @@ def project_task_schedule(project_id, todo_id):
     todo.current_location, todo.scheduled_date = DATED, destination
     todo.original_date = todo.original_date or destination
     todo.carried_from_date = None
+    if source is None:
+        todo.rollover_enabled = True
     event = "project_task_scheduled" if source is None else "project_task_rescheduled"
     record_activity(todo, event, source_date=source, destination_date=destination)
     record_project_activity(project, event, todo=todo, source_date=source, destination_date=destination)
@@ -231,7 +236,10 @@ def create():
             status=400,
         )
     today = local_today()
-    todo = Todo(text=text, current_location=DATED, status=ACTIVE, scheduled_date=today, original_date=today)
+    todo = Todo(
+        text=text, current_location=DATED, status=ACTIVE, scheduled_date=today, original_date=today,
+        rollover_enabled=request.form.get("rollover_enabled") == "true",
+    )
     db.session.add(todo)
     db.session.flush()
     record_activity(todo, "created_today", destination_date=today)
@@ -273,6 +281,26 @@ def edit(todo_id):
         )
         if todo.project:
             record_project_activity(todo.project, "project_task_edited", todo=todo, source_date=todo.scheduled_date, destination_date=todo.scheduled_date)
+        db.session.commit()
+    return redirect_for_view(request.form.get("return_to"), todo)
+
+
+@todos_bp.post("/<int:todo_id>/rollover")
+def set_rollover(todo_id):
+    todo = db.get_or_404(Todo, todo_id)
+    require_active(todo)
+    if todo.current_location != DATED:
+        abort(400)
+    enabled = parse_rollover_enabled(request.form.get("rollover_enabled"))
+    if enabled is None:
+        abort(400)
+    if todo.rollover_enabled != enabled:
+        previous = todo.rollover_enabled
+        todo.rollover_enabled = enabled
+        record_activity(
+            todo, "rollover_changed", source_date=todo.scheduled_date, destination_date=todo.scheduled_date,
+            metadata_json=json.dumps({"previous_value": previous, "new_value": enabled}),
+        )
         db.session.commit()
     return redirect_for_view(request.form.get("return_to"), todo)
 
@@ -341,6 +369,7 @@ def move_today(todo_id):
     todo.scheduled_date = today
     todo.original_date = todo.original_date or today
     todo.carried_from_date = None
+    todo.rollover_enabled = True
     record_activity(todo, "moved_to_today", destination_date=today)
     if todo.project:
         record_project_activity(todo.project, "project_task_moved_to_today", todo=todo, destination_date=today)
@@ -359,6 +388,8 @@ def schedule(todo_id):
     todo.scheduled_date = destination
     todo.original_date = todo.original_date or destination
     todo.carried_from_date = None
+    if source is None:
+        todo.rollover_enabled = True
     record_activity(todo, event, source_date=source, destination_date=destination)
     if todo.project:
         project_event = "project_task_scheduled" if source is None else "project_task_rescheduled"
@@ -416,6 +447,7 @@ def render_todos(view, status=200, **context):
         "backlog_todos": [],
         "history_activities": [],
         "history_project_activities": [],
+        "rollover_disabled_todos": [],
         "projects": [],
         "format_todo_date": format_todo_date,
     }
@@ -438,6 +470,7 @@ def carry_forward(today):
             Todo.status == ACTIVE,
             Todo.is_completed.is_(False),
             Todo.archived_at.is_(None),
+            Todo.rollover_enabled.is_(True),
             ~Todo.project.has(Project.status == ARCHIVED),
             Todo.scheduled_date < today,
         )
@@ -456,6 +489,7 @@ def carry_forward(today):
                 Todo.id == todo.id,
                 Todo.current_location == DATED,
                 Todo.status == ACTIVE,
+                Todo.rollover_enabled.is_(True),
                 Todo.scheduled_date == source,
             )
             .values(scheduled_date=today, carried_from_date=source, carry_count=Todo.carry_count + 1)
@@ -559,6 +593,7 @@ def activity_description(activity):
         "scheduled": "Scheduled",
         "rescheduled": "Rescheduled",
         "carried_forward": "Carried forward",
+        "rollover_changed": "Rollover setting changed",
         "archived": "Archived",
     }
     return labels.get(activity.event_type, activity.event_type.replace("_", " ").capitalize())
@@ -618,6 +653,20 @@ def project_activities_for_date(selected_date):
     return sorted(activities, key=lambda activity: (activity.occurred_at, activity.id), reverse=True)
 
 
+def rollover_disabled_for_date(selected_date):
+    return db.session.execute(
+        db.select(Todo)
+        .where(
+            Todo.current_location == DATED,
+            Todo.status == ACTIVE,
+            Todo.is_completed.is_(False),
+            Todo.scheduled_date == selected_date,
+            Todo.rollover_enabled.is_(False),
+        )
+        .order_by(Todo.updated_at.desc(), Todo.id.desc())
+    ).scalars().all()
+
+
 def local_today():
     injected = current_app.config.get("TODOS_TODAY")
     if isinstance(injected, date):
@@ -653,6 +702,14 @@ def parse_schedule_date(value):
     if selected < local_today():
         abort(400)
     return selected
+
+
+def parse_rollover_enabled(value):
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    return None
 
 
 def require_active(todo):

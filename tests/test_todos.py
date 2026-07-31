@@ -16,13 +16,14 @@ def configure_today(app, value=TODAY):
     app.config["TODOS_TODAY"] = value
 
 
-def add_todo(app, text, *, location="backlog", status="active", scheduled_date=None, completed_at=None):
+def add_todo(app, text, *, location="backlog", status="active", scheduled_date=None, completed_at=None, rollover_enabled=True, project_id=None):
     with app.app_context():
         todo = Todo(
             text=text, current_location=location, status=status,
             scheduled_date=scheduled_date, is_completed=status == "completed",
             completed_at=completed_at,
             archived_at=completed_at if location == "archived" else None,
+            rollover_enabled=rollover_enabled, project_id=project_id,
         )
         db.session.add(todo)
         db.session.commit()
@@ -50,10 +51,65 @@ def test_create_today_task_and_reject_blank(client, app):
     assert result.status_code == 200 and b"Buy groceries" in result.data
     with app.app_context():
         todo = db.session.execute(db.select(Todo)).scalar_one()
-        assert (todo.current_location, todo.status, todo.scheduled_date, todo.original_date) == ("dated", "active", TODAY, TODAY)
+        assert (todo.current_location, todo.status, todo.scheduled_date, todo.original_date, todo.rollover_enabled) == ("dated", "active", TODAY, TODAY, False)
     assert activities(app, todo.id) == ["created_today"]
     assert client.post("/todos/new", data={"text": "   "}).status_code == 400
     assert client.post("/todos/new", data={"text": "x" * 301}).status_code == 400
+
+
+def test_today_creation_opt_in_and_rollover_toggle_are_auditable(client, app):
+    configure_today(app)
+    page = client.get("/todos/")
+    assert b"Carry forward if incomplete" in page.data and b"rollover_enabled" in page.data
+    client.post("/todos/new", data={"text": "Carry me", "rollover_enabled": "true"})
+    with app.app_context():
+        todo = db.session.execute(db.select(Todo)).scalar_one()
+        assert todo.rollover_enabled is True
+    changed = client.post(f"/todos/{todo.id}/rollover", data={"rollover_enabled": "false", "return_to": "today"}, follow_redirects=True)
+    assert changed.status_code == 200 and b"Enable rollover" in changed.data
+    with app.app_context():
+        todo = db.session.get(Todo, todo.id)
+        event = db.session.execute(db.select(TodoActivity).where(TodoActivity.todo_id == todo.id)).scalars().all()[-1]
+        assert todo.rollover_enabled is False
+        assert event.event_type == "rollover_changed"
+        assert event.metadata_json == '{"previous_value": true, "new_value": false}'
+    client.post(f"/todos/{todo.id}/rollover", data={"rollover_enabled": "false", "return_to": "today"})
+    assert activities(app, todo.id).count("rollover_changed") == 1
+
+
+def test_disabled_rollover_leaves_overdue_task_in_history_without_repeated_events(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Keep on Tuesday", location="dated", scheduled_date=date(2026, 7, 29), rollover_enabled=False)
+    client.get("/todos/")
+    client.get("/todos/")
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        assert (todo.scheduled_date, todo.carry_count) == (date(2026, 7, 29), 0)
+        assert not db.session.execute(db.select(TodoActivity).where(TodoActivity.todo_id == todo_id)).scalars().all()
+    history = client.get("/todos/history?date=2026-07-29")
+    assert b"Keep on Tuesday" in history.data and b"Incomplete" in history.data and b"rollover disabled" in history.data
+
+
+def test_rollover_preserves_task_identity_and_unrelated_lifecycle_fields(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Same task", location="dated", scheduled_date=date(2026, 7, 30), rollover_enabled=True)
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        todo.original_date = date(2026, 7, 30)
+        db.session.commit()
+    client.get("/todos/")
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        assert (todo.id, todo.scheduled_date, todo.original_date, todo.carry_count, todo.rollover_enabled) == (todo_id, TODAY, date(2026, 7, 30), 1, True)
+
+
+def test_rollover_route_rejects_bad_values_and_inactive_or_missing_tasks(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Active", location="dated", scheduled_date=TODAY)
+    assert client.post(f"/todos/{todo_id}/rollover", data={"rollover_enabled": "maybe"}).status_code == 400
+    assert client.post("/todos/999999/rollover", data={"rollover_enabled": "true"}).status_code == 404
+    client.post(f"/todos/{todo_id}/complete", data={"return_to": "today"})
+    assert client.post(f"/todos/{todo_id}/rollover", data={"rollover_enabled": "false"}).status_code == 400
 
 
 def test_backlog_create_move_and_schedule(client, app):
@@ -62,10 +118,11 @@ def test_backlog_create_move_and_schedule(client, app):
     assert b"Plan holiday" in response.data
     with app.app_context():
         todo = db.session.execute(db.select(Todo)).scalar_one()
-        assert todo.current_location == "backlog" and todo.scheduled_date is None
+        assert todo.current_location == "backlog" and todo.scheduled_date is None and todo.rollover_enabled is True
     client.post(f"/todos/{todo.id}/move-today")
     with app.app_context():
-        assert db.session.get(Todo, todo.id).scheduled_date == TODAY
+        moved = db.session.get(Todo, todo.id)
+        assert moved.scheduled_date == TODAY and moved.rollover_enabled is True
     client.post(f"/todos/{todo.id}/move-backlog")
     client.post(f"/todos/{todo.id}/schedule", data={"scheduled_date": "2026-08-03", "return_to": "backlog"})
     with app.app_context():
@@ -145,8 +202,8 @@ def test_editing_active_tasks_preserves_lifecycle_fields_and_avoids_noop_events(
     with app.app_context():
         todo = db.session.get(Todo, todo_id)
         event = db.session.execute(db.select(TodoActivity).where(TodoActivity.todo_id == todo_id)).scalar_one()
-        assert (todo.text, todo.current_location, todo.scheduled_date, todo.original_date, todo.carried_from_date, todo.carry_count, todo.status, todo.is_completed, todo.completed_at, todo.archived_at) == (
-            "Updated task", "dated", TODAY, date(2026, 7, 29), date(2026, 7, 30), 2, "active", False, None, None
+        assert (todo.text, todo.current_location, todo.scheduled_date, todo.original_date, todo.carried_from_date, todo.carry_count, todo.rollover_enabled, todo.status, todo.is_completed, todo.completed_at, todo.archived_at) == (
+            "Updated task", "dated", TODAY, date(2026, 7, 29), date(2026, 7, 30), 2, True, "active", False, None, None
         )
         assert event.event_type == "edited" and event.metadata_json == '{"previous_title": "Original task", "new_title": "Updated task"}'
     assert client.post(f"/todos/{todo_id}/edit", data={"text": "Updated task", "return_to": "today"}).status_code == 302
@@ -168,6 +225,14 @@ def test_editing_backlog_and_scheduled_tasks_updates_the_same_record(client, app
         todo = db.session.get(Todo, backlog_id)
         assert (todo.text, todo.current_location, todo.scheduled_date) == ("Scheduled updated", "dated", date(2026, 8, 3))
         assert db.session.execute(db.select(Todo)).scalars().all().__len__() == 1
+
+
+def test_rescheduling_preserves_an_existing_rollover_preference(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Do not carry", location="dated", scheduled_date=date(2026, 8, 3), rollover_enabled=False)
+    client.post(f"/todos/{todo_id}/schedule", data={"scheduled_date": "2026-08-04", "return_to": "backlog"})
+    with app.app_context():
+        assert db.session.get(Todo, todo_id).rollover_enabled is False
 
 
 def test_task_edit_controls_are_inline_and_cancellation_does_not_submit_a_request(client, app):
@@ -224,9 +289,9 @@ def test_daily_todo_migration_maps_legacy_rows_without_guessing_dates(tmp_path):
         db.session.execute(text("INSERT INTO todo (text, is_completed, completed_at, created_at, updated_at) VALUES ('Legacy completed', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
         db.session.commit()
         upgrade(directory=str(migrations), revision="head")
-        rows = db.session.execute(text("SELECT text, current_location, status, scheduled_date FROM todo ORDER BY id")).all()
-        assert rows == [("Legacy active", "backlog", "active", None), ("Legacy completed", "archived", "completed", None)]
+        rows = db.session.execute(text("SELECT text, current_location, status, scheduled_date, rollover_enabled FROM todo ORDER BY id")).all()
+        assert rows == [("Legacy active", "backlog", "active", None, 1), ("Legacy completed", "archived", "completed", None, 1)]
         assert db.session.execute(text("SELECT count(*) FROM todo_activity")).scalar_one() == 2
-        assert "scheduled_date" in {column["name"] for column in inspect(db.engine).get_columns("todo")}
+        assert {"scheduled_date", "rollover_enabled"} <= {column["name"] for column in inspect(db.engine).get_columns("todo")}
         downgrade(directory=str(migrations), revision="d51f6c8e9a32")
         assert "scheduled_date" not in {column["name"] for column in inspect(db.engine).get_columns("todo")}

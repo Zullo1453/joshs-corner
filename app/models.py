@@ -42,6 +42,7 @@ class Todo(TimestampMixin, db.Model):
     original_date: Mapped[date | None] = mapped_column(Date)
     carried_from_date: Mapped[date | None] = mapped_column(Date)
     carry_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    rollover_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"), index=True)
     project: Mapped["Project | None"] = relationship(back_populates="tasks")

@@ -11,6 +11,15 @@ document.querySelectorAll(".add-row").forEach((form) => {
   });
 });
 
+document.querySelectorAll("[data-rollover-form]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    if (form.dataset.submitting) { event.preventDefault(); return; }
+    form.dataset.submitting = "1";
+    const button = form.querySelector("button[type=submit]");
+    if (button) button.disabled = true;
+  });
+});
+
 document.querySelectorAll("[data-project-archive]").forEach((form) => {
   form.addEventListener("submit", (event) => {
     if (!window.confirm("Archive this project and suspend its unfinished tasks? Historical activity will be retained.")) event.preventDefault();
