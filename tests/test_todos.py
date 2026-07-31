@@ -1,166 +1,177 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from pathlib import Path
 
+from flask_migrate import downgrade, upgrade
+from sqlalchemy import inspect, text
+
+from app import create_app
 from app.extensions import db
-from app.models import Todo
+from app.models import Todo, TodoActivity
 
 
-def add_todo(app, text, completed=False, completed_at=None):
+TODAY = date(2026, 7, 31)
+
+
+def configure_today(app, value=TODAY):
+    app.config["TODOS_TODAY"] = value
+
+
+def add_todo(app, text, *, location="backlog", status="active", scheduled_date=None, completed_at=None):
     with app.app_context():
         todo = Todo(
-            text=text,
-            is_completed=completed,
+            text=text, current_location=location, status=status,
+            scheduled_date=scheduled_date, is_completed=status == "completed",
             completed_at=completed_at,
+            archived_at=completed_at if location == "archived" else None,
         )
         db.session.add(todo)
         db.session.commit()
         return todo.id
 
 
-def test_todos_page_loads_with_empty_states(client):
-    response = client.get("/todos/")
-
-    assert response.status_code == 200
-    assert b"Add To-Do" in response.data
-    assert b"Nothing left to do. Nicely done." in response.data
-    assert b"Completed tasks will appear here." in response.data
-    assert b"0 remaining" in response.data
+def activities(app, todo_id):
+    with app.app_context():
+        return [item.event_type for item in db.session.execute(db.select(TodoActivity).where(TodoActivity.todo_id == todo_id)).scalars()]
 
 
-def test_create_task_uses_expected_form_endpoint(client, app):
+def test_today_page_empty_state_and_three_views(client, app):
+    configure_today(app)
     page = client.get("/todos/")
-    assert b'action="/todos/new"' in page.data
-    assert b'method="post"' in page.data
+    assert page.status_code == 200
+    assert b"Daily focus" in page.data and b"Nothing scheduled for today" in page.data
+    assert client.get("/todos/backlog").status_code == 200
+    assert client.get("/todos/history").status_code == 200
 
-    response = client.post("/todos/new", data={"text": "Buy groceries"}, follow_redirects=True)
-    assert response.status_code == 200
-    assert b"Buy groceries" in response.data
-    assert b"1 remaining" in response.data
 
+def test_create_today_task_and_reject_blank(client, app):
+    configure_today(app)
+    assert b'action="/todos/' in client.get("/todos/").data
+    result = client.post("/todos/new", data={"text": "Buy groceries"}, follow_redirects=True)
+    assert result.status_code == 200 and b"Buy groceries" in result.data
     with app.app_context():
-        todo = Todo.query.one()
-        assert todo.text == "Buy groceries"
-        assert todo.is_completed is False
-        assert todo.completed_at is None
+        todo = db.session.execute(db.select(Todo)).scalar_one()
+        assert (todo.current_location, todo.status, todo.scheduled_date, todo.original_date) == ("dated", "active", TODAY, TODAY)
+    assert activities(app, todo.id) == ["created_today"]
+    assert client.post("/todos/new", data={"text": "   "}).status_code == 400
+    assert client.post("/todos/new", data={"text": "x" * 301}).status_code == 400
 
 
-def test_blank_or_whitespace_task_is_rejected(client, app):
-    response = client.post("/todos/new", data={"text": "   "})
-
-    assert response.status_code == 400
-    assert b"Tasks need between 1 and 300 characters." in response.data
+def test_backlog_create_move_and_schedule(client, app):
+    configure_today(app)
+    response = client.post("/todos/backlog/new", data={"text": "Plan holiday"}, follow_redirects=True)
+    assert b"Plan holiday" in response.data
     with app.app_context():
-        assert Todo.query.count() == 0
-
-
-def test_task_length_is_validated(client, app):
-    response = client.post("/todos/new", data={"text": "x" * 301})
-
-    assert response.status_code == 400
+        todo = db.session.execute(db.select(Todo)).scalar_one()
+        assert todo.current_location == "backlog" and todo.scheduled_date is None
+    client.post(f"/todos/{todo.id}/move-today")
     with app.app_context():
-        assert Todo.query.count() == 0
+        assert db.session.get(Todo, todo.id).scheduled_date == TODAY
+    client.post(f"/todos/{todo.id}/move-backlog")
+    client.post(f"/todos/{todo.id}/schedule", data={"scheduled_date": "2026-08-03", "return_to": "backlog"})
+    with app.app_context():
+        saved = db.session.get(Todo, todo.id)
+        assert saved.current_location == "dated" and saved.scheduled_date == date(2026, 8, 3)
+    assert activities(app, todo.id) == ["created_backlog", "moved_to_today", "moved_to_backlog", "scheduled"]
 
 
-def test_complete_task_moves_to_archive_and_stores_timestamp(client, app):
-    todo_id = add_todo(app, "Finish report")
-
-    response = client.post(f"/todos/{todo_id}/complete", follow_redirects=True)
-    assert response.status_code == 200
-    assert b"Finish report" in response.data
-    assert b"Old To-Dos" in response.data
-    assert b"1 remaining" not in response.data
-    assert b"0 remaining" in response.data
-    assert b'aria-expanded="true"' in response.data
-
+def test_carry_forward_is_idempotent_and_preserves_origin(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Yesterday task", location="dated", scheduled_date=date(2026, 7, 29))
+    first = client.get("/todos/")
+    second = client.get("/todos/")
+    assert b"Yesterday task" in first.data and b"Carried over from 29 July 2026" in second.data
     with app.app_context():
         todo = db.session.get(Todo, todo_id)
-        assert todo.is_completed is True
-        assert todo.completed_at is not None
+        assert todo.scheduled_date == TODAY and todo.carried_from_date == date(2026, 7, 29) and todo.carry_count == 1
+        assert db.session.execute(db.select(TodoActivity).where(TodoActivity.todo_id == todo_id, TodoActivity.event_type == "carried_forward")).scalars().all()
+    assert activities(app, todo_id).count("carried_forward") == 1
 
 
-def test_completion_date_uses_australian_day_month_year_format(client, app):
-    completed_at = datetime(2026, 7, 28, 8, 42, tzinfo=timezone.utc)
-    add_todo(app, "Archived task", completed=True, completed_at=completed_at)
-
-    response = client.get("/todos/?archive=1")
-
-    assert b"Completed 28 July 2026" in response.data
-
-
-def test_completed_text_has_no_strikethrough_presentation(client, app):
-    add_todo(app, "Readable completed task", completed=True, completed_at=datetime.now(timezone.utc))
-
-    page = client.get("/todos/?archive=1")
-    stylesheet = client.get("/static/css/todos.css")
-
-    assert b"Readable completed task" in page.data
-    assert b"text-decoration: line-through" not in stylesheet.data
-
-
-def test_restore_clears_timestamp_and_recomplete_creates_new_timestamp(client, app):
-    todo_id = add_todo(app, "Repeat task")
-
-    client.post(f"/todos/{todo_id}/complete")
+def test_completed_and_archived_tasks_do_not_carry(client, app):
+    configure_today(app)
+    completed_id = add_todo(app, "Completed old", location="dated", status="completed", scheduled_date=date(2026, 7, 30), completed_at=datetime.now(timezone.utc))
+    archived_id = add_todo(app, "Archived old", location="archived", status="archived", scheduled_date=date(2026, 7, 30))
+    client.get("/todos/")
     with app.app_context():
-        first_timestamp = db.session.get(Todo, todo_id).completed_at
-        assert first_timestamp is not None
+        assert db.session.get(Todo, completed_id).scheduled_date == date(2026, 7, 30)
+        assert db.session.get(Todo, archived_id).scheduled_date == date(2026, 7, 30)
 
-    client.post(f"/todos/{todo_id}/restore")
+
+def test_complete_reopen_and_hide_completed_today(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Finish report", location="dated", scheduled_date=TODAY)
+    page = client.post(f"/todos/{todo_id}/complete", data={"return_to": "today"}, follow_redirects=True)
+    assert b"Completed today" in page.data and b"Finish report" in page.data
+    assert b"text-decoration:line-through" in client.get("/static/css/todos.css").data
     with app.app_context():
-        restored = db.session.get(Todo, todo_id)
-        assert restored.is_completed is False
-        assert restored.completed_at is None
-
-    client.post(f"/todos/{todo_id}/complete")
+        first = db.session.get(Todo, todo_id).completed_at
+        assert first and db.session.get(Todo, todo_id).status == "completed"
+    hidden = client.get("/todos/?hide_completed=1")
+    assert b"Finish report" not in hidden.data
+    client.post(f"/todos/{todo_id}/reopen", data={"return_to": "today"})
     with app.app_context():
-        re_completed = db.session.get(Todo, todo_id)
-        assert re_completed.is_completed is True
-        assert re_completed.completed_at is not None
-        assert re_completed.completed_at != first_timestamp
-
-
-def test_delete_active_task(client, app):
-    todo_id = add_todo(app, "Delete active")
-
-    response = client.post(f"/todos/{todo_id}/delete", follow_redirects=True)
-    assert response.status_code == 200
-    assert b"Nothing left to do. Nicely done." in response.data
+        assert db.session.get(Todo, todo_id).completed_at is None
+    client.post(f"/todos/{todo_id}/complete", data={"return_to": "today"})
     with app.app_context():
-        assert db.session.get(Todo, todo_id) is None
+        assert db.session.get(Todo, todo_id).completed_at != first
 
 
-def test_delete_archived_task(client, app):
-    todo_id = add_todo(app, "Delete archived", completed=True, completed_at=datetime.now(timezone.utc))
-
-    response = client.post(f"/todos/{todo_id}/delete", follow_redirects=True)
-    assert response.status_code == 200
-    assert b"Completed tasks will appear here." in response.data
+def test_edit_archive_and_history_are_auditable(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Draft task", location="dated", scheduled_date=TODAY)
+    client.post(f"/todos/{todo_id}/edit", data={"text": "Edited task", "return_to": "today"})
+    client.post(f"/todos/{todo_id}/delete", data={"return_to": "today"})
     with app.app_context():
-        assert db.session.get(Todo, todo_id) is None
+        todo = db.session.get(Todo, todo_id)
+        assert todo is not None and todo.status == "archived" and todo.archived_at is not None
+    history = client.get("/todos/history?date=2026-07-31")
+    assert b"Edited task" in history.data and b"Archived" in history.data
+    assert activities(app, todo_id) == ["edited", "archived"]
 
 
-def test_active_and_archived_counts(client, app):
-    add_todo(app, "Active one")
-    add_todo(app, "Active two")
-    add_todo(app, "Archived", completed=True, completed_at=datetime.now(timezone.utc))
+def test_history_accepts_selected_date_and_bad_dates_fail(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Scheduled", location="backlog")
+    client.post(f"/todos/{todo_id}/schedule", data={"scheduled_date": "2026-08-02", "return_to": "backlog"})
+    page = client.get("/todos/history?date=2026-08-02")
+    assert b"Scheduled" in page.data and b"Scheduled" in page.data
+    assert client.get("/todos/history?date=not-a-date").status_code == 400
+    assert client.post(f"/todos/{todo_id}/schedule", data={"scheduled_date": "2026-07-30"}).status_code == 400
 
-    response = client.get("/todos/")
 
-    assert b"2 remaining" in response.data
-    assert b'<span class="archive-count">1</span>' in response.data
+def test_invalid_task_actions_and_ids_are_safe(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Backlog", location="backlog")
+    assert client.post(f"/todos/{todo_id}/move-backlog").status_code == 400
+    assert client.post(f"/todos/{todo_id}/complete").status_code == 302
+    assert client.post(f"/todos/{todo_id}/complete").status_code == 400
+    for action in ("complete", "restore", "delete", "schedule", "edit"):
+        assert client.post(f"/todos/999999/{action}").status_code == 404
 
 
-def test_archive_collapse_control_and_delete_confirmation_assets(client, app):
-    add_todo(app, "Archived", completed=True, completed_at=datetime.now(timezone.utc))
-
+def test_archive_confirmation_and_post_only_controls(client, app):
+    configure_today(app)
+    add_todo(app, "Archive me", location="dated", scheduled_date=TODAY)
     page = client.get("/todos/")
     script = client.get("/static/js/todos.js")
-
-    assert b'data-archive-toggle' in page.data
-    assert b'aria-expanded="false"' in page.data
-    assert b"archive.classList.toggle(\"open\")" in script.data
-    assert b"Delete this to-do? This cannot be undone." in script.data
+    assert b'data-archive-form' in page.data
+    assert b"Archive this task? Its history will be retained." in script.data
+    assert client.get("/todos/new").status_code == 405
 
 
-def test_missing_task_ids_return_not_found(client):
-    for action in ("complete", "restore", "delete"):
-        assert client.post(f"/todos/999999/{action}").status_code == 404
+def test_daily_todo_migration_maps_legacy_rows_without_guessing_dates(tmp_path):
+    database = tmp_path / "todo-migration.db"
+    migration_app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database.as_posix()}"})
+    migrations = Path(__file__).resolve().parents[1] / "migrations"
+    with migration_app.app_context():
+        upgrade(directory=str(migrations), revision="d51f6c8e9a32")
+        db.session.execute(text("INSERT INTO todo (text, is_completed, completed_at, created_at, updated_at) VALUES ('Legacy active', 0, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
+        db.session.execute(text("INSERT INTO todo (text, is_completed, completed_at, created_at, updated_at) VALUES ('Legacy completed', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
+        db.session.commit()
+        upgrade(directory=str(migrations), revision="head")
+        rows = db.session.execute(text("SELECT text, current_location, status, scheduled_date FROM todo ORDER BY id")).all()
+        assert rows == [("Legacy active", "backlog", "active", None), ("Legacy completed", "archived", "completed", None)]
+        assert db.session.execute(text("SELECT count(*) FROM todo_activity")).scalar_one() == 2
+        assert "scheduled_date" in {column["name"] for column in inspect(db.engine).get_columns("todo")}
+        downgrade(directory=str(migrations), revision="d51f6c8e9a32")
+        assert "scheduled_date" not in {column["name"] for column in inspect(db.engine).get_columns("todo")}

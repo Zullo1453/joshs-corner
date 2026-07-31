@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .extensions import db
@@ -33,8 +33,28 @@ class Note(TimestampMixin, db.Model):
 class Todo(TimestampMixin, db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     text: Mapped[str] = mapped_column(String(500), nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    current_location: Mapped[str] = mapped_column(String(20), default="backlog", server_default="backlog", nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="active", server_default="active", nullable=False, index=True)
+    scheduled_date: Mapped[date | None] = mapped_column(Date, index=True)
+    original_date: Mapped[date | None] = mapped_column(Date)
+    carried_from_date: Mapped[date | None] = mapped_column(Date)
+    carry_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    activities: Mapped[list["TodoActivity"]] = relationship(back_populates="todo")
+
+
+class TodoActivity(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    todo_id: Mapped[int] = mapped_column(ForeignKey("todo.id"), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+    source_date: Mapped[date | None] = mapped_column(Date, index=True)
+    destination_date: Mapped[date | None] = mapped_column(Date, index=True)
+    metadata_json: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    todo: Mapped[Todo] = relationship(back_populates="activities")
 
 
 class GameJournal(TimestampMixin, db.Model):

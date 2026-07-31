@@ -1,93 +1,67 @@
 {% extends "base.html" %}
-{% block title %}To-Dos Â· Josh's Corner{% endblock %}
-{% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/todos.css') }}">
-{% endblock %}
+{% block title %}To-Dos Aú Josh's Corner{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/todos.css') }}">{% endblock %}
 {% block body_class %}todos-page{% endblock %}
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+{% macro task_controls(todo, return_to) %}
+  <div class="task-actions">
+    {% if todo.status == 'active' %}
+      <form method="post" action="{{ url_for('todos.complete', todo_id=todo.id) }}">{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><button class="icon-action done-action" type="submit" aria-label="Complete {{ todo.text }}">ƒo"</button></form>
+    {% else %}
+      <form method="post" action="{{ url_for('todos.restore', todo_id=todo.id) }}">{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><button class="text-action" type="submit">Reopen</button></form>
+    {% endif %}
+    <details class="task-menu">
+      <summary aria-label="Task actions for {{ todo.text }}">ƒ?›ƒ?›ƒ?›</summary>
+      <div class="task-menu-content">
+        {% if todo.status == 'active' %}
+          <form method="post" action="{{ url_for('todos.edit', todo_id=todo.id) }}">{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><label>Edit task <input name="text" value="{{ todo.text }}" maxlength="{{ max_task_length }}" required></label><button type="submit">Save text</button></form>
+          {% if todo.current_location == 'backlog' %}
+            <form method="post" action="{{ url_for('todos.move_today', todo_id=todo.id) }}">{{ csrf() }}<button type="submit">Move to Today</button></form>
+          {% else %}
+            <form method="post" action="{{ url_for('todos.move_backlog', todo_id=todo.id) }}">{{ csrf() }}<button type="submit">Move to Backlog</button></form>
+          {% endif %}
+          <form method="post" action="{{ url_for('todos.schedule', todo_id=todo.id) }}">{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><label>Schedule <input name="scheduled_date" type="date" min="{{ today.isoformat() }}" value="{{ todo.scheduled_date.isoformat() if todo.scheduled_date else today.isoformat() }}"></label><button type="submit">Set date</button></form>
+        {% endif %}
+        <form method="post" action="{{ url_for('todos.delete', todo_id=todo.id) }}" data-archive-form>{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><button class="danger-action" type="submit">Archive</button></form>
+      </div>
+    </details>
+  </div>
+{% endmacro %}
+{% macro task_card(todo, return_to) %}
+  <article class="task{% if todo.status == 'completed' %} task-completed{% endif %}" data-todo-id="{{ todo.id }}">
+    <div class="task-copy">
+      <div class="task-text">{{ todo.text }}</div>
+      <div class="task-meta">
+        {% if todo.carried_from_date %}Carried over from {{ format_todo_date(todo.carried_from_date) }} Aú {{ todo.carry_count }} carry forward{% if todo.carry_count != 1 %}s{% endif %}{% endif %}
+        {% if todo.status == 'completed' %}Completed {{ todo.completed_at|local_note_datetime }}{% endif %}
+      </div>
+    </div>
+    {{ task_controls(todo, return_to) }}
+  </article>
+{% endmacro %}
 {% block body %}
   <div class="todos-shell">
-    <header class="todos-topbar">
-      <a class="todos-home-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">âŒ‚</a>
-    </header>
-
+    <header class="todos-topbar"><a class="todos-home-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">ƒO,</a><span>Joshƒ?Ts Corner</span></header>
     <main class="todo-app">
-      <section class="add-area">
-        <form class="add-row" method="post" action="{{ url_for('todos.create') }}">
-          <label class="visually-hidden" for="todo-input">New to-do</label>
-          <input
-            class="todo-input"
-            id="todo-input"
-            name="text"
-            type="text"
-            value="{{ draft }}"
-            maxlength="{{ max_task_length }}"
-            placeholder="What needs doing?"
-            autocomplete="off"
-            aria-describedby="todo-error"
-            autofocus
-          >
-          <button class="add-button" type="submit">ï¼‹ Add To-Do</button>
-        </form>
-        {% if error %}<p class="todo-error" id="todo-error" role="alert">{{ error }}</p>{% endif %}
-      </section>
-
-      <section class="todo-content">
-        <div class="section-head">
-          <h1 class="section-title">To-Do</h1>
-          <div class="remaining-count">{{ active_count }} remaining</div>
-        </div>
-
-        <div class="task-list" aria-label="Active to-dos">
-          {% for todo in active_todos %}
-            <article class="task" data-todo-id="{{ todo.id }}">
-              <form method="post" action="{{ url_for('todos.complete', todo_id=todo.id) }}">
-                <button class="complete-button" type="submit" aria-label="Complete {{ todo.text }}">âœ“</button>
-              </form>
-              <div class="task-text">{{ todo.text }}</div>
-              <form method="post" action="{{ url_for('todos.delete', todo_id=todo.id) }}" data-delete-form>
-                <button class="remove-button" type="submit" aria-label="Delete {{ todo.text }}">Ã—</button>
-              </form>
-            </article>
-          {% else %}
-            <div class="empty-state">Nothing left to do. Nicely done.</div>
-          {% endfor %}
-        </div>
-
-        <section class="archive{% if archive_open %} open{% endif %}" data-archive>
-          <button class="archive-toggle" type="button" data-archive-toggle aria-expanded="{{ 'true' if archive_open else 'false' }}">
-            <span class="archive-title-wrap">
-              <span class="archive-title">Old To-Dos</span>
-              <span class="archive-count">{{ archived_count }}</span>
-            </span>
-            <span class="chevron" aria-hidden="true">âŒ„</span>
-          </button>
-
-          <div class="archive-list" aria-label="Old to-dos">
-            {% for todo in archived_todos %}
-              <article class="completed-task" data-todo-id="{{ todo.id }}">
-                <span class="completed-check" aria-hidden="true">âœ“</span>
-                <span class="completed-info">
-                  <span class="completed-text">{{ todo.text }}</span>
-                  <span class="completed-date">Completed {{ todo.completed_at|local_australian_date }}</span>
-                </span>
-                <span class="completed-actions">
-                  <form method="post" action="{{ url_for('todos.restore', todo_id=todo.id) }}">
-                    <button class="restore-button" type="submit">Restore</button>
-                  </form>
-                  <form method="post" action="{{ url_for('todos.delete', todo_id=todo.id) }}" data-delete-form>
-                    <button class="delete-button" type="submit">Delete</button>
-                  </form>
-                </span>
-              </article>
-            {% else %}
-              <div class="archive-empty">Completed tasks will appear here.</div>
-            {% endfor %}
-          </div>
-        </section>
-      </section>
+      <nav class="todo-tabs" aria-label="To-Do views">
+        <a class="{% if view == 'today' %}active{% endif %}" href="{{ url_for('todos.index') }}">Today</a>
+        <a class="{% if view == 'backlog' %}active{% endif %}" href="{{ url_for('todos.backlog') }}">Backlog</a>
+        <a class="{% if view == 'history' %}active{% endif %}" href="{{ url_for('todos.history') }}">History</a>
+      </nav>
+      {% if view == 'today' %}
+        <section class="view-header"><div><p class="eyebrow">Daily focus</p><h1>Today</h1><p>{{ today.strftime('%A, ') }}{{ today.day }} {{ today.strftime('%B %Y') }}</p></div><span class="count-badge">{{ active_todos|length }} active</span></section>
+        <section class="add-area"><form class="add-row" method="post" action="{{ url_for('todos.create') }}">{{ csrf() }}<label class="visually-hidden" for="todo-input">New task for today</label><input class="todo-input" id="todo-input" name="text" value="{{ draft }}" maxlength="{{ max_task_length }}" placeholder="What needs doing today?" required autofocus><button class="add-button" type="submit">Add task</button></form>{% if error %}<p class="todo-error" role="alert">{{ error }}</p>{% endif %}</section>
+        <section class="task-list" aria-label="Todayƒ?Ts active tasks">{% for todo in active_todos %}{{ task_card(todo, 'today') }}{% else %}<div class="empty-state">Nothing scheduled for today. Add a task or bring one in from Backlog.</div>{% endfor %}</section>
+        <section class="completed-section"><div class="section-head"><h2>Completed today <span class="count-badge">{{ completed_count }}</span></h2><a class="quiet-link" href="{{ url_for('todos.index', hide_completed=0 if hide_completed else 1) }}">{{ 'Show' if hide_completed else 'Hide' }} completed</a></div>{% if not hide_completed %}<div class="task-list">{% for todo in completed_todos %}{{ task_card(todo, 'today') }}{% else %}<div class="empty-state compact">Completed tasks will remain visible here today.</div>{% endfor %}</div>{% endif %}</section>
+      {% elif view == 'backlog' %}
+        <section class="view-header"><div><p class="eyebrow">Unscheduled</p><h1>Backlog</h1><p>Keep tasks here until they belong on a day.</p></div><span class="count-badge">{{ backlog_todos|length }} active</span></section>
+        <section class="add-area"><form class="add-row" method="post" action="{{ url_for('todos.create_backlog') }}">{{ csrf() }}<label class="visually-hidden" for="backlog-input">New backlog task</label><input class="todo-input" id="backlog-input" name="text" value="{{ draft }}" maxlength="{{ max_task_length }}" placeholder="Add something for later" required autofocus><button class="add-button" type="submit">Add to Backlog</button></form>{% if error %}<p class="todo-error" role="alert">{{ error }}</p>{% endif %}</section>
+        <section class="task-list" aria-label="Backlog tasks">{% for todo in backlog_todos %}{{ task_card(todo, 'backlog') }}{% else %}<div class="empty-state">Your Backlog is clear. Tasks you move out of Today will appear here.</div>{% endfor %}</section>
+      {% else %}
+        <section class="view-header history-header"><div><p class="eyebrow">Activity record</p><h1>History</h1><p>See what happened on any date.</p></div><form class="history-picker" method="get" action="{{ url_for('todos.history') }}"><label for="history-date">Date</label><a href="{{ url_for('todos.history', date=previous_date.isoformat()) }}" aria-label="Previous day">ƒ?1</a><input id="history-date" type="date" name="date" value="{{ selected_date.isoformat() }}"><a href="{{ url_for('todos.history', date=next_date.isoformat()) }}" aria-label="Next day">ƒ?§</a><button type="submit">Go</button></form></section>
+        <section class="history-list" aria-label="To-Do history for {{ selected_date.isoformat() }}">{% for activity in history_activities %}<article class="history-item"><div><strong>{{ activity.todo.text }}</strong><p>{{ activity_description(activity) }}{% if activity.source_date and activity.destination_date and activity.source_date != activity.destination_date %}: {{ format_todo_date(activity.source_date) }} ƒ+' {{ format_todo_date(activity.destination_date) }}{% elif activity.destination_date %}: {{ format_todo_date(activity.destination_date) }}{% endif %}</p></div><time datetime="{{ activity.occurred_at.isoformat() }}">{{ activity.occurred_at|local_australian_date }}</time></article>{% else %}<div class="empty-state">No To-Do activity was recorded for this date.</div>{% endfor %}</section>
+      {% endif %}
     </main>
   </div>
 {% endblock %}
-{% block scripts %}
-  <script src="{{ url_for('static', filename='js/todos.js') }}" defer></script>
-{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/todos.js') }}" defer></script>{% endblock %}

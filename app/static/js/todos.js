@@ -1,15 +1,12 @@
-const archive = document.querySelector("[data-archive]");
-const archiveToggle = document.querySelector("[data-archive-toggle]");
-
-archiveToggle?.addEventListener("click", () => {
-  const isOpen = archive.classList.toggle("open");
-  archiveToggle.setAttribute("aria-expanded", String(isOpen));
+document.querySelectorAll("[data-archive-form]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    if (!window.confirm("Archive this task? Its history will be retained.")) event.preventDefault();
+  });
 });
 
-document.querySelectorAll("[data-delete-form]").forEach((form) => {
-  form.addEventListener("submit", (event) => {
-    if (!window.confirm("Delete this to-do? This cannot be undone.")) {
-      event.preventDefault();
-    }
+document.querySelectorAll(".add-row").forEach((form) => {
+  form.addEventListener("submit", () => {
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
   });
 });
