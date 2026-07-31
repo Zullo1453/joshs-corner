@@ -6,6 +6,7 @@
     return !holder.querySelector("img") && !holder.textContent.replace(/\u00a0/g, " ").trim();
   };
   const newToken = () => (crypto.randomUUID ? crypto.randomUUID().replaceAll("-", "") : `${Date.now()}${Math.random()}`.replace(".", ""));
+  const imageControls = () => `<div class="rich-image-controls" data-rich-image-controls aria-label="Selected image formatting" hidden><span class="rich-image-controls-label">Image</span><div class="rich-image-control-group" role="group" aria-label="Image size"><button type="button" class="rich-tool-button" data-rich-image-size="small">Small</button><button type="button" class="rich-tool-button" data-rich-image-size="medium">Medium</button><button type="button" class="rich-tool-button" data-rich-image-size="large">Large</button><button type="button" class="rich-tool-button" data-rich-image-size="full">Full width</button></div><div class="rich-image-control-group" role="group" aria-label="Image alignment"><button type="button" class="rich-tool-button" data-rich-image-align="left">Left</button><button type="button" class="rich-tool-button" data-rich-image-align="center">Centre</button><button type="button" class="rich-tool-button" data-rich-image-align="right">Right</button></div></div>`;
   const initialise = (scope = document) => {
   scope.querySelectorAll(".book-preview, .watch-preview").forEach((preview) => {
     const holder = document.createElement("div"); holder.innerHTML = preview.textContent;
@@ -15,7 +16,7 @@
 
   scope.querySelectorAll('textarea[name="notes"]').forEach((textarea) => {
     const root = document.createElement("div"); root.className = "rich-editor"; root.dataset.richEditor = ""; root.dataset.uploadUrl = "/attachments/upload";
-    root.innerHTML = `${toolbar("notes")}<div id="${textarea.id}" class="rich-editor-body" contenteditable="true" role="textbox" aria-multiline="true" data-rich-body data-placeholder="${textarea.placeholder}"></div><p class="rich-upload-message" data-rich-upload-message role="status" aria-live="polite"></p>`;
+    root.innerHTML = `${toolbar("notes")}${imageControls()}<div id="${textarea.id}" class="rich-editor-body" contenteditable="true" role="textbox" aria-multiline="true" data-rich-body data-placeholder="${textarea.placeholder}"></div><p class="rich-upload-message" data-rich-upload-message role="status" aria-live="polite"></p>`;
     root.querySelector("[data-rich-body]").innerHTML = textarea.value; textarea.replaceWith(root);
   });
 
@@ -24,6 +25,9 @@
     const body = root.querySelector("[data-rich-body]"), input = root.querySelector("[data-rich-input]"), form = root.closest("form");
     const token = root.querySelector("[data-rich-token]"), message = root.querySelector("[data-rich-upload-message]");
     const file = root.querySelector("[data-rich-file]"), addImage = root.querySelector("[data-rich-image]"), removeImage = root.querySelector("[data-rich-remove-image]");
+    const controls = root.querySelector("[data-rich-image-controls]");
+    const sizeClasses = ["image-size-small", "image-size-medium", "image-size-large", "image-size-full"];
+    const alignClasses = ["image-align-left", "image-align-center", "image-align-right"];
     let selectedImage = null, rememberedRange = null;
     if (!token.value) token.value = newToken();
     const sync = () => { input.value = empty(body.innerHTML) ? "" : body.innerHTML; };
@@ -32,11 +36,29 @@
     const quoteActive = () => { const node = window.getSelection()?.anchorNode; const el = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement; return Boolean(el?.closest("blockquote")); };
     const updateQuote = () => { if (quote) { const active = quoteActive(); quote.setAttribute("aria-pressed", String(active)); quote.classList.toggle("active", active); } };
     const rememberCaret = () => { const selection = window.getSelection(); if (selection?.rangeCount && body.contains(selection.anchorNode)) rememberedRange = selection.getRangeAt(0).cloneRange(); };
-    const selectImage = (image) => { selectedImage?.classList.remove("rich-image-selected"); selectedImage = image; image?.classList.add("rich-image-selected"); };
+    const updateImageControls = () => {
+      if (!controls) return;
+      controls.hidden = !selectedImage;
+      controls.querySelectorAll("[data-rich-image-size]").forEach((button) => {
+        const selected = selectedImage?.classList.contains(`image-size-${button.dataset.richImageSize}`);
+        button.classList.toggle("active", selected); button.setAttribute("aria-pressed", String(selected));
+      });
+      controls.querySelectorAll("[data-rich-image-align]").forEach((button) => {
+        const selected = selectedImage?.classList.contains(`image-align-${button.dataset.richImageAlign}`);
+        button.classList.toggle("active", selected); button.setAttribute("aria-pressed", String(selected));
+      });
+    };
+    const selectImage = (image) => { selectedImage?.classList.remove("rich-image-selected"); selectedImage = image; image?.classList.add("rich-image-selected"); updateImageControls(); };
+    const formatSelectedImage = (kind, value) => {
+      if (!selectedImage) { announce("Select an image first.", true); return; }
+      const classes = kind === "size" ? sizeClasses : alignClasses;
+      selectedImage.classList.remove(...classes); selectedImage.classList.add(`image-${kind}-${value}`);
+      sync(); body.dispatchEvent(new Event("input", {bubbles: true})); updateImageControls(); announce("Image formatting updated. Save the record to keep it.");
+    };
     const insertImage = (details) => {
       body.focus(); const selection = window.getSelection();
       if (rememberedRange) { selection.removeAllRanges(); selection.addRange(rememberedRange); }
-      const image = document.createElement("img"); image.src = details.url; image.alt = "Uploaded image"; image.width = details.width; image.height = details.height;
+      const image = document.createElement("img"); image.src = details.url; image.alt = "Uploaded image"; image.width = details.width; image.height = details.height; image.className = "image-size-medium image-align-center";
       const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
       if (range && body.contains(range.commonAncestorContainer)) { range.deleteContents(); range.insertNode(image); range.setStartAfter(image); range.collapse(true); selection.removeAllRanges(); selection.addRange(range); }
       else body.append(image);
@@ -56,7 +78,7 @@
     };
     const removeSelected = async () => {
       if (!selectedImage) { announce("Select an image first.", true); return; }
-      const match = selectedImage.getAttribute("src")?.match(/^\/attachments\/(\d+)$/); selectedImage.remove(); selectedImage = null; sync(); body.dispatchEvent(new Event("input", {bubbles: true})); announce("Image removed.");
+      const match = selectedImage.getAttribute("src")?.match(/^\/attachments\/(\d+)$/); selectedImage.remove(); selectImage(null); sync(); body.dispatchEvent(new Event("input", {bubbles: true})); announce("Image removed.");
       if (match) fetch(`/attachments/${match[1]}/delete`, {method: "POST", credentials: "same-origin", headers: {"X-CSRFToken": csrfToken()}}).catch(() => {});
     };
     root.querySelectorAll("[data-rich-command]").forEach((button) => button.addEventListener("click", () => { body.focus(); document.execCommand(button.dataset.richCommand, false, null); sync(); updateQuote(); }));
@@ -65,6 +87,8 @@
     quote?.addEventListener("click", () => { body.focus(); document.execCommand("formatBlock", false, quoteActive() ? "p" : "blockquote"); sync(); updateQuote(); });
     addImage?.addEventListener("click", () => file.click()); file?.addEventListener("change", () => upload(file.files[0]));
     removeImage?.addEventListener("click", removeSelected);
+    controls?.querySelectorAll("[data-rich-image-size]").forEach((button) => button.addEventListener("click", () => formatSelectedImage("size", button.dataset.richImageSize)));
+    controls?.querySelectorAll("[data-rich-image-align]").forEach((button) => button.addEventListener("click", () => formatSelectedImage("align", button.dataset.richImageAlign)));
     body.addEventListener("paste", (event) => { const image = [...event.clipboardData?.items || []].find((item) => item.type.startsWith("image/")); if (image) { event.preventDefault(); upload(image.getAsFile()); } });
     body.addEventListener("dragover", (event) => event.preventDefault());
     body.addEventListener("drop", (event) => { const image = [...event.dataTransfer?.files || []].find((item) => item.type.startsWith("image/")); if (image) { event.preventDefault(); upload(image); } });

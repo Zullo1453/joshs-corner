@@ -65,6 +65,23 @@ def test_sidebar_layout_keeps_independent_desktop_scroll_and_stacks_on_mobile():
     assert ".sidebar-restoring" in stylesheet
 
 
+def test_notes_detail_uses_document_flow_for_long_content_while_sidebar_stays_bounded():
+    notes_stylesheet = open("app/static/css/notes.css", encoding="utf-8").read()
+    sidebar_stylesheet = open("app/static/css/sidebar_layout.css", encoding="utf-8").read()
+
+    assert ".notes-app {\n    height: auto;" in sidebar_stylesheet
+    assert ".notes-app {\n  min-height: 760px;" in notes_stylesheet
+    assert "overflow: hidden;" not in notes_stylesheet.split(".notes-sidebar", 1)[0]
+    assert ".notes-sidebar {\n    align-self: start;" in sidebar_stylesheet
+    assert "position: sticky;" in sidebar_stylesheet
+    assert ".notes-editor,\n  .book-editor,\n  .watch-editor,\n  .game-editor {\n    overflow-y: auto;" not in sidebar_stylesheet
+    assert ".book-editor,\n  .watch-editor,\n  .game-editor {\n    overflow-y: auto;" in sidebar_stylesheet
+    assert ".writing-area {\n  flex: 0 0 auto;\n  min-height: 540px;" in notes_stylesheet
+    assert ".notes-page {\n  box-sizing: border-box;" in notes_stylesheet
+    assert ".notes-detail-slot {\n  min-width: 0;" in notes_stylesheet
+    assert ".rich-editor-body img{display:block;max-width:100%;height:auto" in open("app/static/css/rich_text.css", encoding="utf-8").read()
+
+
 def test_stable_scrollbar_and_save_status_reserve_layout_space():
     stylesheet = open("app/static/css/base.css", encoding="utf-8").read()
     assert "scrollbar-gutter: stable" in stylesheet

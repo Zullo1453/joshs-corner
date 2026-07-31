@@ -145,18 +145,6 @@
             </form>
           {% endif %}
         </section>
-      {% else %}
-        <section class="notes-editor notes-empty-editor" data-sidebar-detail-focus>
-          <div>
-            {% if query or favourites_only %}
-              <p>No notes match these filters.</p>
-              <a class="empty-new-note" href="{{ url_for('notes.index') }}">Clear filters</a>
-            {% else %}
-              <p>No notes yet.</p>
-              <a class="empty-new-note" href="{{ url_for('notes.new') }}">Create your first note</a>
-            {% endif %}
-          </div>
-        </section>
       {% endif %}
     </main>
   </div>

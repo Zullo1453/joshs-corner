@@ -20,6 +20,15 @@
     <button type="button" class="rich-tool-button" data-rich-remove-image aria-label="Remove selected image" title="Remove selected image">Remove image</button>
     <input type="file" accept="image/png,image/jpeg,image/webp" data-rich-file hidden>
   </div>
+  <div class="rich-image-controls" data-rich-image-controls aria-label="Selected image formatting" hidden>
+    <span class="rich-image-controls-label">Image</span>
+    <div class="rich-image-control-group" role="group" aria-label="Image size">
+      <button type="button" class="rich-tool-button" data-rich-image-size="small">Small</button><button type="button" class="rich-tool-button" data-rich-image-size="medium">Medium</button><button type="button" class="rich-tool-button" data-rich-image-size="large">Large</button><button type="button" class="rich-tool-button" data-rich-image-size="full">Full width</button>
+    </div>
+    <div class="rich-image-control-group" role="group" aria-label="Image alignment">
+      <button type="button" class="rich-tool-button" data-rich-image-align="left">Left</button><button type="button" class="rich-tool-button" data-rich-image-align="center">Centre</button><button type="button" class="rich-tool-button" data-rich-image-align="right">Right</button>
+    </div>
+  </div>
   <div id="{{ editor_id|default('') }}" class="rich-editor-body {{ editor_class|default('') }}" contenteditable="true" role="textbox" aria-multiline="true" aria-label="{{ editor_label }}" data-rich-body data-placeholder="{{ editor_placeholder }}" spellcheck="true">{{ editor_content|sanitise_html|safe }}</div>
   <p class="rich-upload-message" data-rich-upload-message role="status" aria-live="polite"></p>
 </div>

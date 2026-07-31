@@ -211,3 +211,14 @@ def test_delete_confirmation_and_toolbar_assets_load(client, app):
     assert b"Delete this note? This cannot be undone." in script.data
     assert b'data-quote-toggle' in page.data
     assert b'quoteIsActive() ? "p" : "blockquote"' in script.data
+
+
+def test_selected_note_renders_one_detail_editor_in_reachable_document_flow(client, app):
+    note_id = add_note(app, "Long note", "<p>Paragraph</p>" * 500)
+
+    response = client.get(f"/notes/?note_id={note_id}")
+
+    assert response.status_code == 200
+    assert response.data.count(b'class="notes-editor"') == 1
+    assert response.data.count(b'data-sidebar-detail-focus') == 1
+    assert b"<p>Paragraph</p>" * 500 in response.data

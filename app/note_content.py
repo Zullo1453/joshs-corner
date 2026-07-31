@@ -23,6 +23,15 @@ ALLOWED_TAGS = {
 VOID_TAGS = {"br", "img"}
 LOCAL_ATTACHMENT_RE = re.compile(r"^/attachments/(\d+)$")
 BLOCK_TAGS = {"blockquote", "div", "h1", "h2", "li", "ol", "p", "ul"}
+IMAGE_FORMAT_CLASSES = {
+    "image-size-small",
+    "image-size-medium",
+    "image-size-large",
+    "image-size-full",
+    "image-align-left",
+    "image-align-center",
+    "image-align-right",
+}
 
 
 class SafeNoteHTMLParser(HTMLParser):
@@ -44,6 +53,9 @@ class SafeNoteHTMLParser(HTMLParser):
                 value = attributes.get(dimension, "")
                 if value.isdigit() and 1 <= int(value) <= 2560:
                     safe.append(f'{dimension}="{int(value)}"')
+            classes = [name for name in attributes.get("class", "").split() if name in IMAGE_FORMAT_CLASSES]
+            if classes:
+                safe.append(f'class="{" ".join(classes)}"')
             self.parts.append("<img " + " ".join(safe) + ">")
         elif tag in ALLOWED_TAGS:
             self.parts.append(f"<{tag}>")

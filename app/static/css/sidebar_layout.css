@@ -7,8 +7,16 @@
   }
 
   .notes-app {
+    height: auto;
+    min-height: 760px;
+    overflow: visible;
+  }
+
+  .notes-sidebar {
+    align-self: start;
     height: min(860px, calc(100vh - 120px));
-    min-height: 620px;
+    position: sticky;
+    top: 1rem;
   }
 
   .reading-app,
@@ -39,7 +47,6 @@
     scrollbar-gutter: stable;
   }
 
-  .notes-editor,
   .book-editor,
   .watch-editor,
   .game-editor {

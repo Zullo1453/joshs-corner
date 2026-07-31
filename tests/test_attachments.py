@@ -27,6 +27,47 @@ def test_local_image_sanitisation_allows_only_attachment_routes():
     assert sanitise_rich_text_html('<img src="https://example.com/a.png"><img src="data:image/png;base64,x">') == ""
 
 
+def test_image_formatting_sanitisation_keeps_only_trusted_classes():
+    value = ('<img src="/attachments/3" class="image-size-large image-align-right injected" '
+             'style="width:999px" onclick="bad()" alt="okay">')
+
+    assert sanitise_rich_text_html(value) == ('<img src="/attachments/3" alt="okay" '
+                                               'class="image-size-large image-align-right">')
+    assert sanitise_rich_text_html('<img src="/attachments/3" class="unknown another" style="width:1px">') == '<img src="/attachments/3">'
+
+
+def test_shared_rich_text_editor_exposes_controlled_image_formatting_for_every_supported_module():
+    editor = open("app/templates/_rich_text_editor.html", encoding="utf-8").read()
+    script = open("app/static/js/rich_text.js", encoding="utf-8").read()
+    stylesheet = open("app/static/css/rich_text.css", encoding="utf-8").read()
+    shared_editor_templates = (
+        "app/templates/notes/_detail.html",
+        "app/templates/journal/entry.html",
+        "app/templates/games/_detail.html",
+    )
+    converted_textarea_templates = (
+        "app/templates/reading/_detail.html",
+        "app/templates/watchlist/_detail.html",
+    )
+
+    for value in ("small", "medium", "large", "full"):
+        assert f'data-rich-image-size="{value}"' in editor
+        assert f'"image-size-{value}"' in script
+    for value in ("left", "center", "right"):
+        assert f'data-rich-image-align="{value}"' in editor
+        assert f'"image-align-{value}"' in script
+    assert 'image.className = "image-size-medium image-align-center"' in script
+    assert "formatSelectedImage" in script
+    assert "body.dispatchEvent(new Event(\"input\", {bubbles: true}))" in script
+    assert ".rich-editor-body img.image-size-full{width:100%}" in stylesheet
+    assert "max-width:100%;height:auto" in stylesheet
+    for template in shared_editor_templates:
+        assert "_rich_text_editor.html" in open(template, encoding="utf-8").read()
+    for template in converted_textarea_templates:
+        assert 'textarea' in open(template, encoding="utf-8").read()
+    assert "scope.querySelectorAll('textarea[name=\"notes\"]')" in script
+
+
 def test_upload_associate_and_parent_delete(client, app, tmp_path):
     app.config["UPLOAD_ROOT"] = str(tmp_path / "uploads")
     response = client.post("/attachments/upload", data={"draft_token": "a" * 32, "image": (image_bytes(), "photo.png")}, content_type="multipart/form-data")
