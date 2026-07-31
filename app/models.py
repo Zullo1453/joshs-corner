@@ -43,6 +43,8 @@ class Todo(TimestampMixin, db.Model):
     carried_from_date: Mapped[date | None] = mapped_column(Date)
     carry_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"), index=True)
+    project: Mapped["Project | None"] = relationship(back_populates="tasks")
     activities: Mapped[list["TodoActivity"]] = relationship(back_populates="todo")
 
 
@@ -55,6 +57,31 @@ class TodoActivity(db.Model):
     destination_date: Mapped[date | None] = mapped_column(Date, index=True)
     metadata_json: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
     todo: Mapped[Todo] = relationship(back_populates="activities")
+
+
+class Project(TimestampMixin, db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False, index=True)
+    target_date: Mapped[date | None] = mapped_column(Date, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tasks: Mapped[list[Todo]] = relationship(back_populates="project")
+    activities: Mapped[list["ProjectActivity"]] = relationship(back_populates="project")
+
+
+class ProjectActivity(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+    todo_id: Mapped[int | None] = mapped_column(ForeignKey("todo.id"), index=True)
+    source_date: Mapped[date | None] = mapped_column(Date, index=True)
+    destination_date: Mapped[date | None] = mapped_column(Date, index=True)
+    metadata_json: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    project: Mapped[Project] = relationship(back_populates="activities")
+    todo: Mapped[Todo | None] = relationship()
 
 
 class GameJournal(TimestampMixin, db.Model):

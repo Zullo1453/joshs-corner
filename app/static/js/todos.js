@@ -10,3 +10,9 @@ document.querySelectorAll(".add-row").forEach((form) => {
     if (submit) submit.disabled = true;
   });
 });
+
+document.querySelectorAll("[data-project-archive]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    if (!window.confirm("Archive this project and suspend its unfinished tasks? Historical activity will be retained.")) event.preventDefault();
+  });
+});

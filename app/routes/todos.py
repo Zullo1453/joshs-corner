@@ -4,11 +4,13 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from sqlalchemy import or_
 
 from ..extensions import db
-from ..models import Todo, TodoActivity, utc_now
+from ..models import Project, ProjectActivity, Todo, TodoActivity, utc_now
 
 
 todos_bp = Blueprint("todos", __name__, url_prefix="/todos")
 MAX_TASK_LENGTH = 300
+MAX_PROJECT_TITLE_LENGTH = 200
+MAX_PROJECT_DESCRIPTION_LENGTH = 2000
 ACTIVE = "active"
 COMPLETED = "completed"
 ARCHIVED = "archived"
@@ -25,7 +27,7 @@ def index():
 def backlog():
     todos = db.session.execute(
         db.select(Todo)
-        .where(Todo.current_location == BACKLOG, Todo.status == ACTIVE)
+        .where(Todo.current_location == BACKLOG, Todo.status == ACTIVE, Todo.project_id.is_(None))
         .order_by(Todo.created_at.asc(), Todo.id.asc())
     ).scalars().all()
     return render_todos("backlog", backlog_todos=todos)
@@ -39,8 +41,182 @@ def history():
         "history", selected_date=selected_date, history_activities=activities,
         previous_date=selected_date - timedelta(days=1), next_date=selected_date + timedelta(days=1),
         activity_description=activity_description,
+        project_activity_description=project_activity_description,
+        history_project_activities=project_activities_for_date(selected_date),
     )
 
+
+@todos_bp.get("/projects")
+def projects():
+    show_archived = request.args.get("archived") == "1"
+    statuses = (ACTIVE, COMPLETED, ARCHIVED) if show_archived else (ACTIVE, COMPLETED)
+    items = db.session.execute(
+        db.select(Project).where(Project.status.in_(statuses)).order_by(
+            Project.status.desc(), Project.updated_at.desc(), Project.id.desc()
+        )
+    ).scalars().all()
+    return render_todos("projects", projects=items, show_archived=show_archived, project_progress=project_progress)
+
+
+@todos_bp.get("/projects/new")
+def new_project():
+    return render_todos("project_form", project=None, project_draft={"title": "", "description": "", "target_date": ""})
+
+
+@todos_bp.post("/projects/new")
+def create_project():
+    values = project_values_from_form()
+    if values is None:
+        return render_todos("project_form", project=None, project_draft=project_draft(), error="A project title is required and descriptions must be under 2,000 characters.", status=400)
+    project = Project(**values)
+    db.session.add(project)
+    db.session.flush()
+    record_project_activity(project, "project_created")
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.get("/projects/<int:project_id>")
+def project_detail(project_id):
+    project = db.get_or_404(Project, project_id)
+    return render_project_detail(project)
+
+
+@todos_bp.post("/projects/<int:project_id>/edit")
+def edit_project(project_id):
+    project = db.get_or_404(Project, project_id)
+    if project.status == ARCHIVED:
+        abort(400)
+    values = project_values_from_form()
+    if values is None:
+        return render_project_detail(project, error="A project title is required and descriptions must be under 2,000 characters.", status=400)
+    if any(getattr(project, key) != value for key, value in values.items()):
+        for key, value in values.items():
+            setattr(project, key, value)
+        record_project_activity(project, "project_edited")
+        db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.post("/projects/<int:project_id>/tasks")
+def add_project_task(project_id):
+    project = db.get_or_404(Project, project_id)
+    if project.status == ARCHIVED:
+        abort(400)
+    text = normalise_task(request.form.get("text"))
+    if text is None:
+        return render_project_detail(project, error=f"Tasks need between 1 and {MAX_TASK_LENGTH} characters.", status=400)
+    reopened = project.status == COMPLETED
+    if reopened:
+        reopen_project(project, "project_reopened")
+    todo = Todo(text=text, project=project, current_location=BACKLOG, status=ACTIVE)
+    db.session.add(todo)
+    db.session.flush()
+    record_activity(todo, "project_task_added")
+    record_project_activity(project, "project_task_added", todo=todo)
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.post("/projects/<int:project_id>/tasks/<int:todo_id>/today")
+def project_task_today(project_id, todo_id):
+    project, todo = project_and_task_or_404(project_id, todo_id)
+    require_project_task_active(project, todo)
+    today = local_today()
+    if todo.current_location == DATED and todo.scheduled_date == today:
+        return redirect(url_for("todos.project_detail", project_id=project.id))
+    source = todo.scheduled_date
+    todo.current_location, todo.scheduled_date = DATED, today
+    todo.original_date = todo.original_date or today
+    todo.carried_from_date = None
+    record_activity(todo, "project_task_moved_to_today", source_date=source, destination_date=today)
+    record_project_activity(project, "project_task_moved_to_today", todo=todo, source_date=source, destination_date=today)
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.post("/projects/<int:project_id>/tasks/<int:todo_id>/schedule")
+def project_task_schedule(project_id, todo_id):
+    project, todo = project_and_task_or_404(project_id, todo_id)
+    require_project_task_active(project, todo)
+    destination = parse_schedule_date(request.form.get("scheduled_date"))
+    source = todo.scheduled_date
+    todo.current_location, todo.scheduled_date = DATED, destination
+    todo.original_date = todo.original_date or destination
+    todo.carried_from_date = None
+    event = "project_task_scheduled" if source is None else "project_task_rescheduled"
+    record_activity(todo, event, source_date=source, destination_date=destination)
+    record_project_activity(project, event, todo=todo, source_date=source, destination_date=destination)
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.post("/projects/<int:project_id>/tasks/<int:todo_id>/unschedule")
+def unschedule_project_task(project_id, todo_id):
+    project, todo = project_and_task_or_404(project_id, todo_id)
+    require_project_task_active(project, todo)
+    source = todo.scheduled_date
+    todo.current_location, todo.scheduled_date, todo.carried_from_date = BACKLOG, None, None
+    record_activity(todo, "project_task_unscheduled", source_date=source)
+    record_project_activity(project, "project_task_unscheduled", todo=todo, source_date=source)
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.post("/projects/<int:project_id>/complete")
+def complete_project(project_id):
+    project = db.get_or_404(Project, project_id)
+    eligible, _, _ = project_completion_state(project)
+    if not eligible:
+        return render_project_detail(project, error="Complete all remaining project tasks first.", status=400)
+    project.status, project.completed_at = COMPLETED, utc_now()
+    record_project_activity(project, "project_completed")
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.post("/projects/<int:project_id>/reopen")
+def reopen_project_route(project_id):
+    project = db.get_or_404(Project, project_id)
+    if project.status != COMPLETED:
+        abort(400)
+    reopen_project(project, "project_reopened")
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
+
+
+@todos_bp.post("/projects/<int:project_id>/archive")
+def archive_project(project_id):
+    project = db.get_or_404(Project, project_id)
+    if project.status == ARCHIVED:
+        abort(400)
+    now = utc_now()
+    for todo in project.tasks:
+        if todo.status == ACTIVE:
+            source = todo.scheduled_date
+            todo.status, todo.current_location, todo.scheduled_date, todo.archived_at = ARCHIVED, ARCHIVED, None, now
+            record_activity(todo, "archived", source_date=source, metadata_json='{"project_archive": true}')
+            record_project_activity(project, "project_task_archived", todo=todo, source_date=source)
+    project.status, project.archived_at = ARCHIVED, now
+    record_project_activity(project, "project_archived")
+    db.session.commit()
+    return redirect(url_for("todos.projects"))
+
+
+@todos_bp.post("/projects/<int:project_id>/restore")
+def restore_project(project_id):
+    project = db.get_or_404(Project, project_id)
+    if project.status != ARCHIVED:
+        abort(400)
+    for todo in project.tasks:
+        latest_archive = next((item for item in sorted(todo.activities, key=lambda activity: activity.id, reverse=True) if item.event_type == "archived"), None)
+        if todo.status == ARCHIVED and latest_archive and "project_archive" in latest_archive.metadata_json:
+            todo.status, todo.current_location, todo.archived_at = ACTIVE, BACKLOG, None
+            record_activity(todo, "project_task_restored")
+    project.status, project.archived_at, project.completed_at = ACTIVE, None, None
+    record_project_activity(project, "project_restored")
+    db.session.commit()
+    return redirect(url_for("todos.project_detail", project_id=project.id))
 
 
 @todos_bp.post("/new")
@@ -90,6 +266,8 @@ def edit(todo_id):
     if todo.text != text:
         todo.text = text
         record_activity(todo, "edited", source_date=todo.scheduled_date, destination_date=todo.scheduled_date)
+        if todo.project:
+            record_project_activity(todo.project, "project_task_edited", todo=todo, source_date=todo.scheduled_date, destination_date=todo.scheduled_date)
         db.session.commit()
     return redirect_for_view(request.form.get("return_to"), todo)
 
@@ -106,6 +284,8 @@ def complete(todo_id):
         todo.current_location = ARCHIVED
         todo.archived_at = now
     record_activity(todo, "completed", source_date=todo.scheduled_date, destination_date=todo.scheduled_date)
+    if todo.project:
+        record_project_activity(todo.project, "project_task_completed", todo=todo, source_date=todo.scheduled_date, destination_date=todo.scheduled_date)
     db.session.commit()
     return redirect_for_view(request.form.get("return_to"), todo)
 
@@ -123,6 +303,8 @@ def restore(todo_id):
         todo.current_location = BACKLOG
         todo.archived_at = None
     record_activity(todo, "reopened", destination_date=todo.scheduled_date)
+    if todo.project:
+        record_project_activity(todo.project, "project_task_reopened", todo=todo, destination_date=todo.scheduled_date)
     db.session.commit()
     return redirect_for_view(request.form.get("return_to"), todo)
 
@@ -137,6 +319,8 @@ def move_backlog(todo_id):
     todo.current_location = BACKLOG
     todo.scheduled_date = None
     record_activity(todo, "moved_to_backlog", source_date=source)
+    if todo.project:
+        record_project_activity(todo.project, "project_task_unscheduled", todo=todo, source_date=source)
     db.session.commit()
     return redirect(url_for("todos.backlog"))
 
@@ -153,6 +337,8 @@ def move_today(todo_id):
     todo.original_date = todo.original_date or today
     todo.carried_from_date = None
     record_activity(todo, "moved_to_today", destination_date=today)
+    if todo.project:
+        record_project_activity(todo.project, "project_task_moved_to_today", todo=todo, destination_date=today)
     db.session.commit()
     return redirect(url_for("todos.index"))
 
@@ -168,7 +354,11 @@ def schedule(todo_id):
     todo.scheduled_date = destination
     todo.original_date = todo.original_date or destination
     todo.carried_from_date = None
-    record_activity(todo, event, source_date=source, destination_date=destination)    db.session.commit()
+    record_activity(todo, event, source_date=source, destination_date=destination)
+    if todo.project:
+        project_event = "project_task_scheduled" if source is None else "project_task_rescheduled"
+        record_project_activity(todo.project, project_event, todo=todo, source_date=source, destination_date=destination)
+    db.session.commit()
     return redirect_for_view(request.form.get("return_to"), todo)
 
 
@@ -183,6 +373,8 @@ def delete(todo_id):
     todo.status = ARCHIVED
     todo.archived_at = utc_now()
     record_activity(todo, "archived", source_date=source)
+    if todo.project:
+        record_project_activity(todo.project, "project_task_archived", todo=todo, source_date=source)
     db.session.commit()
     return redirect_for_view(request.form.get("return_to"), todo)
 
@@ -218,6 +410,8 @@ def render_todos(view, status=200, **context):
         "completed_count": 0,
         "backlog_todos": [],
         "history_activities": [],
+        "history_project_activities": [],
+        "projects": [],
         "format_todo_date": format_todo_date,
     }
     template_context.update(context)
@@ -226,7 +420,7 @@ def render_todos(view, status=200, **context):
 
 def active_backlog():
     return db.session.execute(
-        db.select(Todo).where(Todo.current_location == BACKLOG, Todo.status == ACTIVE)
+        db.select(Todo).where(Todo.current_location == BACKLOG, Todo.status == ACTIVE, Todo.project_id.is_(None))
     ).scalars().all()
 
 
@@ -239,6 +433,7 @@ def carry_forward(today):
             Todo.status == ACTIVE,
             Todo.is_completed.is_(False),
             Todo.archived_at.is_(None),
+            ~Todo.project.has(Project.status == ARCHIVED),
             Todo.scheduled_date < today,
         )
         .order_by(Todo.scheduled_date.asc(), Todo.id.asc())
@@ -266,11 +461,84 @@ def carry_forward(today):
     db.session.commit()
 
 
-def record_activity(todo, event_type, source_date=None, destination_date=None):
+def record_activity(todo, event_type, source_date=None, destination_date=None, metadata_json=""):
     db.session.add(TodoActivity(
         todo=todo, event_type=event_type, occurred_at=utc_now(),
-        source_date=source_date, destination_date=destination_date,
+        source_date=source_date, destination_date=destination_date, metadata_json=metadata_json,
     ))
+
+
+def record_project_activity(project, event_type, todo=None, source_date=None, destination_date=None, metadata_json=""):
+    db.session.add(ProjectActivity(
+        project=project, todo=todo, event_type=event_type, occurred_at=utc_now(),
+        source_date=source_date, destination_date=destination_date, metadata_json=metadata_json,
+    ))
+
+
+def render_project_detail(project, error=None, status=200):
+    tasks = db.session.execute(
+        db.select(Todo).where(Todo.project_id == project.id).order_by(Todo.status.desc(), Todo.created_at.asc(), Todo.id.asc())
+    ).scalars().all()
+    eligible, completed, total = project_completion_state(project, tasks)
+    return render_todos(
+        "project_detail", project=project, project_tasks=tasks, error=error,
+        project_progress=project_progress, project_completion_eligible=eligible,
+        project_completed_count=completed, project_total_count=total, status=status,
+    )
+
+
+def project_values_from_form():
+    title = (request.form.get("title") or "").strip()
+    description = (request.form.get("description") or "").strip()
+    if not title or len(title) > MAX_PROJECT_TITLE_LENGTH or len(description) > MAX_PROJECT_DESCRIPTION_LENGTH:
+        return None
+    target_date = request.form.get("target_date") or ""
+    if target_date:
+        try:
+            target_date = date.fromisoformat(target_date)
+        except ValueError:
+            return None
+    else:
+        target_date = None
+    return {"title": title, "description": description, "target_date": target_date}
+
+
+def project_draft():
+    return {
+        "title": request.form.get("title") or "",
+        "description": request.form.get("description") or "",
+        "target_date": request.form.get("target_date") or "",
+    }
+
+
+def project_and_task_or_404(project_id, todo_id):
+    project = db.get_or_404(Project, project_id)
+    todo = db.get_or_404(Todo, todo_id)
+    if todo.project_id != project.id:
+        abort(404)
+    return project, todo
+
+
+def require_project_task_active(project, todo):
+    if project.status == ARCHIVED or todo.status != ACTIVE or todo.current_location == ARCHIVED:
+        abort(400)
+
+
+def project_completion_state(project, tasks=None):
+    tasks = tasks if tasks is not None else project.tasks
+    relevant = [todo for todo in tasks if todo.status != ARCHIVED]
+    completed = sum(todo.status == COMPLETED for todo in relevant)
+    return bool(relevant) and completed == len(relevant), completed, len(relevant)
+
+
+def project_progress(project):
+    _, completed, total = project_completion_state(project)
+    return {"completed": completed, "total": total, "percent": round((completed / total) * 100) if total else 0}
+
+
+def reopen_project(project, event_type):
+    project.status, project.completed_at = ACTIVE, None
+    record_project_activity(project, event_type)
 
 
 def activity_description(activity):
@@ -291,6 +559,28 @@ def activity_description(activity):
     return labels.get(activity.event_type, activity.event_type.replace("_", " ").capitalize())
 
 
+def project_activity_description(activity):
+    labels = {
+        "project_created": "Project created",
+        "project_edited": "Project edited",
+        "project_completed": "Project completed",
+        "project_reopened": "Project reopened",
+        "project_archived": "Project archived",
+        "project_restored": "Project restored",
+        "project_task_added": "Project task added",
+        "project_task_edited": "Project task edited",
+        "project_task_moved_to_today": "Project task moved to Today",
+        "project_task_scheduled": "Project task scheduled",
+        "project_task_rescheduled": "Project task rescheduled",
+        "project_task_unscheduled": "Project task returned to project",
+        "project_task_completed": "Project task completed",
+        "project_task_reopened": "Project task reopened",
+        "project_task_archived": "Project task archived",
+        "project_task_restored": "Project task restored",
+    }
+    return labels.get(activity.event_type, activity.event_type.replace("_", " ").capitalize())
+
+
 def format_todo_date(value):
     return "" if value is None else f"{value.day} {value.strftime('%B %Y')}"
 
@@ -303,6 +593,20 @@ def activities_for_date(selected_date):
     ).scalars().all()
     same_day = db.session.execute(
         db.select(TodoActivity).order_by(TodoActivity.occurred_at.desc(), TodoActivity.id.desc())
+    ).scalars().all()
+    seen = {activity.id for activity in activities}
+    activities.extend(activity for activity in same_day if activity.id not in seen and local_date(activity.occurred_at) == selected_date)
+    return sorted(activities, key=lambda activity: (activity.occurred_at, activity.id), reverse=True)
+
+
+def project_activities_for_date(selected_date):
+    activities = db.session.execute(
+        db.select(ProjectActivity)
+        .where(or_(ProjectActivity.source_date == selected_date, ProjectActivity.destination_date == selected_date))
+        .order_by(ProjectActivity.occurred_at.desc(), ProjectActivity.id.desc())
+    ).scalars().all()
+    same_day = db.session.execute(
+        db.select(ProjectActivity).order_by(ProjectActivity.occurred_at.desc(), ProjectActivity.id.desc())
     ).scalars().all()
     seen = {activity.id for activity in activities}
     activities.extend(activity for activity in same_day if activity.id not in seen and local_date(activity.occurred_at) == selected_date)
@@ -352,6 +656,14 @@ def require_active(todo):
 
 
 def redirect_for_view(view, todo):
+    if view and view.startswith("project:"):
+        try:
+            project_id = int(view.split(":", 1)[1])
+        except ValueError:
+            abort(400)
+        if todo.project_id != project_id:
+            abort(400)
+        return redirect(url_for("todos.project_detail", project_id=project_id))
     if view == "backlog":
         return redirect(url_for("todos.backlog"))
     if view == "history":
