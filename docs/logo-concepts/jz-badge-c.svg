@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Josh's Corner JZ badge, concept C</title>
+  <desc id="desc">A compact framed JZ badge with a small classical border.</desc>
+  <rect width="256" height="256" rx="46" fill="#0b0a10"/>
+  <path d="M128 25 210 54v70c0 53-34 86-82 107-48-21-82-54-82-107V54l82-29Z" fill="#21162f" stroke="#c49638" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M72 76h112M72 181h112" fill="none" stroke="#c49638" stroke-width="3" opacity=".95"/>
+  <g fill="#a778d0" font-family="Georgia, 'Times New Roman', serif" font-size="114" font-weight="700" text-anchor="middle">
+    <text x="97" y="153">J</text>
+    <text x="153" y="153">Z</text>
+  </g>
+</svg>

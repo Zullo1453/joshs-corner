@@ -52,6 +52,29 @@
   margin-bottom: clamp(1.75rem, 3.5vh, 2.75rem);
 }
 
+.home-brand {
+  align-items: center;
+  color: inherit;
+  display: inline-flex;
+  gap: 0.8rem;
+  text-decoration: none;
+}
+
+.home-brand img {
+  border-radius: 10px;
+  display: block;
+  flex: none;
+  height: 46px;
+  object-fit: contain;
+  width: 46px;
+}
+
+.home-brand:focus-visible {
+  border-radius: 12px;
+  outline: 2px solid #c49638;
+  outline-offset: 5px;
+}
+
 .header-block h1 {
   margin: 0;
   color: #f1ecfa;
@@ -183,6 +206,11 @@
   .bottom-zone {
     margin-bottom: 0;
     margin-top: 0;
+  }
+
+  .home-brand img {
+    height: 40px;
+    width: 40px;
   }
 
   .tile-grid {

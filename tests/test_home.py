@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 def test_homepage_loads(client):
     response = client.get("/")
 
@@ -8,6 +11,33 @@ def test_homepage_loads(client):
     assert b"World Bank" in response.data
     assert b'target="_blank"' in response.data
     assert b'rel="noopener noreferrer"' in response.data
+
+
+def test_shared_jz_favicon_assets_and_home_brand_are_available(client):
+    homepage = client.get("/")
+    assert b"Josh Zullo monogram" in homepage.data
+    assert b"branding/jz-logo-192.png" in homepage.data
+    assert b"branding/favicon.ico" in homepage.data
+    assert b"jz-branding-1" in homepage.data
+
+    for path in (
+        "/static/branding/jz-logo-master-1024.png",
+        "/static/branding/jz-logo-512.png",
+        "/static/branding/jz-logo-192.png",
+        "/static/branding/apple-touch-icon-180.png",
+        "/static/branding/favicon-32.png",
+        "/static/branding/favicon-16.png",
+        "/static/branding/favicon.ico",
+    ):
+        assert client.get(path).status_code == 200
+
+
+def test_shared_favicon_markup_is_present_on_direct_module_pages(client):
+    for path in ("/", "/journal/", "/notes/", "/todos/", "/games/", "/watchlist/", "/reading/"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert b"branding/favicon.ico" in response.data
+        assert b"branding/favicon-32.png" in response.data
 
 
 def test_homepage_section_links_resolve(client):

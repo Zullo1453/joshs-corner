@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Josh's Corner JZ monogram, concept B</title>
+  <desc id="desc">An interlocking JZ monogram in a restrained purple-blue palette.</desc>
+  <rect width="256" height="256" rx="50" fill="#ecebe6"/>
+  <path d="M128 26c56 0 102 46 102 102s-46 102-102 102S26 184 26 128 72 26 128 26Z" fill="none" stroke="#3f4c78" stroke-width="10"/>
+  <text x="102" y="174" fill="#3f4c78" font-family="Georgia, 'Times New Roman', serif" font-size="144" font-weight="700" text-anchor="middle">J</text>
+  <text x="151" y="170" fill="#6473a0" font-family="Georgia, 'Times New Roman', serif" font-size="126" font-weight="700" text-anchor="middle">Z</text>
+  <circle cx="128" cy="211" r="4" fill="#a78b5a"/>
+</svg>

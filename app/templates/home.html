@@ -7,7 +7,10 @@
   <div class="stage">
     <div class="top-zone">
       <header class="header-block">
-        <h1>Josh's Corner</h1>
+        <a class="home-brand" href="{{ url_for('home.index') }}" aria-label="Josh's Corner home">
+          <img src="{{ url_for('static', filename='branding/jz-logo-192.png', v='jz-branding-1') }}" alt="Josh Zullo monogram" width="46" height="46">
+          <h1>Josh's Corner</h1>
+        </a>
       </header>
     </div>
 
