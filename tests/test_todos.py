@@ -129,6 +129,61 @@ def test_edit_archive_and_history_are_auditable(client, app):
     assert activities(app, todo_id) == ["edited", "archived"]
 
 
+def test_editing_active_tasks_preserves_lifecycle_fields_and_avoids_noop_events(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "  Original task  ", location="dated", scheduled_date=TODAY)
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        todo.text = "Original task"
+        todo.original_date = date(2026, 7, 29)
+        todo.carried_from_date = date(2026, 7, 30)
+        todo.carry_count = 2
+        db.session.commit()
+
+    updated = client.post(f"/todos/{todo_id}/edit", data={"text": "  Updated task  ", "return_to": "today"}, follow_redirects=True)
+    assert updated.status_code == 200 and b"Updated task" in updated.data
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        event = db.session.execute(db.select(TodoActivity).where(TodoActivity.todo_id == todo_id)).scalar_one()
+        assert (todo.text, todo.current_location, todo.scheduled_date, todo.original_date, todo.carried_from_date, todo.carry_count, todo.status, todo.is_completed, todo.completed_at, todo.archived_at) == (
+            "Updated task", "dated", TODAY, date(2026, 7, 29), date(2026, 7, 30), 2, "active", False, None, None
+        )
+        assert event.event_type == "edited" and event.metadata_json == '{"previous_title": "Original task", "new_title": "Updated task"}'
+    assert client.post(f"/todos/{todo_id}/edit", data={"text": "Updated task", "return_to": "today"}).status_code == 302
+    assert activities(app, todo_id) == ["edited"]
+    assert client.post(f"/todos/{todo_id}/edit", data={"text": "   ", "return_to": "today"}).status_code == 400
+    with app.app_context():
+        assert db.session.execute(db.select(Todo).where(Todo.id == todo_id)).scalar_one().text == "Updated task"
+        assert db.session.execute(db.select(Todo)).scalars().all().__len__() == 1
+
+
+def test_editing_backlog_and_scheduled_tasks_updates_the_same_record(client, app):
+    configure_today(app)
+    backlog_id = add_todo(app, "Backlog original")
+    client.post(f"/todos/{backlog_id}/edit", data={"text": "Backlog updated", "return_to": "backlog"})
+    assert b"Backlog updated" in client.get("/todos/backlog").data
+    client.post(f"/todos/{backlog_id}/schedule", data={"scheduled_date": "2026-08-03", "return_to": "backlog"})
+    client.post(f"/todos/{backlog_id}/edit", data={"text": "Scheduled updated", "return_to": "backlog"})
+    with app.app_context():
+        todo = db.session.get(Todo, backlog_id)
+        assert (todo.text, todo.current_location, todo.scheduled_date) == ("Scheduled updated", "dated", date(2026, 8, 3))
+        assert db.session.execute(db.select(Todo)).scalars().all().__len__() == 1
+
+
+def test_task_edit_controls_are_inline_and_cancellation_does_not_submit_a_request(client, app):
+    configure_today(app)
+    active_id = add_todo(app, "Editable", location="dated", scheduled_date=TODAY)
+    completed_id = add_todo(app, "Finished", location="dated", status="completed", scheduled_date=TODAY, completed_at=datetime.now(timezone.utc))
+    page = client.get("/todos/")
+    script = client.get("/static/js/todos.js")
+    active_card = page.data.split(f'data-todo-id="{active_id}"'.encode(), 1)[1].split(b"</article>", 1)[0]
+    completed_card = page.data.split(f'data-todo-id="{completed_id}"'.encode(), 1)[1].split(b"</article>", 1)[0]
+    assert b"data-task-edit" in active_card and b"data-task-edit-form" in active_card
+    assert b"data-task-edit" not in completed_card
+    assert b"form.reset(); form.hidden = true" in script.data and b'event.key === "Escape"' in script.data
+    assert b'event.key === "Enter"' in script.data and b"form.requestSubmit()" in script.data
+
+
 def test_history_accepts_selected_date_and_bad_dates_fail(client, app):
     configure_today(app)
     todo_id = add_todo(app, "Scheduled", location="backlog")

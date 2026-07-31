@@ -78,6 +78,25 @@ def test_project_task_add_to_today_completes_same_task_and_shows_badge(client, a
     assert b"1 of 1" in detail.data and b"Complete Project" in detail.data
 
 
+def test_editing_a_project_task_from_project_and_today_keeps_one_linked_task(client, app):
+    set_today(app)
+    create_project(client)
+    project = project_id(app)
+    add_project_task(client, project, "Original linked task")
+    todo = task_id(app, "Original linked task")
+    client.post(f"/todos/projects/{project}/tasks/{todo}/today")
+
+    client.post(f"/todos/{todo}/edit", data={"text": "Edited from project", "return_to": f"project:{project}"})
+    assert b"Edited from project" in client.get(f"/todos/projects/{project}").data
+    assert b"Edited from project" in client.get("/todos/").data
+    client.post(f"/todos/{todo}/edit", data={"text": "Edited from today", "return_to": "today"})
+    with app.app_context():
+        saved = db.session.get(Todo, todo)
+        assert (saved.text, saved.project_id, saved.current_location, saved.scheduled_date) == ("Edited from today", project, "dated", TODAY)
+        assert db.session.execute(db.select(Todo).where(Todo.project_id == project)).scalars().all().__len__() == 1
+    assert b"Edited from today" in client.get(f"/todos/projects/{project}").data
+
+
 def test_project_completion_rules_reopen_and_empty_project(client, app):
     set_today(app)
     create_project(client)

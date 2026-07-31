@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
@@ -264,8 +265,12 @@ def edit(todo_id):
     if text is None:
         abort(400)
     if todo.text != text:
+        previous_text = todo.text
         todo.text = text
-        record_activity(todo, "edited", source_date=todo.scheduled_date, destination_date=todo.scheduled_date)
+        record_activity(
+            todo, "edited", source_date=todo.scheduled_date, destination_date=todo.scheduled_date,
+            metadata_json=json.dumps({"previous_title": previous_text, "new_title": text}),
+        )
         if todo.project:
             record_project_activity(todo.project, "project_task_edited", todo=todo, source_date=todo.scheduled_date, destination_date=todo.scheduled_date)
         db.session.commit()
