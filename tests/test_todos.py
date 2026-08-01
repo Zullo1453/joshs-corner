@@ -124,11 +124,72 @@ def test_backlog_create_move_and_schedule(client, app):
         moved = db.session.get(Todo, todo.id)
         assert moved.scheduled_date == TODAY and moved.rollover_enabled is True
     client.post(f"/todos/{todo.id}/move-backlog")
-    client.post(f"/todos/{todo.id}/schedule", data={"scheduled_date": "2026-08-03", "return_to": "backlog"})
+    client.post(f"/todos/{todo.id}/schedule-backlog", data={"scheduled_date": "2026-08-03"})
     with app.app_context():
         saved = db.session.get(Todo, todo.id)
         assert saved.current_location == "dated" and saved.scheduled_date == date(2026, 8, 3)
-    assert activities(app, todo.id) == ["created_backlog", "moved_to_today", "moved_to_backlog", "scheduled"]
+    assert activities(app, todo.id) == ["created_backlog", "moved_to_today", "moved_to_backlog", "backlog_scheduled"]
+
+
+def test_backlog_schedule_action_moves_the_same_task_to_today(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Schedule for today", rollover_enabled=True)
+    page = client.get("/todos/backlog")
+    script = client.get("/static/js/todos.js")
+    card = page.data.split(f'data-todo-id="{todo_id}"'.encode(), 1)[1].split(b"</article>", 1)[0]
+    assert b"data-task-schedule" in card and b"data-task-schedule-form" in card
+    assert b"Schedule" in card and b"Cancel" in card
+    assert b"data-task-schedule-cancel" in script.data and b"data-task-schedule-form" in script.data
+
+    response = client.post(f"/todos/{todo_id}/schedule-backlog", data={"scheduled_date": TODAY.isoformat()}, follow_redirects=True)
+    assert response.status_code == 200 and b"Schedule for today" in response.data
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        assert (todo.id, todo.current_location, todo.scheduled_date, todo.project_id, todo.rollover_enabled) == (todo_id, "dated", TODAY, None, True)
+        assert db.session.execute(db.select(Todo)).scalars().all().__len__() == 1
+        event = db.session.execute(db.select(TodoActivity).where(TodoActivity.todo_id == todo_id)).scalar_one()
+        assert event.event_type == "backlog_moved_to_today" and event.metadata_json == '{"source": "backlog"}'
+    assert b"Schedule for today" not in client.get("/todos/backlog").data
+    history = client.get(f"/todos/history?date={TODAY.isoformat()}")
+    assert b"Moved from Backlog to Today" in history.data
+
+
+def test_backlog_future_schedule_reschedule_and_return_preserve_identity(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Future standalone", rollover_enabled=False)
+    future = date(2026, 8, 3)
+    later = date(2026, 8, 5)
+    client.post(f"/todos/{todo_id}/schedule-backlog", data={"scheduled_date": future.isoformat()})
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        assert (todo.id, todo.current_location, todo.scheduled_date, todo.rollover_enabled, todo.project_id) == (todo_id, "dated", future, False, None)
+    assert b"Future standalone" not in client.get("/todos/").data
+    backlog = client.get("/todos/backlog")
+    assert b"Upcoming" in backlog.data and b"Future standalone" in backlog.data
+    client.post(f"/todos/{todo_id}/schedule", data={"scheduled_date": later.isoformat(), "return_to": "backlog"})
+    client.post(f"/todos/{todo_id}/move-backlog")
+    with app.app_context():
+        todo = db.session.get(Todo, todo_id)
+        assert (todo.id, todo.current_location, todo.scheduled_date, todo.rollover_enabled, todo.project_id) == (todo_id, "backlog", None, False, None)
+        assert db.session.execute(db.select(Todo)).scalars().all().__len__() == 1
+    assert activities(app, todo_id) == ["backlog_scheduled", "rescheduled", "moved_to_backlog"]
+    history = client.get(f"/todos/history?date={later.isoformat()}")
+    assert b"Returned to Backlog" in history.data and b"Rescheduled" in history.data
+
+
+def test_backlog_schedule_validates_dates_and_rejects_project_or_archived_tasks(client, app):
+    configure_today(app)
+    todo_id = add_todo(app, "Standalone")
+    assert client.post(f"/todos/{todo_id}/schedule-backlog", data={"scheduled_date": "2026-07-30"}).status_code == 400
+    assert client.post(f"/todos/{todo_id}/schedule-backlog", data={"scheduled_date": "not-a-date"}).status_code == 400
+    assert client.post(f"/todos/{todo_id}/schedule", data={"scheduled_date": TODAY.isoformat()}).status_code == 400
+    assert client.post("/todos/999999/schedule-backlog", data={"scheduled_date": TODAY.isoformat()}).status_code == 404
+    project_todo = add_todo(app, "Project task", project_id=1)
+    assert client.post(f"/todos/{project_todo}/schedule-backlog", data={"scheduled_date": TODAY.isoformat()}).status_code == 400
+    scheduled_project = add_todo(app, "Scheduled project task", location="dated", scheduled_date=TODAY, project_id=1)
+    assert client.post(f"/todos/{scheduled_project}/move-backlog").status_code == 400
+    client.post(f"/todos/{todo_id}/delete", data={"return_to": "backlog"})
+    assert client.post(f"/todos/{todo_id}/schedule-backlog", data={"scheduled_date": TODAY.isoformat()}).status_code == 400
 
 
 def test_carry_forward_is_idempotent_and_preserves_origin(client, app):
@@ -219,7 +280,7 @@ def test_editing_backlog_and_scheduled_tasks_updates_the_same_record(client, app
     backlog_id = add_todo(app, "Backlog original")
     client.post(f"/todos/{backlog_id}/edit", data={"text": "Backlog updated", "return_to": "backlog"})
     assert b"Backlog updated" in client.get("/todos/backlog").data
-    client.post(f"/todos/{backlog_id}/schedule", data={"scheduled_date": "2026-08-03", "return_to": "backlog"})
+    client.post(f"/todos/{backlog_id}/schedule-backlog", data={"scheduled_date": "2026-08-03"})
     client.post(f"/todos/{backlog_id}/edit", data={"text": "Scheduled updated", "return_to": "backlog"})
     with app.app_context():
         todo = db.session.get(Todo, backlog_id)
@@ -252,7 +313,7 @@ def test_task_edit_controls_are_inline_and_cancellation_does_not_submit_a_reques
 def test_history_accepts_selected_date_and_bad_dates_fail(client, app):
     configure_today(app)
     todo_id = add_todo(app, "Scheduled", location="backlog")
-    client.post(f"/todos/{todo_id}/schedule", data={"scheduled_date": "2026-08-02", "return_to": "backlog"})
+    client.post(f"/todos/{todo_id}/schedule-backlog", data={"scheduled_date": "2026-08-02"})
     page = client.get("/todos/history?date=2026-08-02")
     assert b"Scheduled" in page.data and b"Scheduled" in page.data
     assert client.get("/todos/history?date=not-a-date").status_code == 400
@@ -265,7 +326,7 @@ def test_invalid_task_actions_and_ids_are_safe(client, app):
     assert client.post(f"/todos/{todo_id}/move-backlog").status_code == 400
     assert client.post(f"/todos/{todo_id}/complete").status_code == 302
     assert client.post(f"/todos/{todo_id}/complete").status_code == 400
-    for action in ("complete", "restore", "delete", "schedule", "edit"):
+    for action in ("complete", "restore", "delete", "schedule", "schedule-backlog", "edit"):
         assert client.post(f"/todos/999999/{action}").status_code == 404
 
 

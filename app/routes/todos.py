@@ -31,7 +31,17 @@ def backlog():
         .where(Todo.current_location == BACKLOG, Todo.status == ACTIVE, Todo.project_id.is_(None))
         .order_by(Todo.created_at.asc(), Todo.id.asc())
     ).scalars().all()
-    return render_todos("backlog", backlog_todos=todos)
+    scheduled_todos = db.session.execute(
+        db.select(Todo)
+        .where(
+            Todo.current_location == DATED,
+            Todo.status == ACTIVE,
+            Todo.project_id.is_(None),
+            Todo.scheduled_date > local_today(),
+        )
+        .order_by(Todo.scheduled_date.asc(), Todo.created_at.asc(), Todo.id.asc())
+    ).scalars().all()
+    return render_todos("backlog", backlog_todos=todos, scheduled_todos=scheduled_todos)
 
 
 @todos_bp.get("/history")
@@ -346,7 +356,7 @@ def restore(todo_id):
 def move_backlog(todo_id):
     todo = db.get_or_404(Todo, todo_id)
     require_active(todo)
-    if todo.current_location != DATED:
+    if todo.current_location != DATED or todo.project_id is not None:
         abort(400)
     source = todo.scheduled_date
     todo.current_location = BACKLOG
@@ -362,34 +372,54 @@ def move_backlog(todo_id):
 def move_today(todo_id):
     todo = db.get_or_404(Todo, todo_id)
     require_active(todo)
-    if todo.current_location != BACKLOG:
+    if todo.current_location != BACKLOG or todo.project_id is not None:
         abort(400)
     today = local_today()
     todo.current_location = DATED
     todo.scheduled_date = today
     todo.original_date = todo.original_date or today
     todo.carried_from_date = None
-    todo.rollover_enabled = True
     record_activity(todo, "moved_to_today", destination_date=today)
-    if todo.project:
-        record_project_activity(todo.project, "project_task_moved_to_today", todo=todo, destination_date=today)
     db.session.commit()
     return redirect(url_for("todos.index"))
+
+
+@todos_bp.post("/<int:todo_id>/schedule-backlog")
+def schedule_backlog(todo_id):
+    """Move one standalone Backlog task into its dated lifecycle."""
+    todo = db.get_or_404(Todo, todo_id)
+    require_active(todo)
+    if todo.current_location != BACKLOG or todo.project_id is not None:
+        abort(400)
+    destination = parse_schedule_date(request.form.get("scheduled_date"))
+    todo.current_location = DATED
+    todo.scheduled_date = destination
+    todo.original_date = todo.original_date or destination
+    todo.carried_from_date = None
+    event = "backlog_moved_to_today" if destination == local_today() else "backlog_scheduled"
+    record_activity(
+        todo, event, destination_date=destination,
+        metadata_json=json.dumps({"source": BACKLOG}),
+    )
+    db.session.commit()
+    if destination == local_today():
+        return redirect(url_for("todos.index"))
+    return redirect(url_for("todos.backlog"))
 
 
 @todos_bp.post("/<int:todo_id>/schedule")
 def schedule(todo_id):
     todo = db.get_or_404(Todo, todo_id)
     require_active(todo)
+    if todo.current_location != DATED:
+        abort(400)
     destination = parse_schedule_date(request.form.get("scheduled_date"))
     source = todo.scheduled_date
-    event = "scheduled" if todo.current_location == BACKLOG else "rescheduled"
+    event = "rescheduled"
     todo.current_location = DATED
     todo.scheduled_date = destination
     todo.original_date = todo.original_date or destination
     todo.carried_from_date = None
-    if source is None:
-        todo.rollover_enabled = True
     record_activity(todo, event, source_date=source, destination_date=destination)
     if todo.project:
         project_event = "project_task_scheduled" if source is None else "project_task_rescheduled"
@@ -445,6 +475,7 @@ def render_todos(view, status=200, **context):
         "completed_todos": [],
         "completed_count": 0,
         "backlog_todos": [],
+        "scheduled_todos": [],
         "history_activities": [],
         "history_project_activities": [],
         "rollover_disabled_todos": [],
@@ -588,8 +619,10 @@ def activity_description(activity):
         "edited": "Edited",
         "completed": "Completed",
         "reopened": "Reopened",
-        "moved_to_backlog": "Moved to Backlog",
+        "moved_to_backlog": "Returned to Backlog",
         "moved_to_today": "Moved to Today",
+        "backlog_moved_to_today": "Moved from Backlog to Today",
+        "backlog_scheduled": "Scheduled from Backlog",
         "scheduled": "Scheduled",
         "rescheduled": "Rescheduled",
         "carried_forward": "Carried forward",

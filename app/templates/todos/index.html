@@ -4,11 +4,13 @@
 {% block body_class %}todos-page{% endblock %}
 {% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
 {% macro task_edit_form(todo, return_to) %}<form class="task-edit-form" method="post" action="{{ url_for('todos.edit', todo_id=todo.id) }}" data-task-edit-form hidden>{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><label class="visually-hidden" for="task-edit-{{ todo.id }}">Edit {{ todo.text }}</label><input id="task-edit-{{ todo.id }}" name="text" value="{{ todo.text }}" maxlength="{{ max_task_length }}" required><button class="text-action" type="submit" data-task-edit-save>Save</button><button class="text-action" type="button" data-task-edit-cancel>Cancel</button></form>{% endmacro %}
+{% macro backlog_schedule_form(todo) %}<form class="task-schedule-form" method="post" action="{{ url_for('todos.schedule_backlog', todo_id=todo.id) }}" data-task-schedule-form hidden>{{ csrf() }}<label class="visually-hidden" for="task-schedule-{{ todo.id }}">Schedule {{ todo.text }}</label><input id="task-schedule-{{ todo.id }}" name="scheduled_date" type="date" min="{{ today.isoformat() }}" value="{{ today.isoformat() }}" required><button class="text-action" type="submit" data-task-schedule-save>Save</button><button class="text-action" type="button" data-task-schedule-cancel>Cancel</button></form>{% endmacro %}
 {% macro rollover_control(todo, return_to) %}<form class="rollover-form" method="post" action="{{ url_for('todos.set_rollover', todo_id=todo.id) }}" data-rollover-form>{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><input type="hidden" name="rollover_enabled" value="{{ 'false' if todo.rollover_enabled else 'true' }}"><button class="rollover-toggle{% if todo.rollover_enabled %} is-enabled{% endif %}" type="submit" aria-pressed="{{ 'true' if todo.rollover_enabled else 'false' }}" aria-label="{{ 'Rollover enabled' if todo.rollover_enabled else 'Enable rollover' }}" title="{{ 'Do not carry this task forward' if todo.rollover_enabled else 'Carry this task forward if incomplete' }}">↪<span class="visually-hidden">{{ 'Rollover enabled. Do not carry this task forward.' if todo.rollover_enabled else 'Enable rollover. Carry this task forward if incomplete.' }}</span></button></form>{% endmacro %}
 {% macro task_controls(todo, return_to) %}
   <div class="task-actions">
     {% if todo.status == 'active' %}
       <button class="text-action" type="button" data-task-edit aria-label="Edit {{ todo.text }}">Edit</button>
+      {% if todo.current_location == 'backlog' and todo.project_id is none %}<button class="text-action" type="button" data-task-schedule aria-label="Schedule {{ todo.text }}">Schedule</button>{% endif %}
       {% if todo.current_location == 'dated' %}{{ rollover_control(todo, return_to) }}{% endif %}
       <form method="post" action="{{ url_for('todos.complete', todo_id=todo.id) }}">{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><button class="icon-action done-action" type="submit" aria-label="Complete {{ todo.text }}">✓</button></form>
     {% else %}
@@ -20,10 +22,10 @@
         {% if todo.status == 'active' %}
           {% if todo.current_location == 'backlog' %}
             <form method="post" action="{{ url_for('todos.move_today', todo_id=todo.id) }}">{{ csrf() }}<button type="submit">Move to Today</button></form>
-          {% else %}
+          {% elif todo.project_id is none %}
             <form method="post" action="{{ url_for('todos.move_backlog', todo_id=todo.id) }}">{{ csrf() }}<button type="submit">Move to Backlog</button></form>
           {% endif %}
-          <form method="post" action="{{ url_for('todos.schedule', todo_id=todo.id) }}">{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><label>Schedule <input name="scheduled_date" type="date" min="{{ today.isoformat() }}" value="{{ todo.scheduled_date.isoformat() if todo.scheduled_date else today.isoformat() }}"></label><button type="submit">Set date</button></form>
+          {% if todo.current_location == 'dated' %}<form method="post" action="{{ url_for('todos.schedule', todo_id=todo.id) }}">{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><label>Schedule <input name="scheduled_date" type="date" min="{{ today.isoformat() }}" value="{{ todo.scheduled_date.isoformat() }}"></label><button type="submit">Set date</button></form>{% endif %}
         {% endif %}
         <form method="post" action="{{ url_for('todos.delete', todo_id=todo.id) }}" data-archive-form>{{ csrf() }}<input type="hidden" name="return_to" value="{{ return_to }}"><button class="danger-action" type="submit">Archive</button></form>
       </div>
@@ -33,7 +35,7 @@
 {% macro task_card(todo, return_to) %}
   <article class="task{% if todo.status == 'completed' %} task-completed{% endif %}" data-todo-id="{{ todo.id }}">
     <div class="task-copy">
-      <div class="task-text" data-task-title>{{ todo.text }}</div>{% if todo.status == 'active' %}{{ task_edit_form(todo, return_to) }}{% endif %}
+      <div class="task-text" data-task-title>{{ todo.text }}</div>{% if todo.status == 'active' %}{{ task_edit_form(todo, return_to) }}{% if todo.current_location == 'backlog' and todo.project_id is none %}{{ backlog_schedule_form(todo) }}{% endif %}{% endif %}
       <div class="task-meta">
         {% if todo.project %}<a class="project-badge" href="{{ url_for('todos.project_detail', project_id=todo.project.id) }}">Project: {{ todo.project.title }}</a>{% endif %}
         {% if todo.carried_from_date %}Carried over from {{ format_todo_date(todo.carried_from_date) }} · {{ todo.carry_count }} carry forward{% if todo.carry_count != 1 %}s{% endif %}{% endif %}
@@ -62,6 +64,7 @@
         <section class="view-header"><div><p class="eyebrow">Unscheduled</p><h1>Backlog</h1><p>Keep tasks here until they belong on a day.</p></div><span class="count-badge">{{ backlog_todos|length }} active</span></section>
         <section class="add-area"><form class="add-row" method="post" action="{{ url_for('todos.create_backlog') }}">{{ csrf() }}<label class="visually-hidden" for="backlog-input">New backlog task</label><input class="todo-input" id="backlog-input" name="text" value="{{ draft }}" maxlength="{{ max_task_length }}" placeholder="Add something for later" required autofocus><button class="add-button" type="submit">Add to Backlog</button></form>{% if error %}<p class="todo-error" role="alert">{{ error }}</p>{% endif %}</section>
         <section class="task-list" aria-label="Backlog tasks">{% for todo in backlog_todos %}{{ task_card(todo, 'backlog') }}{% else %}<div class="empty-state">Your Backlog is clear. Tasks you move out of Today will appear here.</div>{% endfor %}</section>
+        <section class="completed-section scheduled-section"><div class="section-head"><h2>Upcoming <span class="count-badge">{{ scheduled_todos|length }}</span></h2><span class="quiet-link">Scheduled standalone tasks</span></div><div class="task-list">{% for todo in scheduled_todos %}{{ task_card(todo, 'backlog') }}{% else %}<div class="empty-state compact">Future Backlog tasks will appear here once scheduled.</div>{% endfor %}</div></section>
       {% elif view == 'projects' %}
         <section class="view-header"><div><p class="eyebrow">Multi-step work</p><h1>Projects</h1><p>Keep connected tasks together without duplicating them.</p></div><a class="add-button" href="{{ url_for('todos.new_project') }}">New Project</a></section>
         <div class="project-filter"><a class="quiet-link" href="{{ url_for('todos.projects', archived=0 if show_archived else 1) }}">{{ 'Hide' if show_archived else 'Show' }} archived</a></div>

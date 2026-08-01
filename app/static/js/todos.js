@@ -50,3 +50,26 @@ document.querySelectorAll("[data-task-edit]").forEach((button) => {
     input.setCustomValidity(""); input.value = value; form.dataset.submitting = "1"; if (save) save.disabled = true;
   });
 });
+
+document.querySelectorAll("[data-task-schedule]").forEach((button) => {
+  const card = button.closest(".task");
+  const form = card?.querySelector("[data-task-schedule-form]");
+  const input = form?.querySelector('input[name="scheduled_date"]');
+  const cancel = form?.querySelector("[data-task-schedule-cancel]");
+  const save = form?.querySelector("[data-task-schedule-save]");
+  if (!card || !form || !input) return;
+
+  const close = () => { form.reset(); form.hidden = true; };
+  button.addEventListener("click", () => {
+    form.hidden = false; input.focus({ preventScroll: true });
+  });
+  cancel?.addEventListener("click", () => { close(); button.focus({ preventScroll: true }); });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") { event.preventDefault(); close(); button.focus({ preventScroll: true }); }
+    if (event.key === "Enter") { event.preventDefault(); form.requestSubmit(); }
+  });
+  form.addEventListener("submit", (event) => {
+    if (form.dataset.submitting) { event.preventDefault(); return; }
+    form.dataset.submitting = "1"; if (save) save.disabled = true;
+  });
+});
