@@ -20,7 +20,7 @@ def test_csrf_rejects_missing_or_invalid_post_tokens():
     "/todos/new",
     "/todos/1/edit",
     "/todos/1/rollover",
-    "/todos/1/schedule-backlog",
+    "/todos/1/schedule",
     "/games/new",
     "/watchlist/new",
     "/reading/new",

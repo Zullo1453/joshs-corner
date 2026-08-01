@@ -384,47 +384,29 @@ def move_today(todo_id):
     return redirect(url_for("todos.index"))
 
 
-@todos_bp.post("/<int:todo_id>/schedule-backlog")
-def schedule_backlog(todo_id):
-    """Move one standalone Backlog task into its dated lifecycle."""
-    todo = db.get_or_404(Todo, todo_id)
-    require_active(todo)
-    if todo.current_location != BACKLOG or todo.project_id is not None:
-        abort(400)
-    destination = parse_schedule_date(request.form.get("scheduled_date"))
-    todo.current_location = DATED
-    todo.scheduled_date = destination
-    todo.original_date = todo.original_date or destination
-    todo.carried_from_date = None
-    event = "backlog_moved_to_today" if destination == local_today() else "backlog_scheduled"
-    record_activity(
-        todo, event, destination_date=destination,
-        metadata_json=json.dumps({"source": BACKLOG}),
-    )
-    db.session.commit()
-    if destination == local_today():
-        return redirect(url_for("todos.index"))
-    return redirect(url_for("todos.backlog"))
-
-
 @todos_bp.post("/<int:todo_id>/schedule")
 def schedule(todo_id):
     todo = db.get_or_404(Todo, todo_id)
     require_active(todo)
-    if todo.current_location != DATED:
+    if todo.current_location not in (BACKLOG, DATED) or todo.project_id is not None:
         abort(400)
     destination = parse_schedule_date(request.form.get("scheduled_date"))
     source = todo.scheduled_date
-    event = "rescheduled"
+    from_backlog = todo.current_location == BACKLOG
+    event = (
+        "backlog_moved_to_today" if destination == local_today() else "backlog_scheduled"
+    ) if from_backlog else "rescheduled"
     todo.current_location = DATED
     todo.scheduled_date = destination
     todo.original_date = todo.original_date or destination
     todo.carried_from_date = None
-    record_activity(todo, event, source_date=source, destination_date=destination)
-    if todo.project:
-        project_event = "project_task_scheduled" if source is None else "project_task_rescheduled"
-        record_project_activity(todo.project, project_event, todo=todo, source_date=source, destination_date=destination)
+    record_activity(
+        todo, event, source_date=source, destination_date=destination,
+        metadata_json=json.dumps({"source": BACKLOG}) if from_backlog else None,
+    )
     db.session.commit()
+    if from_backlog and destination == local_today():
+        return redirect(url_for("todos.index"))
     return redirect_for_view(request.form.get("return_to"), todo)
 
 
