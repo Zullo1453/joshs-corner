@@ -40,6 +40,15 @@ def test_shared_favicon_markup_is_present_on_direct_module_pages(client):
         assert b"branding/favicon-32.png" in response.data
 
 
+def test_shared_base_template_paints_a_dark_background_before_external_stylesheets(client):
+    critical_style = b"<style>html,body{min-height:100%;background:#14121a}</style>"
+    for path in ("/", "/journal/", "/notes/", "/todos/", "/games/", "/watchlist/", "/reading/"):
+        response = client.get(path)
+        assert critical_style in response.data
+        assert response.data.index(critical_style) < response.data.index(b'/static/css/base.css')
+        assert b"<script" not in response.data[:response.data.index(b'/static/css/base.css')]
+
+
 def test_homepage_section_links_resolve(client):
     for path in ("/journal/", "/notes/", "/todos/", "/games/", "/watchlist/", "/reading/"):
         assert client.get(path).status_code == 200

@@ -134,7 +134,9 @@ def test_backlog_create_move_and_schedule(client, app):
 def test_backlog_quick_schedule_creates_one_task_in_the_correct_lifecycle(client, app):
     configure_today(app)
     page = client.get("/todos/backlog")
-    assert b"Schedule date" in page.data and b'name="scheduled_date"' in page.data
+    assert b'name="scheduled_date"' in page.data
+    assert b'<label class="visually-hidden" for="backlog-schedule-date">Schedule date, optional</label>' in page.data
+    assert b"backlog-schedule-create" not in page.data
 
     today_response = client.post(
         "/todos/backlog/new", data={"text": "Created for today", "scheduled_date": TODAY.isoformat()}, follow_redirects=True
