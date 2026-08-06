@@ -260,19 +260,30 @@ def create():
 @todos_bp.post("/backlog/new")
 def create_backlog():
     text = normalise_task(request.form.get("text"))
+    schedule_value = (request.form.get("scheduled_date") or "").strip()
     if text is None:
-        todos = active_backlog()
-        return render_todos(
-            "backlog", backlog_todos=todos,
-            error=f"Tasks need between 1 and {MAX_TASK_LENGTH} characters.",
-            draft=(request.form.get("text") or "")[:MAX_TASK_LENGTH], status=400,
+        return render_backlog_form_error(
+            f"Tasks need between 1 and {MAX_TASK_LENGTH} characters.",
+            (request.form.get("text") or "")[:MAX_TASK_LENGTH], schedule_value,
         )
-    todo = Todo(text=text, current_location=BACKLOG, status=ACTIVE)
+    try:
+        destination = optional_schedule_date(schedule_value)
+    except ValueError:
+        return render_backlog_form_error(
+            "Choose today or a future schedule date.", text, schedule_value,
+        )
+
+    todo = Todo(text=text, current_location=BACKLOG, status=ACTIVE, rollover_enabled=True)
     db.session.add(todo)
     db.session.flush()
-    record_activity(todo, "created_backlog")
+    if destination is None:
+        record_activity(todo, "created_backlog")
+    else:
+        apply_standalone_schedule(todo, destination)
+        event = "created_scheduled_today" if destination == local_today() else "created_scheduled"
+        record_activity(todo, event, destination_date=destination)
     db.session.commit()
-    return redirect(url_for("todos.backlog"))
+    return redirect(url_for("todos.index" if destination == local_today() else "todos.backlog"))
 
 
 @todos_bp.post("/<int:todo_id>/edit")
@@ -396,10 +407,7 @@ def schedule(todo_id):
     event = (
         "backlog_moved_to_today" if destination == local_today() else "backlog_scheduled"
     ) if from_backlog else "rescheduled"
-    todo.current_location = DATED
-    todo.scheduled_date = destination
-    todo.original_date = todo.original_date or destination
-    todo.carried_from_date = None
+    apply_standalone_schedule(todo, destination)
     record_activity(
         todo, event, source_date=source, destination_date=destination,
         metadata_json=json.dumps({"source": BACKLOG}) if from_backlog else None,
@@ -453,6 +461,7 @@ def render_todos(view, status=200, **context):
         "today": local_today(),
         "error": None,
         "draft": "",
+        "scheduled_draft": "",
         "active_todos": [],
         "completed_todos": [],
         "completed_count": 0,
@@ -598,6 +607,8 @@ def activity_description(activity):
     labels = {
         "created_today": "Added to Today",
         "created_backlog": "Added to Backlog",
+        "created_scheduled_today": "Created and scheduled for Today",
+        "created_scheduled": "Created and scheduled",
         "edited": "Edited",
         "completed": "Completed",
         "reopened": "Reopened",
@@ -711,12 +722,39 @@ def parse_history_date(value):
 
 def parse_schedule_date(value):
     try:
-        selected = date.fromisoformat(value or "")
+        selected = optional_schedule_date(value)
     except ValueError:
         abort(400)
-    if selected < local_today():
+    if selected is None:
         abort(400)
     return selected
+
+
+def optional_schedule_date(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        selected = date.fromisoformat(value)
+    except ValueError:
+        raise ValueError from None
+    if selected < local_today():
+        raise ValueError
+    return selected
+
+
+def apply_standalone_schedule(todo, destination):
+    todo.current_location = DATED
+    todo.scheduled_date = destination
+    todo.original_date = todo.original_date or destination
+    todo.carried_from_date = None
+
+
+def render_backlog_form_error(error, draft, scheduled_draft):
+    return render_todos(
+        "backlog", backlog_todos=active_backlog(),
+        error=error, draft=draft, scheduled_draft=scheduled_draft, status=400,
+    )
 
 
 def parse_rollover_enabled(value):

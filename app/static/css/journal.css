@@ -252,6 +252,8 @@
   color: #bca9a2;
   font-size: 0.82rem;
   line-height: 1.25;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .legend {

@@ -188,6 +188,23 @@ def test_calendar_entry_marker_and_preview(client, app):
     assert b"Marked day" in response.data
 
 
+def test_calendar_preview_preserves_safe_rich_text_line_breaks(client, app):
+    with app.app_context():
+        db.session.add(JournalEntry(
+            entry_date=date(2026, 8, 4),
+            body="<p>Morning reflection</p><p>Finished the report.</p>Went to the gym.<br>Safe <script>text</script>",
+        ))
+        db.session.commit()
+
+    response = client.get("/journal/?year=2026&month=8")
+    anchor_start = response.data.rindex(b"<a", 0, response.data.index(b'data-date="2026-08-04"'))
+    preview = response.data[anchor_start:response.data.index(b"</a>", anchor_start) + 4]
+
+    assert b"Morning reflection\nFinished the report.\nWent to the gym.\nSafe text" in preview
+    assert b"<script>" not in preview
+    assert b"white-space: pre-line" in client.get("/static/css/journal.css").data
+
+
 def test_homepage_does_not_use_journal_entries_for_history(client, app):
     with app.app_context():
         db.session.add(

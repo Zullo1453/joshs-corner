@@ -16,10 +16,16 @@ def image_bytes(mode="RGB", fmt="PNG"):
 
 def test_rich_preview_is_plain_readable_and_cleanly_truncated():
     value = "<p><strong>One</strong> &amp; two</p><blockquote>three</blockquote><ul><li>four</li></ul>"
-    assert rich_text_preview(value) == "One & two three four"
+    assert rich_text_preview(value) == "One & two\nthree\nfour"
     assert rich_text_preview("<p><br></p>") == ""
     assert rich_text_preview("<script>alert(1)</script><p>safe words here</p>", 10) == "alert(1)…"
     assert "<" not in rich_text_preview(value)
+
+
+def test_rich_preview_preserves_safe_line_breaks_without_excessive_blank_space():
+    assert rich_text_preview("First<br>Second<br>Third") == "First\nSecond\nThird"
+    assert rich_text_preview("<p>First</p><p>Second</p>") == "First\nSecond"
+    assert rich_text_preview("First<br><br><br><br>Second") == "First\n\nSecond"
 
 
 def test_local_image_sanitisation_allows_only_attachment_routes():

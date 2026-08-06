@@ -131,6 +131,48 @@ def test_backlog_create_move_and_schedule(client, app):
     assert activities(app, todo.id) == ["created_backlog", "moved_to_today", "moved_to_backlog", "backlog_scheduled"]
 
 
+def test_backlog_quick_schedule_creates_one_task_in_the_correct_lifecycle(client, app):
+    configure_today(app)
+    page = client.get("/todos/backlog")
+    assert b"Schedule date" in page.data and b'name="scheduled_date"' in page.data
+
+    today_response = client.post(
+        "/todos/backlog/new", data={"text": "Created for today", "scheduled_date": TODAY.isoformat()}, follow_redirects=True
+    )
+    assert today_response.status_code == 200 and b"Created for today" in today_response.data
+    with app.app_context():
+        today_task = db.session.execute(db.select(Todo).where(Todo.text == "Created for today")).scalar_one()
+        assert (today_task.current_location, today_task.scheduled_date, today_task.project_id, today_task.rollover_enabled) == ("dated", TODAY, None, True)
+        assert activities(app, today_task.id) == ["created_scheduled_today"]
+        assert len(db.session.execute(db.select(Todo)).scalars().all()) == 1
+    assert b"Created for today" not in client.get("/todos/backlog").data
+
+    future = date(2026, 8, 3)
+    client.post("/todos/backlog/new", data={"text": "Created for later", "scheduled_date": future.isoformat()})
+    with app.app_context():
+        future_task = db.session.execute(db.select(Todo).where(Todo.text == "Created for later")).scalar_one()
+        assert (future_task.current_location, future_task.scheduled_date, future_task.project_id, future_task.rollover_enabled) == ("dated", future, None, True)
+        assert activities(app, future_task.id) == ["created_scheduled"]
+        assert len(db.session.execute(db.select(Todo).where(Todo.text == "Created for later")).scalars().all()) == 1
+    assert b"Created for later" not in client.get("/todos/").data
+    assert b"Created for later" in client.get("/todos/backlog").data
+
+
+def test_backlog_quick_schedule_validation_does_not_partially_create_records(client, app):
+    configure_today(app)
+    for data in (
+        {"text": "Past", "scheduled_date": "2026-07-30"},
+        {"text": "Malformed", "scheduled_date": "not-a-date"},
+        {"text": "   ", "scheduled_date": TODAY.isoformat()},
+    ):
+        response = client.post("/todos/backlog/new", data=data)
+        assert response.status_code == 400
+        assert b"Tasks need" in response.data or b"Choose today or a future" in response.data
+    with app.app_context():
+        assert db.session.execute(db.select(Todo)).scalars().all() == []
+        assert db.session.execute(db.select(TodoActivity)).scalars().all() == []
+
+
 def test_backlog_schedule_action_moves_the_same_task_to_today(client, app):
     configure_today(app)
     todo_id = add_todo(app, "Schedule for today", rollover_enabled=True)

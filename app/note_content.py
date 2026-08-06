@@ -96,13 +96,19 @@ class _PreviewParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts = []
 
+    def add_break(self, force=False):
+        if force or (self.parts and self.parts[-1] != "\n"):
+            self.parts.append("\n")
+
     def handle_starttag(self, tag, attrs):
-        if tag in BLOCK_TAGS:
-            self.parts.append(" ")
+        if tag == "br":
+            self.add_break(force=True)
+        elif tag in BLOCK_TAGS:
+            self.add_break()
 
     def handle_endtag(self, tag):
         if tag in BLOCK_TAGS:
-            self.parts.append(" ")
+            self.add_break()
 
     def handle_data(self, data):
         self.parts.append(data)
@@ -113,10 +119,16 @@ def rich_text_preview(value, limit=92):
     parser = _PreviewParser()
     parser.feed(sanitise_rich_text_html(value or ""))
     parser.close()
-    text = " ".join(unescape("".join(parser.parts)).split())
+    text = unescape("".join(parser.parts)).replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n[ \t]+", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
     if not text:
         return ""
     if len(text) <= limit:
         return text
-    clipped = text[: max(1, limit - 1)].rsplit(" ", 1)[0].rstrip()
+    clipped = text[: max(1, limit - 1)]
+    boundary = max(clipped.rfind(" "), clipped.rfind("\n"))
+    if boundary > 0:
+        clipped = clipped[:boundary]
     return (clipped or text[: max(1, limit - 1)]).rstrip(" .,;:") + "…"

@@ -18,6 +18,7 @@ def test_csrf_rejects_missing_or_invalid_post_tokens():
     "/journal/entry/2026-07-12",
     "/notes/new",
     "/todos/new",
+    "/todos/backlog/new",
     "/todos/1/edit",
     "/todos/1/rollover",
     "/todos/1/schedule",
