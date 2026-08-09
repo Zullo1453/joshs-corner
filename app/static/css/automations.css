@@ -1,0 +1,32 @@
+.automations-page {
+  min-height: 100vh;
+  padding: 1.2rem 1.2rem 3rem 5rem;
+  background:
+    radial-gradient(circle at 76% 3%, rgba(86, 153, 150, 0.12), transparent 31rem),
+    linear-gradient(150deg, #15131b, #11171a);
+  color: #eeeaf3;
+}
+.automations-shell { width: min(980px, 100%); margin: 0 auto; }
+.automations-header { display: flex; align-items: center; gap: 0.9rem; padding: 0.3rem 0 1.15rem; }
+.automations-home { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #3f4f51; border-radius: 11px; background: rgba(22, 29, 31, 0.88); color: #edf4f3; text-decoration: none; }
+.automations-home:hover, .automations-home:focus-visible { outline: none; border-color: #79aaa5; box-shadow: 0 0 0 3px rgba(104, 166, 160, 0.12); }
+.automations-kicker { margin: 0 0 0.12rem; color: #82aaa6; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.automations-header h1 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.2rem); font-weight: 500; }
+.automations-subnav { display: flex; gap: 0.25rem; overflow-x: auto; border-bottom: 1px solid #344144; }
+.automations-subnav a { padding: 0.72rem 0.9rem 0.62rem; border-bottom: 2px solid transparent; color: #9facac; text-decoration: none; white-space: nowrap; }
+.automations-subnav a:hover, .automations-subnav a:focus-visible { outline: none; color: #e7f1ef; }
+.automations-subnav a.is-active { border-color: #84b7b1; color: #eef7f5; font-weight: 600; }
+.automations-content { display: grid; gap: 1.3rem; padding-top: 1.35rem; }
+.automations-content section { padding: 1.25rem; border: 1px solid #344144; border-radius: 15px; background: rgba(24, 30, 33, 0.74); box-shadow: 0 17px 42px rgba(0, 0, 0, 0.18); }
+.automations-content h2 { margin: 0 0 1rem; font-size: 1.12rem; font-weight: 500; }
+.automations-empty { min-height: 180px; display: grid; align-content: center; justify-items: center; gap: 0.35rem; padding: 1.4rem; border: 1px dashed #405153; border-radius: 12px; color: #99aaa9; text-align: center; }
+.automations-empty--compact { min-height: 96px; }
+.automations-empty > span { color: #76a49f; font: 1.8rem system-ui, sans-serif; }
+.automations-empty h3, .automations-empty p { margin: 0; }
+.automations-empty h3 { color: #d7e1df; font-size: 1rem; font-weight: 500; }
+.automation-list { display: grid; gap: 0.55rem; }
+.automation-list article { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.8rem; border: 1px solid #374649; border-radius: 10px; }
+.automation-list h3, .automation-list p { margin: 0; }
+.automation-list h3 { font-size: 1rem; font-weight: 500; }
+.automation-list p, .automation-list span { color: #94a5a4; font-size: 0.82rem; }
+@media (max-width: 700px) { .automations-page { padding: 7.3rem 0.8rem 2rem; } .automations-content section { padding: 1rem; } }

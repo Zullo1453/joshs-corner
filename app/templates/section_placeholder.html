@@ -7,7 +7,7 @@
 {% block body %}
   <div class="shell">
     <header class="topbar">
-      <a class="home-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">⌂</a>
+      <a class="home-button" href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">⌂</a>
     </header>
     <main class="placeholder" aria-label="{{ section_name }}">
       <p>{{ section_name }} will be built in a later approved stage.</p>

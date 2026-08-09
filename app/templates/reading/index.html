@@ -4,7 +4,7 @@
 {% block body_class %}reading-page{% endblock %}
 {% block body %}
 <div class="reading-shell">
-  <header class="reading-topbar"><a href="{{ url_for('home.index') }}" aria-label="Back to homepage">&#8962;</a></header>
+  <header class="reading-topbar"><a href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">&#8962;</a></header>
   <main class="reading-app">
     <aside class="book-sidebar" data-sidebar-module="reading">
       <div class="book-sidebar-head">

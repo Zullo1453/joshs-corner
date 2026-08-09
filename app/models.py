@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from .extensions import db
 
@@ -167,3 +167,65 @@ class Attachment(db.Model):
     width: Mapped[int] = mapped_column(nullable=False)
     height: Mapped[int] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class Automation(TimestampMixin, db.Model):
+    """Generic automation metadata; provider-specific settings belong in later stages."""
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'paused', 'archived')",
+            name="automation_status_valid",
+        ),
+    )
+
+    VALID_STATUSES = frozenset({"active", "paused", "archived"})
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    automation_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(
+        String(20), default="active", server_default="active", nullable=False, index=True
+    )
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    runs: Mapped[list["AutomationRun"]] = relationship(
+        back_populates="automation", cascade="all, delete-orphan"
+    )
+
+    @validates("status")
+    def validate_status(self, _key, value):
+        if value not in self.VALID_STATUSES:
+            raise ValueError(f"Unsupported automation status: {value}")
+        return value
+
+
+class AutomationRun(db.Model):
+    """A minimal, local record of a future automation execution."""
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running', 'succeeded', 'failed')",
+            name="automation_run_status_valid",
+        ),
+    )
+
+    VALID_STATUSES = frozenset({"running", "succeeded", "failed"})
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    automation_id: Mapped[int] = mapped_column(
+        ForeignKey("automation.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False, index=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    summary: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    automation: Mapped[Automation] = relationship(back_populates="runs")
+
+    @validates("status")
+    def validate_status(self, _key, value):
+        if value not in self.VALID_STATUSES:
+            raise ValueError(f"Unsupported automation run status: {value}")
+        return value

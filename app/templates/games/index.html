@@ -4,7 +4,7 @@
 {% block body_class %}games-page{% endblock %}
 {% block body %}
 <div class="games-shell">
-  <header class="games-topbar"><a class="games-home" href="{{ url_for('home.index') }}" aria-label="Back to homepage">&#8962;</a></header>
+  <header class="games-topbar"><a class="games-home" href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">&#8962;</a></header>
   <main class="game-app">
     <aside class="game-sidebar" data-sidebar-module="games">
       <div class="game-sidebar-head">

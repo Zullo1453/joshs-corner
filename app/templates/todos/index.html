@@ -47,7 +47,7 @@
 {% endmacro %}
 {% block body %}
   <div class="todos-shell">
-    <header class="todos-topbar"><a class="todos-home-button" href="{{ url_for('home.index') }}" aria-label="Back to homepage">⌂</a><span>Josh’s Corner</span></header>
+    <header class="todos-topbar"><a class="todos-home-button" href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">⌂</a><span>Josh’s Corner</span></header>
     <main class="todo-app">
       <nav class="todo-tabs" aria-label="To-Do views">
         <a class="{% if view == 'today' %}active{% endif %}" href="{{ url_for('todos.index') }}">Today</a>

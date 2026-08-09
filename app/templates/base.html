@@ -13,14 +13,38 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/rich_text.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/application_nav.css') }}">
     {% block styles %}{% endblock %}
   </head>
   <body class="{% block body_class %}{% endblock %}">
+    <aside class="application-nav" data-application-nav aria-label="Main navigation">
+      <div class="application-nav__backdrop" data-nav-dismiss></div>
+      <div class="application-nav__panel" id="main-navigation-panel">
+        <div class="application-nav__brand">
+          <img src="{{ url_for('static', filename='branding/jz-logo-192.png', v='jz-branding-1') }}" alt="" width="38" height="38">
+          <span>Josh's Corner</span>
+        </div>
+        <button class="application-nav__toggle" type="button" aria-label="Open main navigation" aria-controls="main-navigation-panel" aria-expanded="false" data-nav-toggle>
+          <span aria-hidden="true">…</span>
+        </button>
+        <button class="application-nav__close" type="button" aria-label="Close main navigation" data-nav-close>×</button>
+        <nav class="application-nav__links" aria-label="Top-level sections">
+          <a href="{{ url_for('home.index') }}"{% if current_section == 'hub' %} class="is-active" aria-current="page"{% endif %}>
+            <span aria-hidden="true">⌂</span><span>Hub</span>
+          </a>
+          <a href="{{ url_for('automations.overview') }}"{% if current_section == 'automations' %} class="is-active" aria-current="page"{% endif %}>
+            <span aria-hidden="true">⚙</span><span>Automations</span>
+          </a>
+          <span class="application-nav__future" aria-label="Future sections"><span aria-hidden="true">…</span><span>Future sections</span></span>
+        </nav>
+      </div>
+    </aside>
     {% block body %}{% endblock %}
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/sidebar_scroll.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/rich_text.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/autosave.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/application_nav.js') }}" defer></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

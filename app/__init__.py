@@ -2,7 +2,7 @@ import os
 from datetime import timezone
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, request, url_for
 
 from .extensions import csrf, db, migrate
 
@@ -98,6 +98,7 @@ def create_app(test_config=None):
     from .routes.todos import todos_bp
     from .routes.watchlist import watchlist_bp
     from .routes.attachments import attachments_bp
+    from .routes.automations import automations_bp
 
     for blueprint in (
         home_bp,
@@ -108,8 +109,20 @@ def create_app(test_config=None):
         watchlist_bp,
         reading_bp,
         attachments_bp,
+        automations_bp,
     ):
         app.register_blueprint(blueprint)
+
+    @app.context_processor
+    def application_section_context():
+        """Expose one canonical top-level section to every page template."""
+        current_section = "automations" if request.blueprint == "automations" else "hub"
+        home_endpoint = "automations.overview" if current_section == "automations" else "home.index"
+        return {
+            "current_section": current_section,
+            "section_home_url": url_for(home_endpoint),
+            "section_home_label": "Automations home" if current_section == "automations" else "Hub home",
+        }
 
     is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
     if not app.testing and database_path.exists() and (not app.debug or is_reloader_child):
