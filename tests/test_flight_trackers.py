@@ -114,6 +114,8 @@ def test_flight_tracker_migration_preserves_stage_3a_data_and_reverses(tmp_path)
         db.session.commit(); upgrade(directory=str(migrations), revision="head")
         assert db.session.execute(text("SELECT name FROM automation")).scalar_one() == "Old"
         assert {"flight_tracker", "flight_offer"}.issubset(inspect(db.engine).get_table_names())
+        tracker_indexes = {index["name"]: index["unique"] for index in inspect(db.engine).get_indexes("flight_tracker")}
+        assert bool(tracker_indexes["ix_flight_tracker_automation_id"])
         downgrade(directory=str(migrations), revision="9a7b3c5d8e10")
         assert "flight_tracker" not in inspect(db.engine).get_table_names()
         upgrade(directory=str(migrations), revision="head")
