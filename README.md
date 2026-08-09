@@ -59,6 +59,7 @@ It is also a product-thinking portfolio project: requirements were defined in sm
 - Shared rich-text editors with local PNG, JPEG, and WebP image support
 - Cached Wikipedia historical events and multi-source daily figures
 - Top-level Automation Centre with tracker, alert, and local run-history foundations
+- Manual Flight Tracker with a credential-gated, documented provider adapter (no background checks)
 - SQLite migrations, validated backup packages, safe separate restore, and optional Windows startup automation
 
 ## Privacy by design
@@ -101,7 +102,9 @@ New backups are ZIP packages containing a validated SQLite copy, matching upload
    python -m compileall app scripts
    ```
 
-The project currently has **198 automated tests**. A clone starts without any personal database, uploads, backups, or local settings.
+The project currently has **215 automated tests**. A clone starts without any personal database, uploads, backups, or local settings.
+
+Flight Tracker provider setup is optional and local-only; see [the provider foundation notes](docs/flight_tracking.md). Without legitimate local credentials, it performs no network request.
 
 ## Local operations
 

@@ -16,6 +16,9 @@ def create_app(test_config=None):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         WTF_CSRF_TIME_LIMIT=None,
         BACKUP_SECONDARY_DIR=os.environ.get("JOSHS_CORNER_BACKUP_SECONDARY_DIR"),
+        FLIGHT_PROVIDER=os.environ.get("FLIGHT_PROVIDER", ""),
+        AMADEUS_CLIENT_ID=os.environ.get("AMADEUS_CLIENT_ID", ""),
+        AMADEUS_CLIENT_SECRET=os.environ.get("AMADEUS_CLIENT_SECRET", ""),
     )
 
     if test_config:

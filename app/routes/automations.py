@@ -3,6 +3,7 @@ from __future__ import annotations
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from ..extensions import db
+from ..flight_provider import FlightSearchService, ProviderNotConfigured
 from ..flight_tracking import (
     TrackerValidationError, apply_tracker_input, parse_tracker_input, tracker_form_values,
 )
@@ -109,7 +110,7 @@ def tracker_detail(tracker_id: int):
     return render_template(
         "automations/tracker_detail.html", tracker=tracker, primary_offers=primary,
         secondary_offers=secondary, runs=runs, best_primary=_best_by_category(tracker, "primary"),
-        previous_best=_previous_best(tracker), provider_configured=False,
+        previous_best=_previous_best(tracker), provider_configured=FlightSearchService().is_configured(),
     )
 
 
@@ -201,7 +202,15 @@ def check_now(tracker_id: int):
     tracker = _tracker_or_404(tracker_id)
     if tracker.automation.status != "active":
         abort(409)
-    flash("Flight provider not configured. Add local provider credentials before checking.", "notice")
+    try:
+        run = FlightSearchService().check(tracker)
+    except ProviderNotConfigured as error:
+        flash(error.safe_message, "notice")
+    except ValueError as error:
+        abort(409, str(error))
+    else:
+        category = "success" if run.status == "succeeded" else "notice"
+        flash(f"Flight check complete. {run.summary}", category)
     return redirect(url_for("automations.tracker_detail", tracker_id=tracker.id))
 
 
