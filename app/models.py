@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from .extensions import db
@@ -192,9 +192,6 @@ class Automation(TimestampMixin, db.Model):
     runs: Mapped[list["AutomationRun"]] = relationship(
         back_populates="automation", cascade="all, delete-orphan"
     )
-    flight_tracker: Mapped["FlightTracker | None"] = relationship(
-        back_populates="automation", uselist=False, cascade="all, delete-orphan"
-    )
 
     @validates("status")
     def validate_status(self, _key, value):
@@ -225,93 +222,10 @@ class AutomationRun(db.Model):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     summary: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
-    provider: Mapped[str] = mapped_column(String(40), default="", server_default="", nullable=False)
-    configuration_version: Mapped[int | None] = mapped_column(Integer, index=True)
     automation: Mapped[Automation] = relationship(back_populates="runs")
-    offers: Mapped[list["FlightOffer"]] = relationship(
-        back_populates="run", cascade="all, delete-orphan"
-    )
 
     @validates("status")
     def validate_status(self, _key, value):
         if value not in self.VALID_STATUSES:
             raise ValueError(f"Unsupported automation run status: {value}")
         return value
-
-
-class FlightTracker(TimestampMixin, db.Model):
-    """The flight-specific configuration attached to one generic automation.
-
-    ``configuration_version`` advances only for material search changes: routes,
-    dates, or cabin class. Price and quality preferences keep the same series.
-    """
-
-    __table_args__ = (
-        CheckConstraint("adults >= 1 AND adults <= 9", name="flight_tracker_adults_valid"),
-        CheckConstraint("target_price_cents > 0", name="flight_tracker_target_positive"),
-        CheckConstraint(
-            "primary_max_duration_minutes > 0 AND primary_max_duration_minutes <= 10080",
-            name="flight_tracker_duration_valid",
-        ),
-        CheckConstraint("primary_max_stops >= 0 AND primary_max_stops <= 6", name="flight_tracker_stops_valid"),
-        CheckConstraint(
-            "cabin_class IN ('economy', 'premium_economy', 'business', 'first')",
-            name="flight_tracker_cabin_valid",
-        ),
-        CheckConstraint("configuration_version >= 1", name="flight_tracker_config_version_valid"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    automation_id: Mapped[int] = mapped_column(
-        ForeignKey("automation.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
-    )
-    outbound_origin: Mapped[str] = mapped_column(String(3), nullable=False)
-    outbound_destination: Mapped[str] = mapped_column(String(3), nullable=False)
-    outbound_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
-    return_origin: Mapped[str] = mapped_column(String(3), nullable=False)
-    return_destination: Mapped[str] = mapped_column(String(3), nullable=False)
-    return_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
-    adults: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
-    cabin_class: Mapped[str] = mapped_column(String(24), default="economy", server_default="economy", nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), default="AUD", server_default="AUD", nullable=False)
-    target_price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
-    primary_max_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
-    primary_max_stops: Mapped[int] = mapped_column(Integer, nullable=False)
-    secondary_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
-    configuration_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
-    automation: Mapped[Automation] = relationship(back_populates="flight_tracker")
-    offers: Mapped[list["FlightOffer"]] = relationship(back_populates="tracker", cascade="all, delete-orphan")
-
-
-class FlightOffer(db.Model):
-    """A normalized, minimal observation from one manual flight search."""
-
-    __table_args__ = (
-        UniqueConstraint("run_id", "fingerprint", name="flight_offer_run_fingerprint_unique"),
-        CheckConstraint("category IN ('primary', 'secondary')", name="flight_offer_category_valid"),
-        CheckConstraint("total_price_cents > 0", name="flight_offer_price_positive"),
-        CheckConstraint("outbound_duration_minutes >= 0", name="flight_offer_outbound_duration_valid"),
-        CheckConstraint("return_duration_minutes >= 0", name="flight_offer_return_duration_valid"),
-        CheckConstraint("outbound_stops >= 0", name="flight_offer_outbound_stops_valid"),
-        CheckConstraint("return_stops >= 0", name="flight_offer_return_stops_valid"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[int] = mapped_column(ForeignKey("automation_run.id", ondelete="CASCADE"), nullable=False, index=True)
-    tracker_id: Mapped[int] = mapped_column(ForeignKey("flight_tracker.id", ondelete="CASCADE"), nullable=False, index=True)
-    configuration_version: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    category: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    total_price_cents: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    outbound_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
-    return_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
-    outbound_stops: Mapped[int] = mapped_column(Integer, nullable=False)
-    return_stops: Mapped[int] = mapped_column(Integer, nullable=False)
-    airline_summary: Mapped[str] = mapped_column(String(240), default="", server_default="", nullable=False)
-    itinerary_summary: Mapped[str] = mapped_column(String(500), default="", server_default="", nullable=False)
-    provider_offer_reference: Mapped[str] = mapped_column(String(160), default="", server_default="", nullable=False)
-    booking_url: Mapped[str] = mapped_column(String(1000), default="", server_default="", nullable=False)
-    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
-    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
-    run: Mapped[AutomationRun] = relationship(back_populates="offers")
-    tracker: Mapped[FlightTracker] = relationship(back_populates="offers")

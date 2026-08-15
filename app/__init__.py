@@ -16,9 +16,6 @@ def create_app(test_config=None):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         WTF_CSRF_TIME_LIMIT=None,
         BACKUP_SECONDARY_DIR=os.environ.get("JOSHS_CORNER_BACKUP_SECONDARY_DIR"),
-        FLIGHT_PROVIDER=os.environ.get("FLIGHT_PROVIDER", ""),
-        AMADEUS_CLIENT_ID=os.environ.get("AMADEUS_CLIENT_ID", ""),
-        AMADEUS_CLIENT_SECRET=os.environ.get("AMADEUS_CLIENT_SECRET", ""),
     )
 
     if test_config:
@@ -78,21 +75,10 @@ def create_app(test_config=None):
     def local_australian_date(value):
         if value is None:
             return ""
-        if not hasattr(value, "tzinfo"):
-            return f"{value.day} {value.strftime('%B %Y')}"
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         local_value = value.astimezone()
         return f"{local_value.day} {local_value.strftime('%B %Y')}"
-
-    @app.template_filter("money")
-    def money(value, currency="AUD"):
-        return f"{currency} {int(value) / 100:,.2f}"
-
-    @app.template_filter("duration")
-    def duration(value):
-        hours, minutes = divmod(int(value), 60)
-        return f"{hours}h" if minutes == 0 else f"{hours}h {minutes}m"
 
     from .note_content import rich_text_preview, sanitise_rich_text_html
 

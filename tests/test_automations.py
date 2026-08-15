@@ -29,10 +29,10 @@ def test_shared_navigation_identifies_hub_and_links_top_level_sections(client):
 
 def test_automation_routes_identify_automations_and_render_real_empty_states(client):
     expected = {
-        "/automations": b"No active automations yet",
-        "/automations/trackers": b"No active trackers.",
-        "/automations/alerts": b"Alerts will appear here when alert rules are added.",
-        "/automations/history": b"No flight checks yet.",
+        "/automations": b"No automations configured yet",
+        "/automations/trackers": b"No trackers yet",
+        "/automations/alerts": b"No alerts configured",
+        "/automations/history": b"No automation runs yet",
     }
     for path, copy in expected.items():
         response = client.get(path)
