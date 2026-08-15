@@ -107,6 +107,15 @@ def _currency_names(app):
         return [f"{item.base_currency}/{item.quote_currency}" for item in db.session.scalars(db.select(CurrencyPair).where(CurrencyPair.active).order_by(CurrencyPair.sort_order, CurrencyPair.base_currency, CurrencyPair.quote_currency))]
 
 
+def test_order_controls_submit_once_without_global_shift_window_behaviour():
+    script = (Path(__file__).parents[1] / "app" / "static" / "js" / "order_controls.js").read_text(encoding="utf-8")
+    assert 'event.preventDefault()' in script
+    assert 'event.stopImmediatePropagation()' in script
+    assert 'button.form?.requestSubmit(button)' in script
+    assert 'event.shiftKey' in script and 'data-shift-action' in script
+    assert 'window.open' not in script
+
+
 def test_weather_ordering_moves_one_step_or_to_boundary_and_preserves_cached_data(app, client):
     with app.app_context():
         cached_c = '{"current":{"icon":"☀","temperature_c":20,"condition":"Clear","feels_like_c":20,"precipitation_mm":0,"wind_kmh":0},"daily":[],"timezone":"UTC"}'

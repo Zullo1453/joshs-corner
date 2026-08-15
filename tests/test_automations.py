@@ -23,6 +23,8 @@ def test_shared_navigation_identifies_hub_and_links_top_level_sections(client):
         assert b'href="/" class="is-active" aria-current="page"' in response.data
         assert b'href="/automations"' in response.data
         assert b">Intelligence</span>" in response.data
+        assert b'application-nav__icon' in response.data
+        assert b'application-nav__radar' in response.data
         assert b"Automations</span>" not in response.data
         assert b'aria-label="Future sections"' in response.data
         future_markup = response.data.split(b'aria-label="Future sections"', 1)[1].split(b"</span>", 2)[0]
@@ -70,6 +72,12 @@ def test_navigation_control_is_accessible_and_shared(client):
     assert b'aria-label="Open main navigation"' in response.data
     assert b'aria-controls="main-navigation-panel"' in response.data
     assert b'aria-expanded="false"' in response.data
+
+
+def test_hub_and_intelligence_share_a_centred_rail_icon_wrapper():
+    stylesheet = (Path(__file__).parents[1] / "app" / "static" / "css" / "application_nav.css").read_text(encoding="utf-8")
+    assert ".application-nav__icon," in stylesheet
+    assert "width: 38px; height: 42px; place-items: center;" in stylesheet
 
 
 @pytest.mark.parametrize("status", ("active", "paused", "archived"))
