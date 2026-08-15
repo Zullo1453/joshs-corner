@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from .extensions import db
@@ -228,4 +228,49 @@ class AutomationRun(db.Model):
     def validate_status(self, _key, value):
         if value not in self.VALID_STATUSES:
             raise ValueError(f"Unsupported automation run status: {value}")
+        return value
+
+
+class WeatherLocation(TimestampMixin, db.Model):
+    """A location explicitly chosen by the local user for manual weather checks."""
+
+    __table_args__ = (
+        UniqueConstraint("display_name", "latitude", "longitude", name="weather_location_identity"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False)
+    country_code: Mapped[str] = mapped_column(String(8), default="", server_default="", nullable=False)
+    admin_area: Mapped[str] = mapped_column(String(120), default="", server_default="", nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cached_weather_json: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+
+
+class CurrencyPair(TimestampMixin, db.Model):
+    """A manually saved reference-rate pair with a compact local cache."""
+
+    __table_args__ = (
+        CheckConstraint("base_currency <> quote_currency", name="currency_pair_distinct"),
+        UniqueConstraint("base_currency", "quote_currency", name="currency_pair_identity"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    base_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    quote_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(120), default="", server_default="", nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cached_rates_json: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+
+    @validates("base_currency", "quote_currency")
+    def validate_currency(self, _key, value):
+        value = (value or "").strip().upper()
+        if len(value) != 3 or not value.isalpha():
+            raise ValueError("Currency codes must be three letters.")
         return value

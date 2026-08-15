@@ -1,57 +1,12 @@
 {% extends "base.html" %}
+{% from "automations/_header.html" import header with context %}
 {% block title %}Automations · Josh's Corner{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/automations.css') }}">{% endblock %}
 {% block body_class %}automations-page{% endblock %}
-{% block body %}
-  <div class="automations-shell">
-    <header class="automations-header">
-      <a class="automations-home" href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">⌂</a>
-      <div>
-        <p class="automations-kicker">Josh's Corner</p>
-        <h1>Automations</h1>
-      </div>
-    </header>
-
-    <nav class="automations-subnav" aria-label="Automations">
-      {% for endpoint, key, label in (
-        ('automations.overview', 'overview', 'Overview'),
-        ('automations.trackers', 'trackers', 'Trackers'),
-        ('automations.alerts', 'alerts', 'Alerts'),
-        ('automations.history', 'history', 'History')
-      ) %}
-        <a href="{{ url_for(endpoint) }}"{% if automation_page == key %} class="is-active" aria-current="page"{% endif %}>{{ label }}</a>
-      {% endfor %}
-    </nav>
-
-    <main class="automations-content">
-      {% if automation_page == 'overview' %}
-        <section aria-labelledby="active-automations-title">
-          <h2 id="active-automations-title">Active Automations</h2>
-          {% if automations %}
-            <div class="automation-list">
-              {% for automation in automations %}
-                <article><div><h3>{{ automation.name }}</h3><p>{{ automation.automation_type|replace('_', ' ')|title }}</p></div><span>{{ automation.status|title }}</span></article>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="automations-empty"><span aria-hidden="true">◇</span><h3>No automations configured yet</h3><p>Create your first tracker when Stage 3B arrives.</p></div>
-          {% endif %}
-        </section>
-        <section aria-labelledby="recent-activity-title">
-          <h2 id="recent-activity-title">Recent Activity</h2>
-          {% if recent_runs %}
-            <div class="automation-list">{% for run in recent_runs %}<article><div><h3>{{ run.automation.name }}</h3><p>{{ run.summary or 'Automation run' }}</p></div><span>{{ run.status|title }}</span></article>{% endfor %}</div>
-          {% else %}
-            <div class="automations-empty automations-empty--compact"><p>No automation runs yet.</p></div>
-          {% endif %}
-        </section>
-      {% elif automation_page == 'trackers' %}
-        <section><h2>Trackers</h2><div class="automations-empty"><span aria-hidden="true">⌁</span><h3>No trackers yet</h3><p>Your future trackers will live here.</p></div></section>
-      {% elif automation_page == 'alerts' %}
-        <section><h2>Alerts</h2><div class="automations-empty"><span aria-hidden="true">○</span><h3>No alerts configured</h3><p>Alert destinations and rules will appear here in a later stage.</p></div></section>
-      {% else %}
-        <section><h2>History</h2>{% if recent_runs %}<div class="automation-list">{% for run in recent_runs %}<article><div><h3>{{ run.automation.name }}</h3><p>{{ run.summary or 'Automation run' }}</p></div><span>{{ run.status|title }}</span></article>{% endfor %}</div>{% else %}<div class="automations-empty"><span aria-hidden="true">↺</span><h3>No automation runs yet</h3><p>Completed checks will be recorded here.</p></div>{% endif %}</section>
-      {% endif %}
-    </main>
-  </div>
-{% endblock %}
+{% block body %}<div class="automations-shell">{{ header(automation_page) }}
+  <main class="automations-content overview-grid">
+    <section class="tool-card"><p class="tool-card__eyebrow">Weather</p><h2>Weather</h2>{% if weather %}<p>{{ weather|length }} saved location{{ 's' if weather|length != 1 else '' }}</p>{% else %}<p>No saved locations yet.</p>{% endif %}<a class="automation-button" href="{{ url_for('automations.weather') }}">{{ 'Open Weather' if weather else 'Add location' }}</a></section>
+    <section class="tool-card"><p class="tool-card__eyebrow">Currency</p><h2>Currency</h2>{% if currency %}<p>{{ currency|length }} saved pair{{ 's' if currency|length != 1 else '' }}</p>{% else %}<p>No saved pairs yet.</p>{% endif %}<a class="automation-button" href="{{ url_for('automations.currency') }}">{{ 'Open Currency' if currency else 'Add pair' }}</a></section>
+    <section class="tool-card"><p class="tool-card__eyebrow">Josh's Corner</p><h2>Health</h2><p>{{ health.status }} · {{ health.message }}</p><a class="automation-button" href="{{ url_for('automations.health') }}">{{ 'Open Health' if health.status != 'Healthy' else 'Run health check' }}</a></section>
+  </main>
+</div>{% endblock %}
