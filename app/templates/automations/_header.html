@@ -1,9 +1,9 @@
 {% macro header(page) %}
   <header class="automations-header">
     <a class="automations-home" href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">⌂</a>
-    <div><p class="automations-kicker">Josh's Corner</p><h1>Automations</h1></div>
+    <div><p class="automations-kicker">Josh's Corner</p><h1>Intelligence</h1></div>
   </header>
-  <nav class="automations-subnav" aria-label="Automations">
+  <nav class="automations-subnav" aria-label="Intelligence">
     {% for endpoint, key, label in (('automations.overview','overview','Overview'), ('automations.weather','weather','Weather'), ('automations.currency','currency','Currency'), ('automations.health','health','Health')) %}
       <a href="{{ url_for(endpoint) }}"{% if page == key %} class="is-active" aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}

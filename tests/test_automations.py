@@ -22,12 +22,14 @@ def test_shared_navigation_identifies_hub_and_links_top_level_sections(client):
         assert response.status_code == 200
         assert b'href="/" class="is-active" aria-current="page"' in response.data
         assert b'href="/automations"' in response.data
+        assert b">Intelligence</span>" in response.data
+        assert b"Automations</span>" not in response.data
         assert b'aria-label="Future sections"' in response.data
         future_markup = response.data.split(b'aria-label="Future sections"', 1)[1].split(b"</span>", 2)[0]
         assert b"href=" not in future_markup
 
 
-def test_automation_routes_identify_automations_and_render_real_empty_states(client):
+def test_intelligence_routes_identify_the_section_and_render_real_empty_states(client):
     expected = {
         "/automations": b"No saved locations yet",
         "/automations/weather": b"No saved locations",
@@ -41,18 +43,18 @@ def test_automation_routes_identify_automations_and_render_real_empty_states(cli
         assert copy in response.data
 
 
-def test_automations_subnavigation_links_and_active_states(client):
+def test_intelligence_subnavigation_links_and_active_states(client):
     response = client.get("/automations/weather")
     for href in (b'/automations', b'/automations/weather', b'/automations/currency', b'/automations/health'):
         assert b'href="' + href + b'"' in response.data
     assert b'href="/automations/weather" class="is-active" aria-current="page"' in response.data
 
 
-def test_home_icon_is_contextual_for_hub_and_automations(client):
+def test_home_icon_is_contextual_for_hub_and_intelligence(client):
     journal = client.get("/journal/")
     assert b'href="/" aria-label="Hub home" title="Hub home"' in journal.data
     weather = client.get("/automations/weather")
-    assert b'href="/automations" aria-label="Automations home" title="Automations home"' in weather.data
+    assert b'href="/automations" aria-label="Intelligence home" title="Intelligence home"' in weather.data
 
 
 def test_legacy_automation_placeholders_redirect_to_the_overview(client):

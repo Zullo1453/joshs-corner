@@ -121,7 +121,7 @@ def create_app(test_config=None):
         return {
             "current_section": current_section,
             "section_home_url": url_for(home_endpoint),
-            "section_home_label": "Automations home" if current_section == "automations" else "Hub home",
+            "section_home_label": "Intelligence home" if current_section == "automations" else "Hub home",
         }
 
     is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"

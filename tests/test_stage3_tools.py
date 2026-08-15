@@ -97,6 +97,69 @@ def test_health_is_read_only_and_hides_paths_and_secrets(app, client):
         assert db.session.scalar(db.select(db.func.count(WeatherLocation.id))) == before
 
 
+def _weather_names(app):
+    with app.app_context():
+        return [item.display_name for item in db.session.scalars(db.select(WeatherLocation).where(WeatherLocation.active).order_by(WeatherLocation.sort_order, WeatherLocation.display_name))]
+
+
+def _currency_names(app):
+    with app.app_context():
+        return [f"{item.base_currency}/{item.quote_currency}" for item in db.session.scalars(db.select(CurrencyPair).where(CurrencyPair.active).order_by(CurrencyPair.sort_order, CurrencyPair.base_currency, CurrencyPair.quote_currency))]
+
+
+def test_weather_ordering_moves_one_step_or_to_boundary_and_preserves_cached_data(app, client):
+    with app.app_context():
+        cached_c = '{"current":{"icon":"☀","temperature_c":20,"condition":"Clear","feels_like_c":20,"precipitation_mm":0,"wind_kmh":0},"daily":[],"timezone":"UTC"}'
+        locations = [WeatherLocation(display_name=name, latitude=index, longitude=index, timezone="UTC", sort_order=index, cached_weather_json=cached_c if name == "C" else None) for index, name in enumerate(("A", "B", "C", "D"))]
+        db.session.add_all(locations)
+        db.session.commit()
+        ids = {item.display_name: item.id for item in locations}
+    assert client.post(f"/automations/weather/{ids['C']}/move", data={"action": "up"}).status_code == 302
+    assert _weather_names(app) == ["A", "C", "B", "D"]
+    assert client.post(f"/automations/weather/{ids['C']}/move", data={"action": "down"}).status_code == 302
+    assert _weather_names(app) == ["A", "B", "C", "D"]
+    client.post(f"/automations/weather/{ids['D']}/move", data={"action": "top"})
+    assert _weather_names(app) == ["D", "A", "B", "C"]
+    client.post(f"/automations/weather/{ids['D']}/move", data={"action": "bottom"})
+    assert _weather_names(app) == ["A", "B", "C", "D"]
+    client.post("/automations/weather/locations", data={"name": "E", "latitude": "10", "longitude": "10", "timezone": "UTC"})
+    assert _weather_names(app) == ["A", "B", "C", "D", "E"]
+    client.post(f"/automations/weather/{ids['B']}/deactivate")
+    assert _weather_names(app) == ["A", "C", "D", "E"]
+    response = client.get("/automations/weather")
+    assert b'Move A up' in response.data and b'disabled' in response.data and b'Move D down' in response.data
+    assert client.post(f"/automations/weather/{ids['A']}/move", data={"action": "sideways"}).status_code == 400
+    assert client.post("/automations/weather/99999/move", data={"action": "up"}).status_code == 404
+    with app.app_context():
+        assert db.session.get(WeatherLocation, ids["C"]).cached_weather_json == cached_c
+        assert [item.sort_order for item in db.session.scalars(db.select(WeatherLocation).where(WeatherLocation.active).order_by(WeatherLocation.sort_order))] == [0, 1, 2, 3]
+
+
+def test_currency_ordering_persists_and_does_not_mix_rate_caches(app, client):
+    with app.app_context():
+        pairs = [CurrencyPair(base_currency="AUD", quote_currency=quote, sort_order=index, cached_rates_json=f'{{"pair":"{quote}"}}') for index, quote in enumerate(("EUR", "CZK", "USD", "GBP"))]
+        db.session.add_all(pairs)
+        db.session.commit()
+        ids = {item.quote_currency: item.id for item in pairs}
+    client.post(f"/automations/currency/{ids['USD']}/move", data={"action": "up"})
+    assert _currency_names(app) == ["AUD/EUR", "AUD/USD", "AUD/CZK", "AUD/GBP"]
+    client.post(f"/automations/currency/{ids['USD']}/move", data={"action": "down"})
+    client.post(f"/automations/currency/{ids['GBP']}/move", data={"action": "top"})
+    assert _currency_names(app) == ["AUD/GBP", "AUD/EUR", "AUD/CZK", "AUD/USD"]
+    client.post(f"/automations/currency/{ids['GBP']}/move", data={"action": "bottom"})
+    assert _currency_names(app) == ["AUD/EUR", "AUD/CZK", "AUD/USD", "AUD/GBP"]
+    client.post("/automations/currency/pairs", data={"base_currency": "AUD", "quote_currency": "JPY"})
+    assert _currency_names(app) == ["AUD/EUR", "AUD/CZK", "AUD/USD", "AUD/GBP", "AUD/JPY"]
+    client.post(f"/automations/currency/{ids['CZK']}/deactivate")
+    assert _currency_names(app) == ["AUD/EUR", "AUD/USD", "AUD/GBP", "AUD/JPY"]
+    response = client.get("/automations/currency")
+    assert b'Move AUD to EUR up' in response.data and b'pair-arrow' in response.data
+    assert client.post(f"/automations/currency/{ids['EUR']}/move", data={"action": "invalid"}).status_code == 400
+    with app.app_context():
+        assert db.session.get(CurrencyPair, ids["CZK"]).cached_rates_json == '{"pair":"CZK"}'
+        assert [item.sort_order for item in db.session.scalars(db.select(CurrencyPair).where(CurrencyPair.active).order_by(CurrencyPair.sort_order))] == [0, 1, 2, 3]
+
+
 def test_stage3_tool_migrations_upgrade_downgrade_and_reupgrade(tmp_path):
     database = tmp_path / "stage3-tools.db"
     migration_app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database.as_posix()}"})

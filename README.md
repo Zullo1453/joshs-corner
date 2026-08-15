@@ -58,7 +58,7 @@ It is also a product-thinking portfolio project: requirements were defined in sm
 - Watchlist and Reading List with filters and rich reviews
 - Shared rich-text editors with local PNG, JPEG, and WebP image support
 - Cached Wikipedia historical events and multi-source daily figures
-- Automation Centre: manual Weather, Currency Watch, and local Health tools
+- Intelligence: manual Weather, Currency Watch, and local Health tools
 - SQLite migrations, validated backup packages, safe separate restore, and optional Windows startup automation
 
 ## Privacy by design
@@ -75,13 +75,13 @@ The delivery approach deliberately balanced user flow and visual refinement with
 
 New backups are ZIP packages containing a validated SQLite copy, matching uploads, a manifest, and SHA-256 checksums. Older database-only backups remain restorable but do not contain later image files.
 
-## Stage 3 Automation Centre
+## Stage 3 Intelligence
 
-Stage 3A established the Hub/Automations navigation and contextual home behaviour. Stage 3B adds Weather through Open-Meteo's official Geocoding and Forecast APIs; locations are selected explicitly, refreshes are manual, and only the requested place name or coordinates are sent. Weather data is cached locally after a successful refresh and is attributed in the interface.
+Stage 3A established the Hub/Intelligence navigation and contextual home behaviour. Stage 3B adds Weather through Open-Meteo's official Geocoding and Forecast APIs; locations are selected explicitly, refreshes are manual, and only the requested place name or coordinates are sent. Weather data is cached locally after a successful refresh and is attributed in the interface.
 
 Stage 3C adds Currency Watch through Frankfurter's public reference-rate API. Pairs are explicitly saved, manually refreshed, and cached locally with a 30-day history graph. The figures are reference rates only and may differ from bank, card, or cash conversion rates. Neither external service needs an application account or API credential for this small personal use.
 
-Stage 3D adds a read-only local Health page. It checks SQLite integrity, foreign keys, migration state, and existing backup-package validation without restoring, deleting, migrating, restarting, or changing user data. The Automation Centre has no scheduler, email, notification service, telemetry, or automatic alerts.
+Stage 3D adds a read-only local Health page. It checks SQLite integrity, foreign keys, migration state, and existing backup-package validation without restoring, deleting, migrating, restarting, or changing user data. Intelligence has no scheduler, email, notification service, telemetry, or automatic alerts.
 
 ## Clean Windows setup
 

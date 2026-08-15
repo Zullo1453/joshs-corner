@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from sqlalchemy import select
 
 from ..currency import CurrencyProviderError, CurrencyService, convert
 from ..extensions import db
 from ..health import collect_health
 from ..models import CurrencyPair, WeatherLocation
+from ..ordering import active_items, move_active_item, next_sort_order, normalize_active_items
 from ..weather import LocationMatch, WeatherProviderError, WeatherService
 
 
@@ -23,13 +24,13 @@ def _currency_service():
 
 def _saved_weather():
     service = _weather_service()
-    locations = db.session.scalars(select(WeatherLocation).where(WeatherLocation.active).order_by(WeatherLocation.sort_order, WeatherLocation.display_name)).all()
+    locations = active_items(WeatherLocation, WeatherLocation.display_name)
     return [(location, service.cached(location)) for location in locations]
 
 
 def _saved_currency():
     service = _currency_service()
-    pairs = db.session.scalars(select(CurrencyPair).where(CurrencyPair.active).order_by(CurrencyPair.sort_order, CurrencyPair.base_currency, CurrencyPair.quote_currency)).all()
+    pairs = active_items(CurrencyPair, CurrencyPair.base_currency, CurrencyPair.quote_currency)
     return [(pair, service.cached(pair)) for pair in pairs]
 
 
@@ -67,7 +68,7 @@ def add_weather_location():
         db.session.commit()
         flash("That location is already saved.", "info")
     else:
-        db.session.add(WeatherLocation(display_name=match.name, latitude=match.latitude, longitude=match.longitude, timezone=match.timezone, country_code=match.country_code, admin_area=match.admin_area))
+        db.session.add(WeatherLocation(display_name=match.name, latitude=match.latitude, longitude=match.longitude, timezone=match.timezone, country_code=match.country_code, admin_area=match.admin_area, sort_order=next_sort_order(WeatherLocation)))
         db.session.commit()
         flash(f"{match.name} saved. Use Refresh to fetch the forecast.", "success")
     return redirect(url_for("automations.weather"))
@@ -94,8 +95,22 @@ def refresh_weather():
 def deactivate_weather(location_id):
     location = db.get_or_404(WeatherLocation, location_id)
     location.active = False
+    normalize_active_items(WeatherLocation, WeatherLocation.display_name)
     db.session.commit()
     flash("Location removed from Weather.", "info")
+    return redirect(url_for("automations.weather"))
+
+
+@automations_bp.post("/weather/<int:location_id>/move")
+def move_weather(location_id):
+    try:
+        moved = move_active_item(WeatherLocation, location_id, request.form.get("action", ""), WeatherLocation.display_name)
+    except ValueError:
+        abort(400)
+    except LookupError:
+        abort(404)
+    if moved:
+        flash("Location order updated.", "success")
     return redirect(url_for("automations.weather"))
 
 
@@ -126,7 +141,7 @@ def add_currency_pair():
             db.session.commit()
             flash("That currency pair is already saved.", "info")
         else:
-            db.session.add(CurrencyPair(base_currency=base, quote_currency=quote))
+            db.session.add(CurrencyPair(base_currency=base, quote_currency=quote, sort_order=next_sort_order(CurrencyPair)))
             db.session.commit()
             flash(f"{base} → {quote} saved. Use Refresh to fetch reference rates.", "success")
     return redirect(url_for("automations.currency"))
@@ -153,8 +168,22 @@ def refresh_currency():
 def deactivate_currency(pair_id):
     pair = db.get_or_404(CurrencyPair, pair_id)
     pair.active = False
+    normalize_active_items(CurrencyPair, CurrencyPair.base_currency, CurrencyPair.quote_currency)
     db.session.commit()
     flash("Currency pair removed from Currency.", "info")
+    return redirect(url_for("automations.currency"))
+
+
+@automations_bp.post("/currency/<int:pair_id>/move")
+def move_currency(pair_id):
+    try:
+        moved = move_active_item(CurrencyPair, pair_id, request.form.get("action", ""), CurrencyPair.base_currency, CurrencyPair.quote_currency)
+    except ValueError:
+        abort(400)
+    except LookupError:
+        abort(404)
+    if moved:
+        flash("Currency pair order updated.", "success")
     return redirect(url_for("automations.currency"))
 
 
