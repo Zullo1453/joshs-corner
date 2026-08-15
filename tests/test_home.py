@@ -9,6 +9,7 @@ def test_homepage_loads(client):
     assert b"General Notes" in response.data
     assert b"Reading List" in response.data
     assert b"World Bank" in response.data
+    assert b"Something to think about" in response.data
     assert b'target="_blank"' in response.data
     assert b'rel="noopener noreferrer"' in response.data
 

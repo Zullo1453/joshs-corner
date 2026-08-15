@@ -2,6 +2,8 @@ from datetime import date
 
 from flask import Blueprint, current_app, render_template
 
+from ..daily_thought import DailyThoughtService
+
 home_bp = Blueprint("home", __name__)
 
 
@@ -16,7 +18,11 @@ def index():
         daily_figure = current_app.extensions["figure_of_day"].get_figure(today)
     except Exception:
         daily_figure = None
-    return render_template("home.html", today=today, historical_event=historical_event, daily_figure=daily_figure)
+    try:
+        daily_thought = DailyThoughtService().get_thought(today)
+    except ValueError:
+        daily_thought = None
+    return render_template("home.html", today=today, historical_event=historical_event, daily_figure=daily_figure, daily_thought=daily_thought)
 
 
 def current_date():

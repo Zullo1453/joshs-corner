@@ -33,6 +33,20 @@
       </nav>
     </main>
 
+    {% if daily_thought %}
+    <section class="thought-block" aria-labelledby="daily-thought-heading">
+      <div class="daily-thought-card">
+        <p class="daily-thought-kicker" id="daily-thought-heading">Something to think about</p>
+        <p class="daily-thought-category">{{ daily_thought.weekday }} · {{ daily_thought.category_label }}</p>
+        <h2>Idea of the day</h2>
+        <h3>{{ daily_thought.title }}</h3>
+        <p class="daily-thought-body">{{ daily_thought.body }}{% if daily_thought.attribution %} — {{ daily_thought.attribution }}{% endif %}</p>
+        <p class="daily-thought-question"><strong>Think about:</strong> {{ daily_thought.think_about }}</p>
+        {% if daily_thought.source_url %}<a class="daily-thought-source" href="{{ daily_thought.source_url }}" target="_blank" rel="noopener noreferrer">{{ daily_thought.source_name }} ↗</a>{% endif %}
+      </div>
+    </section>
+    {% endif %}
+
     <div class="bottom-zone">
       <div class="home-panels">
       <aside class="history-block" aria-labelledby="history-date">
