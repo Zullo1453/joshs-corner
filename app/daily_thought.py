@@ -82,6 +82,32 @@ def load_library(path=DEFAULT_LIBRARY_PATH):
     return tuple(thoughts)
 
 
+def audit_library(path=DEFAULT_LIBRARY_PATH):
+    """Return a small, local-only content audit for release checks and curation."""
+    entries = load_library(path)
+    by_category = {}
+    for category in sorted(VALID_CATEGORIES):
+        category_entries = [item for item in entries if item["category"] == category]
+        by_category[category] = {
+            "total": len(category_entries),
+            "sourced": sum(bool(item["source_url"]) for item in category_entries),
+            "unsourced": sum(not item["source_url"] for item in category_entries),
+        }
+    def duplicates(field):
+        values = [item[field].casefold().strip() for item in entries]
+        return sorted({value for value in values if values.count(value) > 1})
+
+    titles = [(item["id"], set(item["title"].casefold().replace("/", " ").split())) for item in entries]
+    similar_titles = []
+    for index, (identifier, words) in enumerate(titles):
+        for other_identifier, other_words in titles[index + 1:]:
+            if words and other_words and len(words | other_words) and len(words & other_words) / len(words | other_words) >= 0.8:
+                similar_titles.append((identifier, other_identifier))
+    return {"total": len(entries), "categories": by_category, "duplicate_ids": duplicates("id"),
+            "duplicate_bodies": duplicates("body"), "duplicate_questions": duplicates("think_about"),
+            "similar_titles": similar_titles}
+
+
 class DailyThoughtService:
     def __init__(self, library_path=DEFAULT_LIBRARY_PATH):
         self.library_path = Path(library_path)

@@ -4,17 +4,17 @@ import json
 
 import pytest
 
-from app.daily_thought import DailyThought, DailyThoughtService, VALID_CATEGORIES, WEEKDAY_CATEGORIES, load_library
+from app.daily_thought import DailyThought, DailyThoughtService, VALID_CATEGORIES, WEEKDAY_CATEGORIES, audit_library, load_library
 from app.extensions import db
 from app.models import CurrencyPair, WeatherLocation
 from app.routes import home
 
 
-def test_curated_library_has_eight_valid_entries_in_each_weekday_category():
+def test_curated_library_has_fifty_three_valid_entries_in_each_weekday_category():
     entries = load_library()
-    assert len(entries) == 56
+    assert len(entries) == 371
     assert set(item["category"] for item in entries) == VALID_CATEGORIES
-    assert Counter(item["category"] for item in entries) == {category: 8 for category in VALID_CATEGORIES}
+    assert Counter(item["category"] for item in entries) == {category: 53 for category in VALID_CATEGORIES}
     assert len({item["id"] for item in entries}) == len(entries)
     for item in entries:
         assert all(item[field] for field in ("id", "category", "title", "body", "think_about"))
@@ -37,11 +37,30 @@ def test_weekday_mapping_is_fixed(selected_date, expected):
     assert (thought.category, thought.weekday, thought.category_label) == expected
 
 
-def test_selection_is_stable_for_a_date_and_rotates_on_the_next_matching_weekday():
+def test_selection_is_stable_and_cycles_after_fifty_three_matching_weekdays():
     service = DailyThoughtService()
     monday = date(2026, 8, 17)
     assert service.get_thought(monday) == service.get_thought(monday)
-    assert service.get_thought(monday).id != service.get_thought(date(2026, 8, 24)).id
+    rotation = [service.get_thought(date.fromordinal(monday.toordinal() + 7 * index)).id for index in range(53)]
+    assert len(set(rotation)) == 53
+    assert service.get_thought(date.fromordinal(monday.toordinal() + 7 * 53)).id == rotation[0]
+
+
+def test_every_weekday_category_completes_a_full_rotation_and_handles_year_boundaries():
+    service = DailyThoughtService()
+    for selected_date in (date(2024, 12, 30), date(2024, 2, 26), date(2025, 1, 1), date(2026, 8, 23)):
+        rotation = [service.get_thought(date.fromordinal(selected_date.toordinal() + 7 * index)) for index in range(53)]
+        assert {thought.category for thought in rotation} == {rotation[0].category}
+        assert len({thought.id for thought in rotation}) == 53
+
+
+def test_content_audit_reports_counts_and_source_coverage():
+    audit = audit_library()
+    assert audit["total"] == 371
+    assert audit["duplicate_ids"] == audit["duplicate_bodies"] == audit["duplicate_questions"] == []
+    assert isinstance(audit["similar_titles"], list)
+    assert {item["total"] for item in audit["categories"].values()} == {53}
+    assert all(item["sourced"] + item["unsourced"] == 53 for item in audit["categories"].values())
 
 
 def test_invalid_library_fails_validation(tmp_path):
@@ -61,7 +80,7 @@ def test_home_renders_the_daily_card_without_a_database_write(app, client, monke
     thought = DailyThoughtService().get_thought(selected_date)
     assert response.status_code == 200
     assert b"Something to think about" in response.data
-    assert thought.title.encode() in response.data and b"Think about:" in response.data
+    assert thought.title.replace("'", "&#39;") in response.get_data(as_text=True) and b"Think about:" in response.data
     with app.app_context():
         after = (db.session.scalar(db.select(db.func.count(WeatherLocation.id))), db.session.scalar(db.select(db.func.count(CurrencyPair.id))))
     assert after == before
