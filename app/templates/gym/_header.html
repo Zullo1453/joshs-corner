@@ -1,0 +1,12 @@
+{% macro header(page) %}
+  <header class="gym-header">
+    <a class="gym-home" href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">⌂</a>
+    <div><p class="gym-kicker">Josh's Corner</p><h1>Gym</h1></div>
+  </header>
+  <nav class="gym-subnav" aria-label="Gym">
+    {% for endpoint, key, label in (('gym.today','today','Today'), ('gym.exercises','exercises','Exercises'), ('gym.history','history','History')) %}
+      <a href="{{ url_for(endpoint) }}"{% if page == key %} class="is-active" aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="gym-messages" aria-live="polite">{% for category, message in messages %}<p class="gym-message gym-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
+{% endmacro %}

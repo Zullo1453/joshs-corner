@@ -99,6 +99,7 @@
 .application-nav__icon,
 .application-nav__future > span:first-child { display: grid; width: 38px; height: 42px; place-items: center; font-family: system-ui, sans-serif; }
 .application-nav__radar{position:relative;display:grid;width:18px;height:18px;place-items:center;border:1px solid currentColor;border-radius:50%}.application-nav__radar::before,.application-nav__radar::after{position:absolute;content:"";border:1px solid currentColor;border-radius:50%;opacity:.52}.application-nav__radar::before{inset:3px}.application-nav__radar::after{width:3px;height:3px;background:currentColor;border:0;opacity:1}.application-nav__radar i{position:absolute;width:7px;height:1px;right:-3px;top:3px;background:currentColor;transform:rotate(43deg);transform-origin:left center}
+.application-nav__dumbbell{position:relative;display:grid;width:21px;height:18px;place-items:center}.application-nav__dumbbell i{width:13px;height:3px;border-radius:2px;background:currentColor}.application-nav__dumbbell::before,.application-nav__dumbbell::after{position:absolute;content:"";width:4px;height:14px;border:2px solid currentColor;border-radius:2px}.application-nav__dumbbell::before{left:0}.application-nav__dumbbell::after{right:0}
 .application-nav__links a > span:last-child,
 .application-nav__future > span:last-child { opacity: 0; }
 .application-nav.is-open .application-nav__links a > span:last-child,

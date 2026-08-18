@@ -80,6 +80,12 @@ def create_app(test_config=None):
         local_value = value.astimezone()
         return f"{local_value.day} {local_value.strftime('%B %Y')}"
 
+    from .gym import format_kg, format_volume, set_summary
+
+    app.add_template_filter(format_kg, "gym_kg")
+    app.add_template_filter(format_volume, "gym_volume")
+    app.add_template_filter(set_summary, "gym_set_summary")
+
     from .note_content import rich_text_preview, sanitise_rich_text_html
 
     @app.template_filter("sanitise_html")
@@ -99,6 +105,7 @@ def create_app(test_config=None):
     from .routes.watchlist import watchlist_bp
     from .routes.attachments import attachments_bp
     from .routes.automations import automations_bp
+    from .routes.gym import gym_bp
 
     for blueprint in (
         home_bp,
@@ -110,18 +117,29 @@ def create_app(test_config=None):
         reading_bp,
         attachments_bp,
         automations_bp,
+        gym_bp,
     ):
         app.register_blueprint(blueprint)
 
     @app.context_processor
     def application_section_context():
         """Expose one canonical top-level section to every page template."""
-        current_section = "automations" if request.blueprint == "automations" else "hub"
-        home_endpoint = "automations.overview" if current_section == "automations" else "home.index"
+        current_section = (
+            "gym" if request.blueprint == "gym" else "automations" if request.blueprint == "automations" else "hub"
+        )
+        home_endpoint = {
+            "gym": "gym.today",
+            "automations": "automations.overview",
+            "hub": "home.index",
+        }[current_section]
         return {
             "current_section": current_section,
             "section_home_url": url_for(home_endpoint),
-            "section_home_label": "Intelligence home" if current_section == "automations" else "Hub home",
+            "section_home_label": {
+                "gym": "Gym Today",
+                "automations": "Intelligence home",
+                "hub": "Hub home",
+            }[current_section],
         }
 
     is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"

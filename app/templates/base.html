@@ -35,6 +35,9 @@
           <a href="{{ url_for('automations.overview') }}"{% if current_section == 'automations' %} class="is-active" aria-current="page"{% endif %}>
             <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__radar"><i></i></span></span><span>Intelligence</span>
           </a>
+          <a href="{{ url_for('gym.today') }}"{% if current_section == 'gym' %} class="is-active" aria-current="page"{% endif %}>
+            <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__dumbbell"><i></i></span></span><span>Gym</span>
+          </a>
           <span class="application-nav__future" aria-label="Future sections"><span aria-hidden="true">…</span><span>Future sections</span></span>
         </nav>
       </div>

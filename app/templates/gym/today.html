@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "gym/_header.html" import header with context %}
+{% block title %}Gym Today · Josh's Corner{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gym.css') }}">{% endblock %}
+{% block body_class %}gym-page{% endblock %}
+{% block body %}<div class="gym-shell">{{ header(gym_page) }}
+  <main class="gym-content">
+    {% if not session %}
+      <section class="gym-empty"><h2>Today</h2><p>No workout is underway yet. Start one when you are ready; each set is saved as you go.</p><form method="post" action="{{ url_for('gym.start_today') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="gym-button">Start today’s workout</button></form></section>
+    {% else %}
+      <section class="gym-toolbar"><div><p class="gym-kicker">{{ session.workout_date.strftime('%d %b %Y').lstrip('0') }}</p><h2>Today’s workout</h2><p>Sets save immediately, so a refresh will not lose your workout.</p></div></section>
+      <section class="gym-add-exercise"><h2>Add exercise</h2><form method="post" action="{{ url_for('gym.add_to_today') }}" class="gym-add-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="today-exercise">Exercise</label><select id="today-exercise" name="exercise_id" required>{% for body_part, exercises in grouped_exercises.items() if exercises %}<optgroup label="{{ body_part }}">{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }}</option>{% endfor %}</optgroup>{% endfor %}</select><button class="gym-button">Add to workout</button></form></section>
+      {% if cards %}
+        <div class="gym-workout-cards">{% for card in cards %}{% set occurrence = card.occurrence %}
+          <section class="gym-workout-card"><header><div><p class="gym-kicker">{{ occurrence.exercise.body_part }}</p><h2><a href="{{ url_for('gym.exercise_detail', exercise_id=occurrence.exercise.id) }}">{{ occurrence.exercise.name }}</a></h2></div><dl><div><dt>Max weight</dt><dd>{{ card.max_weight|gym_kg if card.max_weight is not none else '—' }}</dd></div><div><dt>Volume</dt><dd>{{ card.volume|gym_volume }}</dd></div></dl></header>
+            {% if occurrence.sets %}<div class="gym-set-list">{% for item in occurrence.sets %}<form method="post" action="{{ url_for('gym.edit_set', set_id=item.id) }}" class="gym-set-row"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><strong>Set {{ item.set_number }}</strong><label><span>Weight (kg)</span><input name="weight_kg" type="number" inputmode="decimal" min="0" max="1000" step="0.01" value="{{ item.weight_kg }}" required></label><label><span>Reps</span><input name="reps" type="number" inputmode="numeric" min="1" max="1000" step="1" value="{{ item.reps }}" required></label><button class="gym-quiet-button">Save</button></form><form method="post" action="{{ url_for('gym.remove_set', set_id=item.id) }}" class="gym-remove-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="gym-text-button">Remove set {{ item.set_number }}</button></form>{% endfor %}</div>{% else %}<p class="gym-empty-copy">No saved sets yet.</p>{% endif %}
+            <form method="post" action="{{ url_for('gym.add_set', workout_exercise_id=occurrence.id) }}" class="gym-new-set"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><strong>New set</strong><label><span>Weight (kg)</span><input name="weight_kg" type="number" inputmode="decimal" min="0" max="1000" step="0.01" required></label><label><span>Reps</span><input name="reps" type="number" inputmode="numeric" min="1" max="1000" step="1" required></label><button class="gym-button">Add set</button></form>
+            {% if card.previous %}<aside class="gym-previous"><p class="gym-kicker">Previous · {{ card.previous.session.workout_date.strftime('%d %b %Y').lstrip('0') }}</p><p>{{ card.previous.sets|map('gym_set_summary')|join(' · ') }}</p><dl><div><dt>Max</dt><dd>{{ max_weight(card.previous)|gym_kg }}</dd></div><div><dt>Volume</dt><dd>{{ exercise_volume(card.previous)|gym_volume }}</dd></div></dl>{% if not occurrence.sets %}<form method="post" action="{{ url_for('gym.copy_previous', workout_exercise_id=occurrence.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="gym-quiet-button">Copy previous sets</button></form>{% endif %}</aside>{% endif %}
+          </section>{% endfor %}
+        </div>
+      {% else %}<section class="gym-empty"><h2>No exercises in today’s workout</h2><p>Choose an active exercise above to start logging.</p></section>{% endif %}
+    {% endif %}
+  </main>
+</div>{% endblock %}

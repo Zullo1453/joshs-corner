@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from .extensions import db
@@ -274,3 +274,82 @@ class CurrencyPair(TimestampMixin, db.Model):
         if len(value) != 3 or not value.isalpha():
             raise ValueError("Currency codes must be three letters.")
         return value
+
+
+BODY_PARTS = ("Chest", "Back", "Shoulders", "Biceps", "Triceps", "Legs", "Core", "Other")
+
+
+class Exercise(TimestampMixin, db.Model):
+    """A reusable exercise. Archiving retains all historical workout records."""
+
+    __table_args__ = (
+        CheckConstraint(
+            "body_part IN ('Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Core', 'Other')",
+            name="exercise_body_part_valid",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    body_part: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    workout_exercises: Mapped[list["WorkoutExercise"]] = relationship(back_populates="exercise")
+
+    @validates("body_part")
+    def validate_body_part(self, _key, value):
+        if value not in BODY_PARTS:
+            raise ValueError("Choose a valid body part.")
+        return value
+
+
+class WorkoutSession(TimestampMixin, db.Model):
+    """One workout occurrence. The UI resumes the unfinished session for today."""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workout_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    workout_exercises: Mapped[list["WorkoutExercise"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class WorkoutExercise(TimestampMixin, db.Model):
+    """One exercise performed during one workout session."""
+
+    __table_args__ = (
+        UniqueConstraint("workout_session_id", "exercise_id", name="workout_exercise_session_exercise"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workout_session_id: Mapped[int] = mapped_column(
+        ForeignKey("workout_session.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    exercise_id: Mapped[int] = mapped_column(ForeignKey("exercise.id"), nullable=False, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    session: Mapped[WorkoutSession] = relationship(back_populates="workout_exercises")
+    exercise: Mapped[Exercise] = relationship(back_populates="workout_exercises")
+    sets: Mapped[list["ExerciseSet"]] = relationship(
+        back_populates="workout_exercise", cascade="all, delete-orphan", passive_deletes=True,
+        order_by="ExerciseSet.set_number",
+    )
+
+
+class ExerciseSet(TimestampMixin, db.Model):
+    """A single completed set, stored independently for resilient workout logging."""
+
+    __table_args__ = (
+        CheckConstraint("weight_kg >= 0 AND weight_kg <= 1000", name="exercise_set_weight_range"),
+        CheckConstraint("reps >= 1 AND reps <= 1000", name="exercise_set_reps_range"),
+        UniqueConstraint("workout_exercise_id", "set_number", name="exercise_set_workout_exercise_number"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workout_exercise_id: Mapped[int] = mapped_column(
+        ForeignKey("workout_exercise.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    set_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    weight_kg: Mapped[object] = mapped_column(Numeric(8, 2), nullable=False)
+    reps: Mapped[int] = mapped_column(Integer, nullable=False)
+    workout_exercise: Mapped[WorkoutExercise] = relationship(back_populates="sets")
