@@ -377,6 +377,38 @@
   border-top: 1px solid rgba(74, 53, 57, 0.7);
 }
 
+.journal-integration {
+  margin: 0 1.4rem 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(99, 74, 77, 0.72);
+  border-radius: 12px;
+  background: rgba(29, 22, 25, 0.6);
+}
+
+.journal-integration-heading,
+.journal-integration-options,
+.journal-linked-views {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.journal-integration-heading { justify-content: space-between; }
+.journal-integration-heading p { margin: 0; color: #d5b39a; font-size: 0.77rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.journal-integration-heading span { color: var(--journal-muted); font-size: 0.78rem; }
+.journal-linked-views { gap: 0.65rem; }
+.journal-linked-views a { color: #c7a277; font-size: 0.8rem; text-decoration: none; }
+.journal-linked-views a:hover,.journal-linked-views a:focus-visible { color: #f2d7b7; text-decoration: underline; }
+.journal-integration-options { margin-top: 0.65rem; }
+.journal-integration-options label { display: inline-flex; align-items: center; gap: 0.42rem; color: #d4c4bd; font-size: 0.92rem; cursor: pointer; }
+.journal-integration-options input { accent-color: #b67a47; }
+.journal-link-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 0.42fr); gap: 0.7rem; margin-top: 0.75rem; }
+.journal-link-fields label { display: grid; gap: 0.3rem; color: #b7a49d; font-size: 0.8rem; }
+.journal-link-fields label span { color: var(--journal-muted); }
+.journal-link-fields input { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--journal-border); border-radius: 8px; padding: 0.55rem 0.62rem; background: #20181b; color: var(--journal-text); font: inherit; }
+.journal-link-fields input:focus-visible { outline: none; border-color: var(--journal-amber); box-shadow: 0 0 0 3px rgba(199, 139, 82, 0.12); }
+.journal-integration-error { margin: 0.6rem 0 0; color: #edb3b5; font-size: 0.85rem; }
+
 .entry-meta {
   color: var(--journal-muted);
   font-size: 0.9rem;
@@ -475,6 +507,11 @@
   .writing-wrap {
     padding: 1rem 0.4rem 0.7rem;
   }
+
+  .journal-integration { margin: 0 0.4rem 0.8rem; }
+  .journal-link-fields { grid-template-columns: 1fr; }
+  .journal-integration-heading { align-items: flex-start; }
+  .journal-linked-views { flex-direction: column; align-items: flex-end; gap: 0.25rem; }
 
   .journal-text {
     min-height: 420px;

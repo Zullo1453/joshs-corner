@@ -29,10 +29,37 @@
         action="{{ url_for('journal.entry', entry_date=selected_date.isoformat(), return_year=return_year, return_month=return_month) }}"
         {% if journal_entry %}data-autosave-url="{{ url_for('journal.autosave_entry', entry_date=selected_date.isoformat()) }}"{% endif %}
       >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="writing-wrap">
           <label class="visually-hidden" for="journal-body">Journal entry</label>
-          {% set editor_name = "body" %}{% set editor_id = "journal-body" %}{% set editor_content = journal_entry.body if journal_entry else "" %}{% set editor_label = "Journal entry" %}{% set editor_placeholder = "Write about the day…" %}{% set editor_class = "journal-text" %}{% include "_rich_text_editor.html" %}
+          {% set editor_name = "body" %}{% set editor_id = "journal-body" %}{% set editor_content = form_body if form_body is not none else (journal_entry.body if journal_entry else "") %}{% set editor_label = "Journal entry" %}{% set editor_placeholder = "Write about the day…" %}{% set editor_class = "journal-text" %}{% include "_rich_text_editor.html" %}
         </div>
+
+        <section class="journal-integration" data-journal-integration data-has-deadline-link="{{ integration_form.has_deadline_link|lower }}" data-has-upcoming-link="{{ integration_form.has_upcoming_link|lower }}" aria-labelledby="journal-add-to-heading">
+          <div class="journal-integration-heading">
+            <div><p id="journal-add-to-heading">Add to</p><span>Optional</span></div>
+            {% if integration_form.has_deadline_link or integration_form.has_upcoming_link %}
+              <div class="journal-linked-views">
+                {% if integration_form.has_deadline_link %}<a href="{{ url_for('deadlines.detail', deadline_id=journal_entry.deadline_link.id) }}">View deadline</a>{% endif %}
+                {% if integration_form.has_upcoming_link %}<a href="{{ url_for('upcoming.detail', event_id=journal_entry.upcoming_link.id) }}">View event</a>{% endif %}
+              </div>
+            {% endif %}
+          </div>
+          {% if integration_error %}<p class="journal-integration-error" role="alert">{{ integration_error }}</p>{% endif %}
+          <div class="journal-integration-options">
+            <label><input type="checkbox" name="link_deadline" value="1" data-link-toggle="deadline"{% if integration_form.deadline_enabled %} checked{% endif %}> Deadline</label>
+            <label><input type="checkbox" name="link_upcoming" value="1" data-link-toggle="upcoming"{% if integration_form.upcoming_enabled %} checked{% endif %}> Upcoming</label>
+          </div>
+          <div class="journal-link-fields" data-link-fields="deadline"{% if not integration_form.deadline_enabled %} hidden{% endif %}>
+            <label>Deadline title<input name="deadline_title" maxlength="200" value="{{ integration_form.deadline_title }}"></label>
+            <label>Due date<input name="deadline_due_date" type="date" value="{{ integration_form.deadline_due_date }}"></label>
+          </div>
+          <div class="journal-link-fields" data-link-fields="upcoming"{% if not integration_form.upcoming_enabled %} hidden{% endif %}>
+            <label>Event title<input name="upcoming_title" maxlength="200" value="{{ integration_form.upcoming_title }}"></label>
+            <label>Event date<input name="upcoming_event_date" type="date" value="{{ integration_form.upcoming_event_date }}"></label>
+            <label>Event time <span>Optional</span><input name="upcoming_event_time" type="time" value="{{ integration_form.upcoming_event_time }}"></label>
+          </div>
+        </section>
 
         <div class="entry-footer">
           <div class="entry-meta" aria-live="polite" data-save-state>

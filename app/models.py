@@ -21,6 +21,8 @@ class JournalEntry(TimestampMixin, db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_date: Mapped[date] = mapped_column(Date, unique=True, nullable=False, index=True)
     body: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    deadline_link: Mapped["Deadline | None"] = relationship(back_populates="source_journal_entry", uselist=False)
+    upcoming_link: Mapped["UpcomingEvent | None"] = relationship(back_populates="source_journal_entry", uselist=False)
 
 
 class Note(TimestampMixin, db.Model):
@@ -358,19 +360,31 @@ class ExerciseSet(TimestampMixin, db.Model):
 class Deadline(TimestampMixin, db.Model):
     """An independent, date-bound commitment; it deliberately does not create a Todo."""
 
+    __table_args__ = (UniqueConstraint("source_journal_entry_id", name="uq_deadline_source_journal_entry_id"),)
+
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False, index=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    source_journal_entry_id: Mapped[int | None] = mapped_column(
+        ForeignKey("journal_entry.id", ondelete="SET NULL"), index=True
+    )
+    source_journal_entry: Mapped[JournalEntry | None] = relationship(back_populates="deadline_link")
 
 
 class UpcomingEvent(TimestampMixin, db.Model):
     """A date-bound event that naturally moves to Past after its event date."""
+
+    __table_args__ = (UniqueConstraint("source_journal_entry_id", name="uq_upcoming_event_source_journal_entry_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
     event_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     event_time: Mapped[time | None] = mapped_column(Time)
+    source_journal_entry_id: Mapped[int | None] = mapped_column(
+        ForeignKey("journal_entry.id", ondelete="SET NULL"), index=True
+    )
+    source_journal_entry: Mapped[JournalEntry | None] = relationship(back_populates="upcoming_link")
