@@ -1,0 +1,7 @@
+{% macro header() %}
+  <header class="deadline-header">
+    <a class="deadline-home" href="{{ section_home_url }}" aria-label="Hub home" title="Hub home">⌂</a>
+    <div><p>Josh's Corner</p><h1>Deadline Centre</h1></div>
+  </header>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="deadline-messages" aria-live="polite">{% for category, message in messages %}<p class="deadline-message deadline-message--{{ category }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% endwith %}
+{% endmacro %}

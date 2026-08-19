@@ -353,3 +353,14 @@ class ExerciseSet(TimestampMixin, db.Model):
     weight_kg: Mapped[object] = mapped_column(Numeric(8, 2), nullable=False)
     reps: Mapped[int] = mapped_column(Integer, nullable=False)
     workout_exercise: Mapped[WorkoutExercise] = relationship(back_populates="sets")
+
+
+class Deadline(TimestampMixin, db.Model):
+    """An independent, date-bound commitment; it deliberately does not create a Todo."""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

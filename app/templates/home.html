@@ -33,6 +33,27 @@
       </nav>
     </main>
 
+    <section class="deadlines-block" aria-labelledby="upcoming-deadlines-heading">
+      <div class="home-deadlines-card">
+        <header class="home-deadlines-header">
+          <h2 id="upcoming-deadlines-heading">Upcoming Deadlines</h2>
+          <a href="{{ url_for('deadlines.index') }}">View all <span aria-hidden="true">→</span></a>
+        </header>
+        {% if upcoming_deadlines %}
+          <div class="home-deadlines-list">
+            {% for deadline in upcoming_deadlines %}{% set status = deadline_status(deadline.due_date) %}
+              <a class="home-deadline-row" href="{{ url_for('deadlines.detail', deadline_id=deadline.id) }}">
+                <span>{{ deadline.title }}</span><small class="is-{{ status.tone }}">{{ status.label }}</small>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="home-deadlines-empty">Nothing due right now.</p>
+          <a class="home-deadlines-add" href="{{ url_for('deadlines.index') }}">Add deadline</a>
+        {% endif %}
+      </div>
+    </section>
+
     {% if daily_thought %}
     <section class="thought-block" aria-labelledby="daily-thought-heading">
       <div class="daily-thought-card">

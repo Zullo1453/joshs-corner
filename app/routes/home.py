@@ -3,6 +3,7 @@ from datetime import date
 from flask import Blueprint, current_app, render_template
 
 from ..daily_thought import DailyThoughtService
+from ..deadlines import active_deadlines, status_for
 
 home_bp = Blueprint("home", __name__)
 
@@ -22,7 +23,10 @@ def index():
         daily_thought = DailyThoughtService().get_thought(today)
     except ValueError:
         daily_thought = None
-    return render_template("home.html", today=today, historical_event=historical_event, daily_figure=daily_figure, daily_thought=daily_thought)
+    return render_template(
+        "home.html", today=today, historical_event=historical_event, daily_figure=daily_figure,
+        daily_thought=daily_thought, upcoming_deadlines=active_deadlines(3), deadline_status=status_for,
+    )
 
 
 def current_date():

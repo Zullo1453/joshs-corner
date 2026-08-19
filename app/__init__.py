@@ -86,6 +86,10 @@ def create_app(test_config=None):
     app.add_template_filter(format_volume, "gym_volume")
     app.add_template_filter(set_summary, "gym_set_summary")
 
+    from .deadlines import human_date
+
+    app.add_template_filter(human_date, "deadline_date")
+
     from .note_content import rich_text_preview, sanitise_rich_text_html
 
     @app.template_filter("sanitise_html")
@@ -106,6 +110,7 @@ def create_app(test_config=None):
     from .routes.attachments import attachments_bp
     from .routes.automations import automations_bp
     from .routes.gym import gym_bp
+    from .routes.deadlines import deadlines_bp
 
     for blueprint in (
         home_bp,
@@ -118,6 +123,7 @@ def create_app(test_config=None):
         attachments_bp,
         automations_bp,
         gym_bp,
+        deadlines_bp,
     ):
         app.register_blueprint(blueprint)
 

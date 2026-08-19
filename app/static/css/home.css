@@ -141,6 +141,7 @@
 }
 
 .bottom-zone { margin-top: clamp(1.5rem, 3vh, 2.25rem); }
+.deadlines-block { width:min(1100px,calc(100vw - 3rem)); margin:clamp(1.5rem,3vh,2.25rem) auto 0; }.home-deadlines-card { padding:1rem 1.2rem; border:1px solid rgba(118,101,157,.45); border-radius:12px; background:var(--panel-soft); box-shadow:0 0 18px rgba(var(--purple),.15); }.home-deadlines-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }.home-deadlines-header h2 { margin:0; color:#f1ecfa; font-size:1rem; font-weight:500; letter-spacing:.06em; text-transform:uppercase; }.home-deadlines-header a,.home-deadlines-add { color:#b7a7db; font-size:.86rem; text-decoration:none; white-space:nowrap; }.home-deadlines-header a:hover,.home-deadlines-header a:focus-visible,.home-deadlines-add:hover,.home-deadlines-add:focus-visible { color:#ded1fa; text-decoration:underline; }.home-deadlines-list { display:grid; margin-top:.55rem; }.home-deadline-row { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:1rem; border-top:1px solid rgba(118,101,157,.25); color:#ded6eb; text-decoration:none; }.home-deadline-row:hover,.home-deadline-row:focus-visible { outline:0; color:#fff; background:rgba(147,112,219,.08); }.home-deadline-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.home-deadline-row small { flex:none; color:#9f94b9; }.home-deadline-row small.is-overdue { color:#e3a2a2; }.home-deadline-row small.is-today { color:#e5c37e; }.home-deadline-row small.is-soon { color:#cbb5e9; }.home-deadlines-empty { margin:.6rem 0 .35rem; color:#aaa1bd; font-size:.92rem; }
 .thought-block { width:min(1100px,calc(100vw - 3rem)); margin:clamp(1.5rem,3vh,2.25rem) auto 0; }
 .daily-thought-card { padding:1.1rem 1.2rem; border:1px solid rgba(118,101,157,.45); border-radius:12px; background:var(--panel-soft); box-shadow:0 0 18px rgba(var(--purple),.15); }
 .daily-thought-kicker,.daily-thought-category { margin:0; color:#b6a7d5; font-family:Georgia,"Times New Roman",serif; font-size:.78rem; letter-spacing:.13em; line-height:1.35; text-transform:uppercase; }
@@ -210,7 +211,8 @@
   .header-block,
   .grid-block,
   .home-panels,
-  .thought-block {
+  .thought-block,
+  .deadlines-block {
     width: min(1100px, calc(100vw - 2rem));
   }
 
@@ -237,6 +239,8 @@
   }
 
   .home-panels { grid-template-columns:1fr; }
+
+  .home-deadlines-card { padding:1rem; }
 
   .history-date {
     min-width: 0;
