@@ -68,4 +68,14 @@ def test_hub_uses_a_wide_centred_dashboard_and_stacks_deadlines_before_mobile():
     assert ".top-dashboard { display:grid; grid-template-columns:minmax(0,3fr) minmax(300px,1fr);" in stylesheet
     assert "width: min(1500px, calc(100vw - 7rem));" in stylesheet
     assert "@media (max-width: 1199px) { .top-dashboard { display:grid; grid-template-columns:1fr;" in stylesheet
+
+
+def test_hub_panel_colours_and_vertical_rhythm_are_categorised_without_tile_changes():
+    stylesheet = (Path(__file__).parents[1] / "app" / "static" / "css" / "home.css").read_text(encoding="utf-8")
+
+    assert "--hub-section-gap:" in stylesheet
+    assert "--deadline-border:" in stylesheet
+    assert "--info-border:" in stylesheet
+    assert ".home-deadlines-card,.daily-thought-card,.history-card,.figure-card" in stylesheet
+    assert ".home-panels { display:grid; grid-template-columns:1fr; gap:var(--hub-section-gap); }" in stylesheet
 from pathlib import Path
