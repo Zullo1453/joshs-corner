@@ -78,4 +78,12 @@ def test_hub_panel_colours_and_vertical_rhythm_are_categorised_without_tile_chan
     assert "--info-border:" in stylesheet
     assert ".home-deadlines-card,.daily-thought-card,.history-card,.figure-card" in stylesheet
     assert ".home-panels { display:grid; grid-template-columns:1fr; gap:var(--hub-section-gap); }" in stylesheet
+
+
+def test_hub_panels_share_tile_style_edge_glow_shape_with_their_own_accents():
+    stylesheet = (Path(__file__).parents[1] / "app" / "static" / "css" / "home.css").read_text(encoding="utf-8")
+
+    assert "--hub-panel-edge-glow: var(--info-glow);" in stylesheet
+    assert "--hub-panel-edge-glow: var(--deadline-glow);" in stylesheet
+    assert "box-shadow: 0 0 16px 1px var(--hub-panel-edge-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.01);" in stylesheet
 from pathlib import Path

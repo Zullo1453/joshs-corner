@@ -205,9 +205,20 @@
 .daily-thought-card,
 .history-card,
 .figure-card {
+  --hub-panel-edge-glow: var(--info-glow);
   border-color: var(--info-border);
   background: linear-gradient(145deg, rgba(23, 52, 51, 0.68), var(--panel-soft));
-  box-shadow: 0 0 18px var(--info-glow);
+}
+
+.home-deadlines-card {
+  --hub-panel-edge-glow: var(--deadline-glow);
+}
+
+.home-deadlines-card,
+.daily-thought-card,
+.history-card,
+.figure-card {
+  box-shadow: 0 0 16px 1px var(--hub-panel-edge-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.01);
 }
 
 .daily-thought-kicker,
