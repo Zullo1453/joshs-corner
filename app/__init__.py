@@ -89,6 +89,8 @@ def create_app(test_config=None):
     from .deadlines import human_date
 
     app.add_template_filter(human_date, "deadline_date")
+    from .upcoming import human_time
+    app.add_template_filter(human_time, "upcoming_time")
 
     from .note_content import rich_text_preview, sanitise_rich_text_html
 
@@ -111,6 +113,7 @@ def create_app(test_config=None):
     from .routes.automations import automations_bp
     from .routes.gym import gym_bp
     from .routes.deadlines import deadlines_bp
+    from .routes.upcoming import upcoming_bp
 
     for blueprint in (
         home_bp,
@@ -124,6 +127,7 @@ def create_app(test_config=None):
         automations_bp,
         gym_bp,
         deadlines_bp,
+        upcoming_bp,
     ):
         app.register_blueprint(blueprint)
 

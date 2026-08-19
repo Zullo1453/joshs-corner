@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, render_template
 
 from ..daily_thought import DailyThoughtService
 from ..deadlines import active_deadlines, status_for
+from ..upcoming import upcoming_events, status_for as upcoming_status
 
 home_bp = Blueprint("home", __name__)
 
@@ -26,6 +27,7 @@ def index():
     return render_template(
         "home.html", today=today, historical_event=historical_event, daily_figure=daily_figure,
         daily_thought=daily_thought, upcoming_deadlines=active_deadlines(3), deadline_status=status_for,
+        upcoming_events=upcoming_events(3), upcoming_status=upcoming_status,
     )
 
 

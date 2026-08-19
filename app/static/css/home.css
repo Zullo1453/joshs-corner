@@ -8,6 +8,8 @@
   --deadline-glow: rgba(137, 46, 74, 0.38);
   --info-border: rgba(78, 143, 136, 0.5);
   --info-glow: rgba(54, 127, 119, 0.38);
+  --upcoming-border: rgba(181, 139, 62, 0.52);
+  --upcoming-glow: rgba(166, 118, 34, 0.38);
 }
 
 .home-page {
@@ -145,10 +147,9 @@
   gap: 1rem;
 }
 
-.bottom-zone { margin-top:var(--hub-section-gap); }.thought-block { width:min(1500px,calc(100vw - 7rem)); margin:var(--hub-section-gap) auto 0; }.home-deadlines-card,.daily-thought-card,.history-card,.figure-card { padding:1rem 1.2rem; }.home-deadlines-card { min-height:100%; border:1px solid var(--deadline-border); border-radius:12px; background:linear-gradient(145deg,rgba(61,27,40,.72),var(--panel-soft)); box-shadow:0 0 18px var(--deadline-glow); }.home-deadlines-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }.home-deadlines-header h2 { margin:0; color:#e3bac8; font-size:1rem; font-weight:500; letter-spacing:.06em; text-transform:uppercase; }.home-deadlines-header a,.home-deadlines-add { color:#d5a9ba; font-size:.86rem; text-decoration:none; white-space:nowrap; }.home-deadlines-header a:hover,.home-deadlines-header a:focus-visible,.home-deadlines-add:hover,.home-deadlines-add:focus-visible { color:#f3d4de; text-decoration:underline; }.home-deadlines-list { display:grid; margin-top:.55rem; }.home-deadline-row { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:1rem; border-top:1px solid rgba(161,83,108,.28); color:#eadce3; text-decoration:none; }.home-deadline-row:hover,.home-deadline-row:focus-visible { outline:0; color:#fff; background:rgba(137,46,74,.11); }.home-deadline-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.home-deadline-row small { flex:none; color:#c4a5b0; }.home-deadline-row small.is-overdue { color:#e5a5ac; }.home-deadline-row small.is-today { color:#e7c08f; }.home-deadline-row small.is-soon { color:#d6b4c6; }.home-deadlines-empty { margin:.6rem 0 .35rem; color:#c7aeb8; font-size:.92rem; }.daily-thought-card,.history-card,.figure-card { border-color:var(--info-border); background:linear-gradient(145deg,rgba(23,52,51,.68),var(--panel-soft)); box-shadow:0 0 18px var(--info-glow); }.daily-thought-kicker,.figure-kicker,.history-date { color:#9bc7c0; }.daily-thought-category { color:#78a8a0; }.daily-thought-body,.daily-thought-question { max-width:78ch; }
+.bottom-zone { margin-top:var(--hub-section-gap); }.thought-dashboard { width:min(1500px,calc(100vw - 7rem)); margin:var(--hub-section-gap) auto 0; display:grid; grid-template-columns:minmax(0,3fr) minmax(300px,1fr); align-items:stretch; gap:clamp(1.25rem,2.4vw,2.25rem); }.thought-block { min-width:0; grid-column:1; grid-row:1; }.upcoming-block { min-width:0; grid-column:2; grid-row:1; }.home-deadlines-card,.daily-thought-card,.history-card,.figure-card { padding:1rem 1.2rem; }.home-deadlines-card { min-height:100%; border:1px solid var(--deadline-border); border-radius:12px; background:linear-gradient(145deg,rgba(61,27,40,.72),var(--panel-soft)); box-shadow:0 0 18px var(--deadline-glow); }.home-deadlines-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }.home-deadlines-header h2 { margin:0; color:#e3bac8; font-size:1rem; font-weight:500; letter-spacing:.06em; text-transform:uppercase; }.home-deadlines-header a,.home-deadlines-add { color:#d5a9ba; font-size:.86rem; text-decoration:none; white-space:nowrap; }.home-deadlines-header a:hover,.home-deadlines-header a:focus-visible,.home-deadlines-add:hover,.home-deadlines-add:focus-visible { color:#f3d4de; text-decoration:underline; }.home-deadlines-list { display:grid; margin-top:.55rem; }.home-deadline-row { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:1rem; border-top:1px solid rgba(161,83,108,.28); color:#eadce3; text-decoration:none; }.home-deadline-row:hover,.home-deadline-row:focus-visible { outline:0; color:#fff; background:rgba(137,46,74,.11); }.home-deadline-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.home-deadline-row small { flex:none; color:#c4a5b0; }.home-deadline-row small.is-overdue { color:#e5a5ac; }.home-deadline-row small.is-today { color:#e7c08f; }.home-deadlines-empty { margin:.6rem 0 .35rem; color:#c7aeb8; font-size:.92rem; }.daily-thought-card,.history-card,.figure-card { border-color:var(--info-border); background:linear-gradient(145deg,rgba(23,52,51,.68),var(--panel-soft)); box-shadow:0 0 18px var(--info-glow); }.daily-thought-kicker,.figure-kicker,.history-date { color:#9bc7c0; }.daily-thought-category { color:#78a8a0; }.daily-thought-body,.daily-thought-question { max-width:78ch; }
 
-@media (max-width: 1199px) { .top-dashboard { display:grid; grid-template-columns:1fr; }.home-deadlines-card { min-height:0; }.deadlines-block { width:100%; } }
-.thought-block { width:min(1500px,calc(100vw - 7rem)); }
+@media (max-width: 1199px) { .top-dashboard,.thought-dashboard { display:grid; grid-template-columns:1fr; }.home-deadlines-card { min-height:0; }.deadlines-block { width:100%; }.thought-block,.upcoming-block { grid-column:auto; grid-row:auto; }.thought-dashboard .home-upcoming-card { min-height:0; } }
 .daily-thought-card { padding:1.1rem 1.2rem; border:1px solid rgba(118,101,157,.45); border-radius:12px; background:var(--panel-soft); box-shadow:0 0 18px rgba(var(--purple),.15); }
 .daily-thought-kicker,.daily-thought-category { margin:0; color:#b6a7d5; font-family:Georgia,"Times New Roman",serif; font-size:.78rem; letter-spacing:.13em; line-height:1.35; text-transform:uppercase; }
 .daily-thought-category { margin-top:.55rem; color:#9486b7; font-size:.7rem; }
@@ -231,6 +232,48 @@
   color: #78a8a0;
 }
 
+.hub-utilities {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--hub-section-gap);
+}
+
+.hub-utilities .home-deadlines-card,
+.home-upcoming-card {
+  min-height: 150px;
+}
+
+.thought-dashboard .home-upcoming-card {
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.home-upcoming-card {
+  --hub-panel-edge-glow: var(--upcoming-glow);
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--upcoming-border);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(62, 48, 20, 0.7), var(--panel-soft));
+  box-shadow: 0 0 18px 2px var(--hub-panel-edge-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+}
+
+.home-upcoming-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.home-upcoming-header h2 { margin:0; color:#e2c88f; font-size:1rem; font-weight:500; letter-spacing:.06em; text-transform:uppercase; }
+.home-upcoming-header a,.home-upcoming-add { color:#d8bd7e; font-size:.86rem; text-decoration:none; white-space:nowrap; }
+.home-upcoming-header a:hover,.home-upcoming-header a:focus-visible,.home-upcoming-add:hover,.home-upcoming-add:focus-visible { color:#f4deb1; text-decoration:underline; }
+.home-upcoming-list { display:grid; margin-top:.55rem; }
+.home-upcoming-row { min-height:44px; display:grid; gap:.12rem; align-content:center; border-top:1px solid rgba(181,139,62,.3); color:#eadfca; text-decoration:none; }
+.home-upcoming-row:hover,.home-upcoming-row:focus-visible { outline:0; color:#fff; background:rgba(166,118,34,.11); }
+.home-upcoming-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.home-upcoming-row small { color:#cbb991; }
+.home-upcoming-empty { margin:.6rem 0 .35rem; color:#cbbd9d; font-size:.92rem; }
+
+@media (max-width: 1199px) {
+  .hub-utilities .home-deadlines-card,
+  .home-upcoming-card { min-height:0; }
+}
+
 @media (max-width: 900px) {
   .stage {
     min-height: auto;
@@ -246,6 +289,7 @@
   .header-block,
   .top-dashboard,
   .home-panels,
+  .thought-dashboard,
   .thought-block,
   .deadlines-block {
     width: min(1100px, calc(100vw - 2rem));

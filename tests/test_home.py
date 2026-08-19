@@ -62,12 +62,14 @@ def test_homepage_css_allows_vertical_scrolling():
     assert ".home-page {\n  min-height: 100vh;\n  overflow: hidden;" not in stylesheet
 
 
-def test_hub_uses_a_wide_centred_dashboard_and_stacks_deadlines_before_mobile():
+def test_hub_uses_wide_centred_dashboards_and_stacks_utility_panels_before_mobile():
     stylesheet = (Path(__file__).parents[1] / "app" / "static" / "css" / "home.css").read_text(encoding="utf-8")
 
     assert ".top-dashboard { display:grid; grid-template-columns:minmax(0,3fr) minmax(300px,1fr);" in stylesheet
+    assert ".thought-dashboard { width:min(1500px,calc(100vw - 7rem)); margin:var(--hub-section-gap) auto 0; display:grid; grid-template-columns:minmax(0,3fr) minmax(300px,1fr);" in stylesheet
+    assert ".upcoming-block { min-width:0; grid-column:2; grid-row:1; }" in stylesheet
     assert "width: min(1500px, calc(100vw - 7rem));" in stylesheet
-    assert "@media (max-width: 1199px) { .top-dashboard { display:grid; grid-template-columns:1fr;" in stylesheet
+    assert "@media (max-width: 1199px) { .top-dashboard,.thought-dashboard { display:grid; grid-template-columns:1fr;" in stylesheet
 
 
 def test_hub_panel_colours_and_vertical_rhythm_are_categorised_without_tile_changes():

@@ -34,41 +34,65 @@
         </nav>
       </main>
 
-      <section class="deadlines-block" aria-labelledby="upcoming-deadlines-heading">
-        <div class="home-deadlines-card">
-          <header class="home-deadlines-header">
-            <h2 id="upcoming-deadlines-heading">Upcoming Deadlines</h2>
-            <a href="{{ url_for('deadlines.index') }}">View all <span aria-hidden="true">→</span></a>
+      <aside class="hub-utilities" aria-label="Hub utilities">
+        <section class="deadlines-block" aria-labelledby="upcoming-deadlines-heading">
+          <div class="home-deadlines-card">
+            <header class="home-deadlines-header">
+              <h2 id="upcoming-deadlines-heading">Upcoming Deadlines</h2>
+              <a href="{{ url_for('deadlines.index') }}">View all <span aria-hidden="true">→</span></a>
+            </header>
+            {% if upcoming_deadlines %}
+              <div class="home-deadlines-list">
+                {% for deadline in upcoming_deadlines %}{% set status = deadline_status(deadline.due_date) %}
+                  <a class="home-deadline-row" href="{{ url_for('deadlines.detail', deadline_id=deadline.id) }}">
+                    <span>{{ deadline.title }}</span><small class="is-{{ status.tone }}">{{ status.label }}</small>
+                  </a>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="home-deadlines-empty">Nothing due right now.</p>
+              <a class="home-deadlines-add" href="{{ url_for('deadlines.index') }}">Add deadline</a>
+            {% endif %}
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="thought-dashboard" aria-label="Hub discovery and upcoming events">
+      <aside class="upcoming-block" aria-labelledby="upcoming-events-heading">
+        <div class="home-upcoming-card">
+          <header class="home-upcoming-header">
+            <h2 id="upcoming-events-heading">Upcoming</h2>
+            <a href="{{ url_for('upcoming.index') }}">View all <span aria-hidden="true">→</span></a>
           </header>
-          {% if upcoming_deadlines %}
-            <div class="home-deadlines-list">
-              {% for deadline in upcoming_deadlines %}{% set status = deadline_status(deadline.due_date) %}
-                <a class="home-deadline-row" href="{{ url_for('deadlines.detail', deadline_id=deadline.id) }}">
-                  <span>{{ deadline.title }}</span><small class="is-{{ status.tone }}">{{ status.label }}</small>
+          {% if upcoming_events %}
+            <div class="home-upcoming-list">
+              {% for event in upcoming_events %}{% set status = upcoming_status(event.event_date) %}
+                <a class="home-upcoming-row" href="{{ url_for('upcoming.detail', event_id=event.id) }}">
+                  <span>{{ event.title }}</span><small>{{ event.event_date.day }} {{ event.event_date.strftime('%b') }}{% if event.event_time %} · {{ event.event_time|upcoming_time }}{% endif %} · {{ status.label }}</small>
                 </a>
               {% endfor %}
             </div>
           {% else %}
-            <p class="home-deadlines-empty">Nothing due right now.</p>
-            <a class="home-deadlines-add" href="{{ url_for('deadlines.index') }}">Add deadline</a>
+            <p class="home-upcoming-empty">Nothing coming up yet.</p>
+            <a class="home-upcoming-add" href="{{ url_for('upcoming.index') }}">Add event</a>
           {% endif %}
         </div>
+      </aside>
+      {% if daily_thought %}
+      <section class="thought-block" aria-labelledby="daily-thought-heading">
+        <div class="daily-thought-card">
+          <p class="daily-thought-kicker" id="daily-thought-heading">Something to think about</p>
+          <p class="daily-thought-category">{{ daily_thought.weekday }} · {{ daily_thought.category_label }}</p>
+          <h2>Idea of the day</h2>
+          <h3>{{ daily_thought.title }}</h3>
+          <p class="daily-thought-body">{{ daily_thought.body }}{% if daily_thought.attribution %} — {{ daily_thought.attribution }}{% endif %}</p>
+          <p class="daily-thought-question"><strong>Think about:</strong> {{ daily_thought.think_about }}</p>
+          {% if daily_thought.source_url %}<a class="daily-thought-source" href="{{ daily_thought.source_url }}" target="_blank" rel="noopener noreferrer">{{ daily_thought.source_name }} ↗</a>{% endif %}
+        </div>
       </section>
+      {% endif %}
     </section>
-
-    {% if daily_thought %}
-    <section class="thought-block" aria-labelledby="daily-thought-heading">
-      <div class="daily-thought-card">
-        <p class="daily-thought-kicker" id="daily-thought-heading">Something to think about</p>
-        <p class="daily-thought-category">{{ daily_thought.weekday }} · {{ daily_thought.category_label }}</p>
-        <h2>Idea of the day</h2>
-        <h3>{{ daily_thought.title }}</h3>
-        <p class="daily-thought-body">{{ daily_thought.body }}{% if daily_thought.attribution %} — {{ daily_thought.attribution }}{% endif %}</p>
-        <p class="daily-thought-question"><strong>Think about:</strong> {{ daily_thought.think_about }}</p>
-        {% if daily_thought.source_url %}<a class="daily-thought-source" href="{{ daily_thought.source_url }}" target="_blank" rel="noopener noreferrer">{{ daily_thought.source_name }} ↗</a>{% endif %}
-      </div>
-    </section>
-    {% endif %}
 
     <div class="bottom-zone">
       <div class="home-panels">

@@ -1,6 +1,6 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from .extensions import db
@@ -364,3 +364,13 @@ class Deadline(TimestampMixin, db.Model):
     due_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False, index=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class UpcomingEvent(TimestampMixin, db.Model):
+    """A date-bound event that naturally moves to Past after its event date."""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    event_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    event_time: Mapped[time | None] = mapped_column(Time)
