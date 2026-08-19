@@ -5,9 +5,9 @@
   --purple: 147, 112, 219;
   --hub-section-gap: clamp(1.25rem, 2.2vw, 2rem);
   --deadline-border: rgba(161, 83, 108, 0.5);
-  --deadline-glow: rgba(137, 46, 74, 0.2);
+  --deadline-glow: rgba(137, 46, 74, 0.38);
   --info-border: rgba(78, 143, 136, 0.5);
-  --info-glow: rgba(54, 127, 119, 0.17);
+  --info-glow: rgba(54, 127, 119, 0.38);
 }
 
 .home-page {
@@ -218,7 +218,7 @@
 .daily-thought-card,
 .history-card,
 .figure-card {
-  box-shadow: 0 0 16px 1px var(--hub-panel-edge-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+  box-shadow: 0 0 18px 2px var(--hub-panel-edge-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.01);
 }
 
 .daily-thought-kicker,

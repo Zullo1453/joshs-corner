@@ -85,5 +85,5 @@ def test_hub_panels_share_tile_style_edge_glow_shape_with_their_own_accents():
 
     assert "--hub-panel-edge-glow: var(--info-glow);" in stylesheet
     assert "--hub-panel-edge-glow: var(--deadline-glow);" in stylesheet
-    assert "box-shadow: 0 0 16px 1px var(--hub-panel-edge-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.01);" in stylesheet
+    assert "box-shadow: 0 0 18px 2px var(--hub-panel-edge-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.01);" in stylesheet
 from pathlib import Path
