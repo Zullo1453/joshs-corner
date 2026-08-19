@@ -236,6 +236,7 @@
   min-width: 0;
   display: grid;
   align-content: start;
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--hub-section-gap);
 }
 

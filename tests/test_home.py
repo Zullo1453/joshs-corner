@@ -68,6 +68,7 @@ def test_hub_uses_wide_centred_dashboards_and_stacks_utility_panels_before_mobil
     assert ".top-dashboard { display:grid; grid-template-columns:minmax(0,3fr) minmax(300px,1fr);" in stylesheet
     assert ".thought-dashboard { width:min(1500px,calc(100vw - 7rem)); margin:var(--hub-section-gap) auto 0; display:grid; grid-template-columns:minmax(0,3fr) minmax(300px,1fr);" in stylesheet
     assert ".upcoming-block { min-width:0; grid-column:2; grid-row:1; }" in stylesheet
+    assert "grid-template-rows: minmax(0, 1fr);" in stylesheet
     assert ".hub-utilities .deadlines-block,\n.hub-utilities .home-deadlines-card {\n  height: 100%;\n}" in stylesheet
     assert "width: min(1500px, calc(100vw - 7rem));" in stylesheet
     assert "@media (max-width: 1199px) { .top-dashboard,.thought-dashboard { display:grid; grid-template-columns:1fr;" in stylesheet
