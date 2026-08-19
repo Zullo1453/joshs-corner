@@ -3,6 +3,8 @@
   --faint: #746b8d;
   --border: #3a3350;
   --purple: 147, 112, 219;
+  --hub-tile-row-height: 164px;
+  --hub-tile-row-gap: 2rem;
   --hub-section-gap: clamp(1.25rem, 2.2vw, 2rem);
   --deadline-border: rgba(161, 83, 108, 0.5);
   --deadline-glow: rgba(137, 46, 74, 0.38);
@@ -98,7 +100,7 @@
 }
 
 .tile {
-  min-height: 164px;
+  min-height: var(--hub-tile-row-height);
   padding: 1.85rem 1.2rem;
   border: 1px solid var(--border);
   border-radius: 15px;
@@ -236,6 +238,7 @@
   min-width: 0;
   display: grid;
   align-content: start;
+  height: calc((2 * var(--hub-tile-row-height)) + var(--hub-tile-row-gap));
   grid-template-rows: minmax(0, 1fr);
   gap: var(--hub-section-gap);
 }
@@ -255,6 +258,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 0.85rem 1.2rem;
 }
 
 .hub-utilities .home-deadlines-list {
@@ -289,6 +293,8 @@
 .home-upcoming-empty { margin:.6rem 0 .35rem; color:#cbbd9d; font-size:.92rem; }
 
 @media (max-width: 1199px) {
+  .hub-utilities { height:auto; }
+
   .hub-utilities .home-deadlines-card,
   .home-upcoming-card { min-height:0; }
 
