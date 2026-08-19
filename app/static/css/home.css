@@ -252,6 +252,15 @@
 
 .hub-utilities .home-deadlines-card {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hub-utilities .home-deadlines-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .thought-dashboard .home-upcoming-card {
@@ -285,6 +294,9 @@
 
   .hub-utilities .deadlines-block,
   .hub-utilities .home-deadlines-card { height:auto; }
+
+  .hub-utilities .home-deadlines-card,
+  .hub-utilities .home-deadlines-list { overflow:visible; }
 }
 
 @media (max-width: 900px) {

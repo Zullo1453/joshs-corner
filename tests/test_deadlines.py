@@ -29,21 +29,22 @@ def test_calendar_day_statuses_are_injectable_and_handle_boundaries():
     assert status_for(date(2024, 2, 29), date(2024, 2, 28))["label"] == "1 day left"
 
 
-def test_home_shows_only_three_most_urgent_active_deadlines(app, client):
+def test_home_shows_active_deadlines_in_urgent_order_until_the_preview_height_is_full(app, client):
     with app.app_context():
         today = date.today()
         overdue = create_deadline("Overdue", today - timedelta(days=1))
         due_today = create_deadline("Today", today)
         soon = create_deadline("Soon", today + timedelta(days=2))
         later = create_deadline("Later", today + timedelta(days=5))
-        create_deadline("Much later", today + timedelta(days=10))
+        much_later = create_deadline("Much later", today + timedelta(days=10))
         create_deadline("Completed", today - timedelta(days=2), completed=True, completed_at=datetime.now(timezone.utc))
-        assert [item.id for item in active_deadlines(3)] == [overdue.id, due_today.id, soon.id]
+        assert [item.id for item in active_deadlines()] == [overdue.id, due_today.id, soon.id, later.id, much_later.id]
     page = client.get("/")
     assert page.data.count(b'class="tile"') == 6
     assert b"Upcoming Deadlines" in page.data
-    assert b"Overdue" in page.data and b"Due today" in page.data and b"Soon" in page.data
-    assert b"Later" not in page.data and b"Completed" not in page.data
+    assert b"Overdue" in page.data and b"Due today" in page.data and b"Soon" in page.data and b"Later" in page.data
+    assert b"Much later" in page.data and b"Completed" not in page.data
+    assert page.data.index(b"Overdue") < page.data.index(b"Today") < page.data.index(b"Soon") < page.data.index(b"Later")
     with app.app_context():
         db.session.get(Deadline, overdue.id).is_completed = True
         db.session.get(Deadline, overdue.id).completed_at = datetime.now(timezone.utc)
