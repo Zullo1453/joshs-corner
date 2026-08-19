@@ -244,6 +244,15 @@
   min-height: 150px;
 }
 
+.hub-utilities .deadlines-block,
+.hub-utilities .home-deadlines-card {
+  height: 100%;
+}
+
+.hub-utilities .home-deadlines-card {
+  box-sizing: border-box;
+}
+
 .thought-dashboard .home-upcoming-card {
   box-sizing: border-box;
   height: 100%;
@@ -272,6 +281,9 @@
 @media (max-width: 1199px) {
   .hub-utilities .home-deadlines-card,
   .home-upcoming-card { min-height:0; }
+
+  .hub-utilities .deadlines-block,
+  .hub-utilities .home-deadlines-card { height:auto; }
 }
 
 @media (max-width: 900px) {
