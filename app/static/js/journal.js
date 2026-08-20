@@ -88,7 +88,7 @@ if (integration && entryForm) {
     const rect = selected.range.getBoundingClientRect();
     selectionActions.hidden = false;
     selectionActions.style.left = `${Math.max(8, Math.min(window.innerWidth - selectionActions.offsetWidth - 8, rect.left))}px`;
-    selectionActions.style.top = `${Math.max(8, rect.top - selectionActions.offsetHeight - 8)}px`;
+    selectionActions.style.top = `${Math.max(8, Math.min(window.innerHeight - selectionActions.offsetHeight - 8, rect.bottom + 8))}px`;
   };
 
   for (const action of selectionActions.querySelectorAll("[data-selection-link]")) {
