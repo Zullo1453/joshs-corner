@@ -267,6 +267,7 @@
   overflow: hidden;
 }
 
+.thought-dashboard .daily-thought-card,
 .thought-dashboard .home-upcoming-card {
   box-sizing: border-box;
   height: 100%;
@@ -297,6 +298,8 @@
 
   .hub-utilities .home-deadlines-card,
   .home-upcoming-card { min-height:0; }
+
+  .thought-dashboard .daily-thought-card { height:auto; }
 
   .hub-utilities .deadlines-block,
   .hub-utilities .home-deadlines-card { height:auto; }
