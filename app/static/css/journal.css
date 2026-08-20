@@ -409,6 +409,7 @@
 .journal-link-fields input:focus-visible { outline: none; border-color: var(--journal-amber); box-shadow: 0 0 0 3px rgba(199, 139, 82, 0.12); }
 .journal-integration-error { margin: 0.6rem 0 0; color: #edb3b5; font-size: 0.85rem; }
 .journal-selection-actions { position: fixed; z-index: 30; display: flex; gap: 0.35rem; padding: 0.35rem; border: 1px solid rgba(170, 122, 84, 0.82); border-radius: 9px; background: #291e20; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38); }
+.journal-selection-actions[hidden] { display: none; }
 .journal-selection-actions button { border: 1px solid rgba(193, 142, 95, 0.7); border-radius: 6px; padding: 0.34rem 0.48rem; background: rgba(86, 53, 42, 0.7); color: #f0d9c3; font: inherit; font-size: 0.76rem; cursor: pointer; }
 .journal-selection-actions button:hover,.journal-selection-actions button:focus-visible { outline: none; border-color: #e1af7d; background: rgba(126, 75, 52, 0.86); }
 
