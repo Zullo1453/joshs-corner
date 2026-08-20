@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from app.currency import CurrencyProviderError, CurrencyService, calculate_metrics, convert
+from app.currency import CurrencyProviderError, CurrencyService, FrankfurterProvider, calculate_metrics, convert
 from app.extensions import db
 from app.models import CurrencyPair, WeatherLocation
 from app.weather import LocationMatch, WeatherProviderError, WeatherService
@@ -25,12 +25,21 @@ class OfflineWeatherProvider(WeatherProvider):
 
 
 class CurrencyProvider:
-    def history(self, base, quote, days):
-        return [{"date": (date(2026, 8, 1) + timedelta(days=index)).isoformat(), "rate": str(Decimal("0.50") + Decimal(index) / 100)} for index in range(31)]
+    def __init__(self):
+        self.calls = []
+
+    def history(self, base, quote, days, *, group=None, end_date=None):
+        self.calls.append((base, quote, days, group, end_date))
+        start = end_date - timedelta(days=days) if end_date else date(2026, 8, 1)
+        step = 7 if group == "week" else 1
+        offsets = list(range(0, days + 1, step))
+        if offsets[-1] != days:
+            offsets.append(days)
+        return [{"date": (start + timedelta(days=index)).isoformat(), "rate": str(Decimal("0.50") + Decimal(index) / 100)} for index in offsets]
 
 
 class OfflineCurrencyProvider(CurrencyProvider):
-    def history(self, base, quote, days):
+    def history(self, base, quote, days, *, group=None, end_date=None):
         raise CurrencyProviderError("Currency rates are temporarily unavailable. Try refreshing again later.")
 
 
@@ -67,6 +76,57 @@ def test_currency_normalizes_adds_refreshes_and_uses_decimal_converter(app, clie
     assert b"\xe2\x89\x88 800.00 EUR" in response.data
     assert convert("0.1", Decimal("0.2")) == Decimal("0.02")
     assert convert("-1", Decimal("1")) is None
+
+
+def test_currency_refresh_caches_a_weekly_twelve_month_timeline_without_changing_metrics(app):
+    provider = CurrencyProvider()
+    with app.app_context():
+        pair = CurrencyPair(base_currency="AUD", quote_currency="USD")
+        db.session.add(pair)
+        db.session.commit()
+        snapshot = CurrencyService(provider).refresh(pair)
+        cached = CurrencyService.cached(pair)
+
+    assert provider.calls[0] == ("AUD", "USD", 30, None, None)
+    assert provider.calls[1] == ("AUD", "USD", 365, "week", date(2026, 8, 31))
+    assert snapshot["chart_period_label"] == "Past 12 months"
+    assert snapshot["points"][-1]["date"] == "2026-08-31"
+    assert snapshot["chart_points"][0]["date"] == "2025-08-31"
+    assert snapshot["chart_points"][-1]["date"] == "2026-08-31"
+    assert len(snapshot["chart_points"]) == 54
+    assert cached["change_7d"] == snapshot["change_7d"]
+    assert cached["chart_points"] == snapshot["chart_points"]
+
+
+def test_currency_old_cache_stays_visible_until_the_next_refresh(app):
+    points = CurrencyProvider().history("AUD", "USD", 30)
+    with app.app_context():
+        pair = CurrencyPair(base_currency="AUD", quote_currency="USD", cached_rates_json='{"points": ' + str(points).replace("'", '"') + "}")
+        db.session.add(pair)
+        db.session.commit()
+        cached = CurrencyService.cached(pair)
+
+    assert cached["points"] == points
+    assert cached["chart_points"] == points
+    assert cached["chart_period_label"] == "Recent history"
+
+
+def test_frankfurter_history_uses_v2_range_grouping_and_deduplicates_dates():
+    provider = FrankfurterProvider()
+    request = {}
+    provider._get_json = lambda endpoint, params: request.update(endpoint=endpoint, params=params) or [
+        {"base": "AUD", "quote": "USD", "date": "2026-08-10", "rate": "0.66"},
+        {"base": "AUD", "quote": "USD", "date": "2026-08-03", "rate": "0.65"},
+        {"base": "AUD", "quote": "USD", "date": "2026-08-10", "rate": "0.661"},
+    ]
+
+    points = provider.history("AUD", "USD", 365, group="week", end_date=date(2026, 8, 10))
+
+    assert request == {
+        "endpoint": "https://api.frankfurter.dev/v2/rates",
+        "params": {"base": "AUD", "quotes": "USD", "from": "2025-08-10", "to": "2026-08-10", "group": "week"},
+    }
+    assert points == [{"date": "2026-08-03", "rate": "0.65"}, {"date": "2026-08-10", "rate": "0.661"}]
 
 
 def test_currency_validation_metrics_and_failure_retains_cache(app, client):

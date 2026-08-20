@@ -30,21 +30,33 @@ class FrankfurterProvider:
         except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
             raise CurrencyProviderError("Currency rates are temporarily unavailable. Try refreshing again later.") from error
 
-    def history(self, base: str, quote: str, days: int = 30) -> list[dict[str, str]]:
-        start = (date.today() - timedelta(days=days)).isoformat()
-        payload = self._get_json("https://api.frankfurter.dev/v2/rates", {"base": base, "quotes": quote, "from": start})
+    def history(
+        self,
+        base: str,
+        quote: str,
+        days: int = 30,
+        *,
+        group: str | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, str]]:
+        end = end_date or date.today()
+        params = {"base": base, "quotes": quote, "from": (end - timedelta(days=days)).isoformat(), "to": end.isoformat()}
+        if group:
+            params["group"] = group
+        payload = self._get_json("https://api.frankfurter.dev/v2/rates", params)
         if not isinstance(payload, list):
             raise CurrencyProviderError("Currency rates are temporarily unavailable. Try refreshing again later.")
-        points = []
+        points_by_date = {}
         try:
             for item in payload:
                 if item.get("base") == base and item.get("quote") == quote:
                     rate = Decimal(str(item["rate"]))
                     if rate > 0:
-                        points.append({"date": str(item["date"]), "rate": format(rate, "f")})
+                        point_date = date.fromisoformat(str(item["date"])).isoformat()
+                        points_by_date[point_date] = {"date": point_date, "rate": format(rate, "f")}
         except (AttributeError, InvalidOperation, KeyError, TypeError, ValueError) as error:
             raise CurrencyProviderError("Currency rates are temporarily unavailable. Try refreshing again later.") from error
-        points.sort(key=lambda point: point["date"])
+        points = sorted(points_by_date.values(), key=lambda point: point["date"])
         if not points:
             raise CurrencyProviderError("No reference rate is currently available for this pair.")
         return points
@@ -69,19 +81,39 @@ class CurrencyService:
         self.provider = provider or FrankfurterProvider()
 
     def refresh(self, pair: CurrencyPair) -> dict[str, Any]:
-        points = self.provider.history(pair.base_currency, pair.quote_currency, 30)
-        snapshot = {"points": points}
+        metric_points = self.provider.history(pair.base_currency, pair.quote_currency, 30)
+        latest_date = date.fromisoformat(metric_points[-1]["date"])
+        chart_points = self.provider.history(
+            pair.base_currency,
+            pair.quote_currency,
+            365,
+            group="week",
+            end_date=latest_date,
+        )
+        snapshot = {"points": metric_points, "chart_points": chart_points}
         pair.cached_rates_json = json.dumps(snapshot, separators=(",", ":"))
         pair.last_refreshed_at = datetime.now(timezone.utc)
         db.session.commit()
-        return calculate_metrics(points)
+        return self._snapshot(metric_points, chart_points)
+
+    @staticmethod
+    def _snapshot(metric_points: list[dict[str, str]], chart_points: list[dict[str, str]]) -> dict[str, Any]:
+        snapshot = calculate_metrics(metric_points)
+        snapshot["chart_points"] = chart_points
+        chart_start = date.fromisoformat(chart_points[0]["date"])
+        chart_end = date.fromisoformat(chart_points[-1]["date"])
+        snapshot["chart_period_label"] = "Past 12 months" if chart_end - chart_start >= timedelta(days=300) else "Recent history"
+        return snapshot
 
     @staticmethod
     def cached(pair: CurrencyPair) -> dict[str, Any] | None:
         try:
             payload = json.loads(pair.cached_rates_json)
-            points = payload.get("points") if isinstance(payload, dict) else None
-            return calculate_metrics(points) if isinstance(points, list) and points else None
+            metric_points = payload.get("points") if isinstance(payload, dict) else None
+            chart_points = (payload.get("chart_points") or metric_points) if isinstance(payload, dict) else metric_points
+            if not isinstance(metric_points, list) or not metric_points or not isinstance(chart_points, list) or not chart_points:
+                return None
+            return CurrencyService._snapshot(metric_points, chart_points)
         except (TypeError, json.JSONDecodeError, KeyError, InvalidOperation, ValueError):
             return None
 

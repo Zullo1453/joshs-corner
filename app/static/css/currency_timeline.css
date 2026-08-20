@@ -1,0 +1,9 @@
+.currency-chart-heading { margin-top: 0.85rem; }
+.currency-chart-heading .tool-card__eyebrow { margin: 0; }
+.currency-chart-wrap { position: relative; }
+.currency-chart { height: 210px; touch-action: manipulation; }
+.currency-chart-tooltip { position: absolute; z-index: 1; max-width: calc(100% - 1rem); padding: 0.4rem 0.5rem; border: 1px solid #5d8480; border-radius: 7px; background: rgba(14, 25, 26, 0.96); color: #e7f5f2; font-size: 0.76rem; line-height: 1.35; white-space: pre-line; pointer-events: none; box-shadow: 0 5px 14px rgba(0, 0, 0, 0.3); }
+
+@media (max-width: 700px) {
+  .currency-chart { height: 190px; }
+}
