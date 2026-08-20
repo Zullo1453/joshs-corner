@@ -23,6 +23,28 @@ def test_journal_form_keeps_both_optional_links_off_by_default(client):
     assert b'name="link_deadline" value="1" data-link-toggle="deadline" checked' not in response.data
     assert b'data-link-fields="deadline" hidden' in response.data
     assert b'data-link-fields="upcoming" hidden' in response.data
+    assert b'name="deadline_due_date" type="date" value="2026-09-01"' in response.data
+    assert b'name="upcoming_event_date" type="date" value="2026-09-01"' in response.data
+    assert b'data-journal-date="2026-09-01"' in response.data
+
+
+def test_unlinked_journal_capture_dates_default_to_the_entry_date_and_existing_dates_are_preserved(client, app):
+    entry_date = date(2026, 9, 12)
+    response = client.get(f"/journal/entry/{entry_date.isoformat()}")
+    assert b'name="deadline_due_date" type="date" value="2026-09-12"' in response.data
+    assert b'name="upcoming_event_date" type="date" value="2026-09-12"' in response.data
+
+    post_entry(
+        client, entry_date, link_deadline="1", deadline_title="Existing deadline", deadline_due_date="2026-10-15",
+        link_upcoming="1", upcoming_title="Existing event", upcoming_event_date="2026-10-16",
+    )
+    response = client.get(f"/journal/entry/{entry_date.isoformat()}")
+    assert b'name="deadline_due_date" type="date" value="2026-10-15"' in response.data
+    assert b'name="upcoming_event_date" type="date" value="2026-10-16"' in response.data
+    with app.app_context():
+        entry = db.session.scalar(db.select(JournalEntry))
+        assert entry.deadline_link.due_date == date(2026, 10, 15)
+        assert entry.upcoming_link.event_date == date(2026, 10, 16)
 
 
 def test_normal_journal_entry_never_creates_a_deadline_or_event(client, app):

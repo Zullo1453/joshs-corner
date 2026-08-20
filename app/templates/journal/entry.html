@@ -35,7 +35,7 @@
           {% set editor_name = "body" %}{% set editor_id = "journal-body" %}{% set editor_content = form_body if form_body is not none else (journal_entry.body if journal_entry else "") %}{% set editor_label = "Journal entry" %}{% set editor_placeholder = "Write about the day…" %}{% set editor_class = "journal-text" %}{% include "_rich_text_editor.html" %}
         </div>
 
-        <section class="journal-integration" data-journal-integration data-has-deadline-link="{{ integration_form.has_deadline_link|lower }}" data-has-upcoming-link="{{ integration_form.has_upcoming_link|lower }}" aria-labelledby="journal-add-to-heading">
+        <section class="journal-integration" data-journal-integration data-journal-date="{{ selected_date.isoformat() }}" data-has-deadline-link="{{ integration_form.has_deadline_link|lower }}" data-has-upcoming-link="{{ integration_form.has_upcoming_link|lower }}" aria-labelledby="journal-add-to-heading">
           <div class="journal-integration-heading">
             <div><p id="journal-add-to-heading">Add to</p><span>Optional</span></div>
             {% if integration_form.has_deadline_link or integration_form.has_upcoming_link %}
