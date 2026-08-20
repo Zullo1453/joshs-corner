@@ -27,7 +27,7 @@ def index():
     return render_template(
         "home.html", today=today, historical_event=historical_event, daily_figure=daily_figure,
         daily_thought=daily_thought, upcoming_deadlines=active_deadlines(), deadline_status=status_for,
-        upcoming_events=upcoming_events(3), upcoming_status=upcoming_status,
+        upcoming_events=upcoming_events(5), upcoming_status=upcoming_status,
     )
 
 

@@ -43,7 +43,7 @@ def test_active_query_uses_calendar_dates_then_timed_events_then_stable_creation
         assert [event.id for event in past_events(current_day=current)] == [past.id]
 
 
-def test_home_shows_three_nearest_events_and_keeps_past_events_out(app, client):
+def test_home_shows_five_nearest_events_and_keeps_past_events_out(app, client):
     with app.app_context():
         today = date.today()
         events = [
@@ -54,7 +54,7 @@ def test_home_shows_three_nearest_events_and_keeps_past_events_out(app, client):
             create_event("Twenty-day event", today + timedelta(days=20)),
             create_event("Yesterday event", today - timedelta(days=1)),
         ]
-        assert [event.id for event in upcoming_events(3)] == [event.id for event in events[:3]]
+        assert [event.id for event in upcoming_events(5)] == [event.id for event in events[:5]]
 
     page = client.get("/")
     assert page.status_code == 200
@@ -65,7 +65,8 @@ def test_home_shows_three_nearest_events_and_keeps_past_events_out(app, client):
     assert b"6:00 PM" in page.data
     assert b"Tomorrow event" in page.data
     assert b"Five-day event" in page.data
-    assert b"Ten-day event" not in page.data
+    assert b"Ten-day event" in page.data
+    assert b"Twenty-day event" in page.data
     assert b"Yesterday event" not in page.data
     assert page.data.index(b"home-deadlines-card") < page.data.index(b"home-upcoming-card")
 
