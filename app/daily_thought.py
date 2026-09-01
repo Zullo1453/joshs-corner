@@ -1,4 +1,4 @@
-"""Offline, deterministic daily prompt selection for the Hub."""
+"""Offline, deterministic daily micro-lesson selection for the Hub."""
 from dataclasses import dataclass
 from datetime import date
 import json
@@ -26,7 +26,9 @@ class DailyThought:
     weekday: str
     category_label: str
     title: str
-    body: str
+    what_it_is: str
+    why_it_matters: str
+    example: str | None
     think_about: str
     attribution: str | None = None
     source_name: str | None = None
@@ -62,19 +64,27 @@ def load_library(path=DEFAULT_LIBRARY_PATH):
         if not isinstance(item, dict):
             raise ValueError("Daily thought entries must be objects")
         identifier, category = _text(item.get("id")), _text(item.get("category"))
-        title, body, think_about = (_text(item.get(field)) for field in ("title", "body", "think_about"))
+        title, what_it_is, why_it_matters, think_about = (
+            _text(item.get(field))
+            for field in ("title", "what_it_is", "why_it_matters", "think_about")
+        )
+        example = _optional_text(item.get("example"))
         if not identifier or identifier in seen_ids or category not in VALID_CATEGORIES:
             raise ValueError("Daily thought id or category is invalid")
-        if not title or not body or not think_about or "<" in body:
+        lesson_text = (title, what_it_is, why_it_matters, example or "", think_about)
+        if not title or not what_it_is or not why_it_matters or not think_about or any("<" in value for value in lesson_text):
             raise ValueError("Daily thought content is incomplete or contains markup")
         attribution = _optional_text(item.get("attribution"))
         source_name, source_url = _optional_text(item.get("source_name")), _safe_https_url(item.get("source_url"))
-        if bool(source_name) != bool(source_url) or (item.get("source_url") and not source_url):
+        if bool(source_name) != bool(source_url) or not source_url:
             raise ValueError("Daily thought source metadata is invalid")
         seen_ids.add(identifier)
-        thoughts.append({"id": identifier, "category": category, "title": title, "body": body,
-                         "think_about": think_about, "attribution": attribution,
-                         "source_name": source_name, "source_url": source_url})
+        thoughts.append({
+            "id": identifier, "category": category, "title": title,
+            "what_it_is": what_it_is, "why_it_matters": why_it_matters,
+            "example": example, "think_about": think_about, "attribution": attribution,
+            "source_name": source_name, "source_url": source_url,
+        })
 
     counts = {category: sum(item["category"] == category for item in thoughts) for category in VALID_CATEGORIES}
     if any(count < 8 for count in counts.values()):
@@ -83,7 +93,7 @@ def load_library(path=DEFAULT_LIBRARY_PATH):
 
 
 def audit_library(path=DEFAULT_LIBRARY_PATH):
-    """Return a small, local-only content audit for release checks and curation."""
+    """Return a local-only structural and anti-template audit for release checks."""
     entries = load_library(path)
     by_category = {}
     for category in sorted(VALID_CATEGORIES):
@@ -93,19 +103,30 @@ def audit_library(path=DEFAULT_LIBRARY_PATH):
             "sourced": sum(bool(item["source_url"]) for item in category_entries),
             "unsourced": sum(not item["source_url"] for item in category_entries),
         }
+
     def duplicates(field):
         values = [item[field].casefold().strip() for item in entries]
         return sorted({value for value in values if values.count(value) > 1})
 
+    generic_question_patterns = (
+        "what changes in your view", "how does this change the way you think",
+        "why does this matter to you", "how might this apply",
+    )
+    generic_questions = [
+        item["id"] for item in entries
+        if any(pattern in item["think_about"].casefold() for pattern in generic_question_patterns)
+    ]
     titles = [(item["id"], set(item["title"].casefold().replace("/", " ").split())) for item in entries]
     similar_titles = []
     for index, (identifier, words) in enumerate(titles):
         for other_identifier, other_words in titles[index + 1:]:
-            if words and other_words and len(words | other_words) and len(words & other_words) / len(words | other_words) >= 0.8:
+            if words and other_words and len(words & other_words) / len(words | other_words) >= 0.8:
                 similar_titles.append((identifier, other_identifier))
-    return {"total": len(entries), "categories": by_category, "duplicate_ids": duplicates("id"),
-            "duplicate_bodies": duplicates("body"), "duplicate_questions": duplicates("think_about"),
-            "similar_titles": similar_titles}
+    return {
+        "total": len(entries), "categories": by_category, "duplicate_ids": duplicates("id"),
+        "duplicate_explanations": duplicates("what_it_is"), "duplicate_questions": duplicates("think_about"),
+        "similar_titles": similar_titles, "generic_questions": generic_questions,
+    }
 
 
 class DailyThoughtService:
@@ -117,6 +138,4 @@ class DailyThoughtService:
             raise ValueError("A calendar date is required")
         category, weekday, category_label = WEEKDAY_CATEGORIES[selected_date.weekday()]
         entries = [item for item in load_library(self.library_path) if item["category"] == category]
-        # Advancing by one for each occurrence of the weekday is stable across restarts.
-        item = entries[(selected_date.toordinal() // 7) % len(entries)]
-        return DailyThought(**item, weekday=weekday, category_label=category_label)
+        return DailyThought(**entries[(selected_date.toordinal() // 7) % len(entries)], weekday=weekday, category_label=category_label)
