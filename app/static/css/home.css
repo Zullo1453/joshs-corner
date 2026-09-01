@@ -155,11 +155,11 @@
 .daily-thought-card { padding:1.1rem 1.2rem; border:1px solid rgba(118,101,157,.45); border-radius:12px; background:var(--panel-soft); box-shadow:0 0 18px rgba(var(--purple),.15); }
 .daily-thought-kicker,.daily-thought-category { margin:0; color:#b6a7d5; font-family:Georgia,"Times New Roman",serif; font-size:.78rem; letter-spacing:.13em; line-height:1.35; text-transform:uppercase; }
 .daily-thought-category { margin-top:.55rem; color:#9486b7; font-size:.7rem; }
-.daily-thought-card h3 { margin:.38rem 0 0; color:#e4f0ed; font-size:1.12rem; font-weight:500; }
-.daily-thought-lesson { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.68rem 1.25rem; margin-top:.7rem; }
+.daily-thought-card h3 { margin:.42rem 0 0; color:#e4f0ed; font-size:1.22rem; font-weight:500; }
+.daily-thought-lesson { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.78rem 1.6rem; margin-top:.78rem; }
 .daily-thought-section { min-width:0; }
-.daily-thought-section p { margin:0; color:#c8d9d5; font-size:.88rem; line-height:1.43; overflow-wrap:anywhere; }
-.daily-thought-section .daily-thought-label { margin-bottom:.18rem; color:#8ebdb5; font-size:.64rem; font-weight:600; letter-spacing:.12em; line-height:1.25; text-transform:uppercase; }
+.daily-thought-section p { margin:0; color:#c8d9d5; font-size:1rem; line-height:1.5; overflow-wrap:anywhere; }
+.daily-thought-section .daily-thought-label { margin-bottom:.22rem; color:#8ebdb5; font-size:.7rem; font-weight:600; letter-spacing:.12em; line-height:1.25; text-transform:uppercase; }
 .daily-thought-question p:last-child { color:#c9ddd8; }
 .daily-thought-source { display:inline-block; margin-top:.6rem; color:var(--faint); font-size:.82rem; text-decoration:none; overflow-wrap:anywhere; }
 .daily-thought-source:hover,.daily-thought-source:focus-visible { color:#b8a6dc; }
