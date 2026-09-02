@@ -81,6 +81,27 @@ def edit_recurring(rule_id):
     db.session.commit()
     return redirect(url_for("todos.recurring"))
 
+@todos_bp.post("/recurrences/<int:rule_id>/complete")
+def complete_recurring(rule_id):
+    db.get_or_404(RecurrenceRule, rule_id)
+    complete_oldest(rule_id)
+    return redirect(url_for("todos.index"))
+
+
+@todos_bp.post("/recurrences/<int:rule_id>/discard")
+def discard_recurring(rule_id):
+    db.get_or_404(RecurrenceRule, rule_id)
+    discard_oldest(rule_id)
+    return redirect(url_for("todos.index"))
+
+
+@todos_bp.post("/recurrences/<int:rule_id>/stop")
+def stop_recurring(rule_id):
+    rule = db.get_or_404(RecurrenceRule, rule_id)
+    rule.is_active = False
+    db.session.commit()
+    return redirect(url_for("todos.recurring"))
+
 @todos_bp.get("/history")
 def history():
     selected_date = parse_history_date(request.args.get("date"))
@@ -515,6 +536,43 @@ def render_todos(view, status=200, **context):
     template_context.update(context)
     return render_template("todos/index.html", **template_context), status
 
+
+def recurrence_values_from_form(text, repeat_type, today, rollover_enabled):
+    """Return validated model values for a recurring task form submission."""
+    if repeat_type not in {"daily", "weekly", "monthly"}:
+        return None
+
+    try:
+        interval = max(1, int(request.form.get("repeat_interval") or 1))
+        start_date = date.fromisoformat(request.form.get("repeat_start_date") or today.isoformat())
+    except ValueError:
+        return None
+
+    values = {
+        "text": text,
+        "recurrence_type": repeat_type,
+        "interval": interval,
+        "start_date": start_date,
+        "rollover_enabled": rollover_enabled,
+    }
+    if repeat_type == "weekly":
+        try:
+            weekdays = sorted({int(value) for value in request.form.getlist("repeat_weekdays")})
+        except ValueError:
+            return None
+        if not weekdays or any(day < 0 or day > 6 for day in weekdays):
+            return None
+        values["weekdays_json"] = json.dumps(weekdays)
+    elif repeat_type == "monthly":
+        try:
+            day_of_month = int(request.form.get("repeat_day_of_month") or start_date.day)
+        except ValueError:
+            return None
+        if not 1 <= day_of_month <= 31:
+            return None
+        values["day_of_month"] = day_of_month
+
+    return values
 
 def active_backlog():
     return db.session.execute(

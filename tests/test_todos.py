@@ -6,7 +6,7 @@ from sqlalchemy import inspect, text
 
 from app import create_app
 from app.extensions import db
-from app.models import Todo, TodoActivity
+from app.models import RecurrenceRule, TaskOccurrence, Todo, TodoActivity
 
 
 TODAY = date(2026, 7, 31)
@@ -43,6 +43,35 @@ def test_today_page_empty_state_and_three_views(client, app):
     assert client.get("/todos/backlog").status_code == 200
     assert client.get("/todos/history").status_code == 200
 
+
+def test_create_recurring_task_from_form_and_generate_today_occurrence(client, app):
+    configure_today(app)
+    result = client.post(
+        "/todos/recurring/new",
+        data={
+            "text": "Weekly planning",
+            "repeat_type": "weekly",
+            "repeat_interval": "1",
+            "repeat_weekdays": str(TODAY.weekday()),
+            "repeat_start_date": TODAY.isoformat(),
+            "rollover_enabled": "true",
+        },
+        follow_redirects=True,
+    )
+
+    assert result.status_code == 200
+    assert b"Weekly planning" in result.data
+    with app.app_context():
+        rule = db.session.execute(db.select(RecurrenceRule)).scalar_one()
+        assert (rule.recurrence_type, rule.interval, rule.weekdays_json, rule.start_date, rule.rollover_enabled) == (
+            "weekly", 1, "[4]", TODAY, True,
+        )
+
+    today = client.get("/todos/")
+    assert today.status_code == 200 and b"Weekly planning" in today.data
+    with app.app_context():
+        occurrence = db.session.execute(db.select(TaskOccurrence)).scalar_one()
+        assert occurrence.due_date == TODAY
 
 def test_create_today_task_and_reject_blank(client, app):
     configure_today(app)
