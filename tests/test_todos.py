@@ -60,7 +60,7 @@ def test_create_today_task_and_reject_blank(client, app):
 def test_today_creation_opt_in_and_rollover_toggle_are_auditable(client, app):
     configure_today(app)
     page = client.get("/todos/")
-    assert b"Carry forward if incomplete" in page.data and b"rollover_enabled" in page.data
+    assert b'name="rollover_enabled" type="checkbox" value="true" checked' in page.data
     client.post("/todos/new", data={"text": "Carry me", "rollover_enabled": "true"})
     with app.app_context():
         todo = db.session.execute(db.select(Todo)).scalar_one()
