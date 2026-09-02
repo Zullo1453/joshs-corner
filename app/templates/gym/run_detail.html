@@ -1,0 +1,11 @@
+{% extends "gym/layout.html" %}{% from "gym/_exercise_macros.html" import csrf with context %}
+{% block exercise_content %}
+<section class="gym-detail-heading"><div><p class="gym-kicker">Run · {{ run.run_date.strftime('%d %b %Y').lstrip('0') }}{% if run.run_time %} · {{ run.run_time.strftime('%H:%M') }}{% endif %}</p><h2>{{ run.route.name }}</h2><a class="gym-text-button" href="{{ url_for('exercise.route_detail', route_id=run.route_id) }}">Route progress</a></div><a class="gym-quiet-button" href="{{ url_for('exercise.runs') }}">All runs</a></section>
+<dl class="exercise-metrics"><div><dt>Distance</dt><dd>{{ run.distance_km|run_distance }} km</dd></div><div><dt>Elapsed time</dt><dd>{{ run.elapsed_seconds|run_duration }}</dd></div><div><dt>Average pace</dt><dd>{{ run|run_pace_value|run_pace }}</dd></div></dl>
+{% if pbs %}<div class="exercise-pbs">{% for label in pbs %}<span class="exercise-pb">{{ label }}</span>{% endfor %}</div>{% endif %}
+{% if run.notes %}<section class="gym-add-exercise"><h2>Notes</h2><p class="exercise-notes">{{ run.notes }}</p></section>{% endif %}
+<details class="gym-add-exercise"><summary>Edit run</summary>
+{% set editing = run %}{% set today = run.run_date %}{% set draft = {'route_id': run.route_id, 'run_date': run.run_date.isoformat(), 'run_time': run.run_time.strftime('%H:%M') if run.run_time else '', 'distance_km': run.distance_km, 'duration': run.elapsed_seconds|run_duration, 'notes': run.notes} %}
+{% include "gym/_run_form.html" %}</details>
+<form method="post" action="{{ url_for('exercise.delete_run', run_id=run.id) }}" data-exercise-confirm="Delete this run? This cannot be undone.">{{ csrf() }}<input type="hidden" name="confirm" value="yes"><button class="gym-text-button">Delete run</button></form>
+{% endblock %}

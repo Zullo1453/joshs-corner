@@ -1,0 +1,17 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+{% macro ordering(action, name) %}
+<form method="post" action="{{ action }}" class="exercise-order">{{ csrf() }}
+<button class="gym-quiet-button" name="action" value="up" data-normal-action="up" data-shift-action="top" aria-label="Move {{ name }} up" title="Move up · Shift moves to top">↑</button>
+<button class="gym-quiet-button" name="action" value="down" data-normal-action="down" data-shift-action="bottom" aria-label="Move {{ name }} down" title="Move down · Shift moves to bottom">↓</button>
+</form>{% endmacro %}
+{% macro exercise_picker(groups) %}
+<label class="gym-field"><span>Exercise</span><select name="exercise_id" required>
+{% for part, items in groups.items() if items %}<optgroup label="{{ part }}">{% for item in items %}<option value="{{ item.id }}">{{ '★ ' if item.is_favorite else '' }}{{ item.name }}</option>{% endfor %}</optgroup>{% endfor %}
+</select></label>{% endmacro %}
+{% macro run_card(run) %}<article class="exercise-run-card">
+<a href="{{ url_for('exercise.run_detail', run_id=run.id) }}"><strong>{{ run.route.name }}</strong><span>{{ run.run_date.strftime('%d %b %Y').lstrip('0') }}{% if run.run_time %} · {{ run.run_time.strftime('%H:%M') }}{% endif %}</span>
+<span class="exercise-run-numbers"><span>{{ run.distance_km|run_distance }} km</span><span>{{ run.elapsed_seconds|run_duration }}</span><span>{{ run|run_pace_value|run_pace }}</span></span></a></article>{% endmacro %}
+{% macro record(label, run, value) %}<div class="exercise-record"><dt>{{ label }}</dt><dd>{% if run %}<a href="{{ url_for('exercise.run_detail', run_id=run.id) }}">{{ value }}</a><small>{{ run.route.name }} · {{ run.run_date.strftime('%d %b %Y').lstrip('0') }}<br>{{ run.distance_km|run_distance }} km · {{ run.elapsed_seconds|run_duration }}</small>{% else %}—<small>No qualifying run yet</small>{% endif %}</dd></div>{% endmacro %}
+{% macro charts(points) %}{% if points %}
+<section class="gym-chart-card"><h2>Pace progression</h2><p>Average pace for each run. Lower is faster; distances may vary.</p><div class="gym-chart" data-metric="pace" data-points='{{ points|tojson }}' aria-label="Average pace progression"></div></section>
+<section class="gym-chart-card"><h2>Distance by run</h2><p>Recorded distance in kilometres.</p><div class="gym-chart" data-metric="distance" data-points='{{ points|tojson }}' aria-label="Distance by run"></div></section>{% endif %}{% endmacro %}

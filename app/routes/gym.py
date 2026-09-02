@@ -7,8 +7,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..gym import exercise_volume, heaviest_occurrence, max_weight, parse_reps, parse_weight, previous_occurrence, progress_points
-from ..models import BODY_PARTS, Exercise, ExerciseSet, WorkoutExercise, WorkoutSession, utc_now
+from ..gym import exercise_volume, heaviest_occurrence, max_weight, parse_reps, parse_weight, previous_occurrence, progress_points, strength_summary, new_strength_pbs
+from ..models import BODY_PARTS, Exercise, ExerciseSet, WorkoutExercise, WorkoutSession, WorkoutTemplate, utc_now
+from ..running import local_today, all_runs
 
 
 gym_bp = Blueprint("gym", __name__, url_prefix="/gym")
@@ -17,7 +18,7 @@ gym_bp = Blueprint("gym", __name__, url_prefix="/gym")
 def _today_session() -> WorkoutSession | None:
     return db.session.scalar(
         select(WorkoutSession)
-        .where(WorkoutSession.workout_date == date.today(), WorkoutSession.finished_at.is_(None))
+        .where(WorkoutSession.workout_date == local_today(), WorkoutSession.finished_at.is_(None))
         .options(joinedload(WorkoutSession.workout_exercises).joinedload(WorkoutExercise.exercise), joinedload(WorkoutSession.workout_exercises).joinedload(WorkoutExercise.sets))
         .order_by(WorkoutSession.started_at.desc(), WorkoutSession.id.desc())
     )
@@ -25,14 +26,14 @@ def _today_session() -> WorkoutSession | None:
 
 def _today_mutable(workout_exercise: WorkoutExercise) -> bool:
     return (
-        workout_exercise.session.workout_date == date.today()
+        workout_exercise.session.workout_date == local_today()
         and workout_exercise.session.finished_at is None
     )
 
 
 def _grouped_active_exercises():
     exercises = db.session.scalars(
-        select(Exercise).where(Exercise.active).order_by(Exercise.body_part, Exercise.sort_order, Exercise.name)
+        select(Exercise).where(Exercise.active).order_by(Exercise.body_part, Exercise.is_favorite.desc(), Exercise.sort_order, Exercise.name, Exercise.id)
     ).all()
     return {body_part: [item for item in exercises if item.body_part == body_part] for body_part in BODY_PARTS}
 
@@ -50,11 +51,13 @@ def today():
                     "volume": exercise_volume(occurrence),
                     "max_weight": max_weight(occurrence),
                     "previous": previous_occurrence(occurrence.exercise_id, session.id),
+                    "pbs": new_strength_pbs(occurrence),
                 }
             )
     return render_template(
         "gym/today.html", gym_page="today", session=session, cards=cards,
         grouped_exercises=_grouped_active_exercises(), exercise_volume=exercise_volume, max_weight=max_weight,
+        templates=db.session.scalars(select(WorkoutTemplate).order_by(WorkoutTemplate.name, WorkoutTemplate.id)).all(),
     )
 
 
@@ -62,7 +65,7 @@ def today():
 def start_today():
     session = _today_session()
     if session is None:
-        db.session.add(WorkoutSession(workout_date=date.today(), started_at=utc_now()))
+        db.session.add(WorkoutSession(workout_date=local_today(), started_at=utc_now()))
         db.session.commit()
         flash("Today’s workout is ready.", "success")
     else:
@@ -72,7 +75,7 @@ def start_today():
 
 @gym_bp.get("/exercises")
 def exercises():
-    all_exercises = db.session.scalars(select(Exercise).order_by(Exercise.active.desc(), Exercise.body_part, Exercise.sort_order, Exercise.name)).all()
+    all_exercises = db.session.scalars(select(Exercise).order_by(Exercise.active.desc(), Exercise.body_part, Exercise.is_favorite.desc(), Exercise.sort_order, Exercise.name, Exercise.id)).all()
     grouped = {body_part: [item for item in all_exercises if item.body_part == body_part] for body_part in BODY_PARTS}
     return render_template("gym/exercises.html", gym_page="exercises", grouped_exercises=grouped, body_parts=BODY_PARTS)
 
@@ -160,15 +163,13 @@ def add_set(workout_exercise_id):
 @gym_bp.post("/sets/<int:set_id>/edit")
 def edit_set(set_id):
     item = db.get_or_404(ExerciseSet, set_id)
-    if not _today_mutable(item.workout_exercise):
-        abort(404)
     try:
         item.weight_kg, item.reps = parse_weight(request.form.get("weight_kg", "")), parse_reps(request.form.get("reps", ""))
         db.session.commit()
         flash("Set saved.", "success")
     except ValueError as error:
         flash(str(error), "error")
-    return redirect(url_for("gym.today"))
+    return redirect(url_for("gym.today") if _today_mutable(item.workout_exercise) else url_for("gym.workout_detail", session_id=item.workout_exercise.workout_session_id))
 
 
 @gym_bp.post("/sets/<int:set_id>/remove")
@@ -177,10 +178,15 @@ def remove_set(set_id):
     occurrence = item.workout_exercise
     if not _today_mutable(occurrence):
         abort(404)
+    remaining = [saved for saved in occurrence.sets if saved.id != item.id]
     db.session.delete(item)
     db.session.flush()
-    for index, remaining in enumerate(sorted(occurrence.sets, key=lambda value: value.set_number), 1):
-        remaining.set_number = index
+    # Move through a collision-free range before compacting the unique set numbers.
+    for saved in remaining:
+        saved.set_number = -saved.id
+    db.session.flush()
+    for index, saved in enumerate(remaining, 1):
+        saved.set_number = index
     db.session.commit()
     flash("Set removed.", "info")
     return redirect(url_for("gym.today"))
@@ -214,6 +220,7 @@ def exercise_detail(exercise_id):
         "gym/exercise_detail.html", gym_page="exercises", exercise=exercise, last=last,
         heaviest=heaviest_occurrence(exercise.id), points=points, exercise_volume=exercise_volume,
         max_weight=max_weight,
+        progress=strength_summary(exercise.id),
     )
 
 
@@ -225,6 +232,8 @@ def _occurrences_for_detail(exercise_id):
 
 @gym_bp.get("/history")
 def history():
+    if request.args.get("kind") == "runs":
+        return render_template("gym/run_history.html", gym_page="history", runs=all_runs())
     sessions = list(db.session.scalars(
         select(WorkoutSession).options(joinedload(WorkoutSession.workout_exercises).joinedload(WorkoutExercise.exercise), joinedload(WorkoutSession.workout_exercises).joinedload(WorkoutExercise.sets)).order_by(WorkoutSession.workout_date.desc(), WorkoutSession.started_at.desc(), WorkoutSession.id.desc())
     ).unique())

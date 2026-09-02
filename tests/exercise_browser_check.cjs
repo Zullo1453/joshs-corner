@@ -1,0 +1,154 @@
+/* Run exercise_browser_server.py first. Every write is isolated fictional data. */
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const {chromium}=require('playwright');
+const {expect}=require('playwright/test');
+let browser;
+(async()=>{
+  browser=await chromium.launch({channel:'chrome',headless:true});
+  const context=await browser.newContext({viewport:{width:1440,height:1100}});
+  const page=await context.newPage(), base='http://127.0.0.1:5012';
+  const errors=[];
+  const observe=p=>{
+    p.on('pageerror',e=>errors.push(e.message));
+    p.on('console',m=>{if(['warning','error'].includes(m.type()))errors.push(m.text());});
+    p.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`);});
+    p.on('requestfailed',r=>errors.push(r.failure()?.errorText));
+    p.on('dialog',dialog=>dialog.accept());
+  };
+  observe(page);
+  const go=async suffix=>{await page.goto(base+suffix);await page.waitForLoadState('load');};
+  const click=async locator=>{await locator.click();await page.waitForLoadState('load');};
+  const overflow=async p=>assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'horizontal overflow '+p.url());
+  await go('/gym');
+  await expect(page.getByRole('heading',{name:'Exercise',exact:true})).toBeVisible();
+  await expect(page.getByText('No exercise is underway yet.',{exact:false})).toBeVisible();
+  for(const name of ['Today','Exercises','Runs','Templates','History'])await expect(page.locator('.gym-subnav').getByRole('link',{name,exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Log a run',exact:true})).toBeVisible();
+  await click(page.getByRole('button',{name:'Start strength workout',exact:true}));
+  await page.locator('select[name=exercise_id]').selectOption('1');
+  await click(page.getByRole('button',{name:'Add to workout',exact:true}));
+  const addSet=async(weight,reps)=>{const form=page.locator('.gym-new-set').first();await form.locator('[name=weight_kg]').fill(weight);await form.locator('[name=reps]').fill(reps);await click(form.getByRole('button',{name:'Add set',exact:true}));};
+  await addSet('25','6');
+  await expect(page.getByText('New rep PB at 25 kg',{exact:true})).toBeVisible();
+  assert(!(await page.getByText('New weight PB',{exact:true}).count()));
+  await addSet('27.5','4');
+  await expect(page.getByText('New weight PB',{exact:true})).toBeVisible();
+  await addSet('25','25');
+  await expect(page.getByText('New volume PB',{exact:true})).toBeVisible();
+  await go('/gym/exercises/1');
+  await expect(page.locator('.exercise-metrics')).toContainText('27.5 kg');
+  await expect(page.locator('.exercise-metrics')).toContainText('885 kg');
+  await expect(page.locator('.gym-chart svg')).toHaveCount(2);
+  await page.screenshot({path:path.join('instance','exercise-strength-desktop.png'),fullPage:true});
+  // Correct today's saved sets to match history exactly: ties must not earn PBs.
+  await go('/gym');
+  for(let i=0;i<3;i++){
+    const form=page.locator('.gym-set-row').nth(i);
+    await form.locator('[name=weight_kg]').fill(i===0?'25':(i===1?'20':'22.5'));
+    await form.locator('[name=reps]').fill(i===0?'4':(i===1?'10':'6'));
+    await click(form.getByRole('button',{name:'Save',exact:true}));
+  }
+  await expect(page.locator('.exercise-pb')).toHaveCount(0);
+  await click(page.getByRole('button',{name:'Remove from today',exact:true}));
+  await go('/gym/exercises');
+  await click(page.getByRole('button',{name:'Favourite Fictional Fly',exact:true}));
+  await expect(page.getByRole('button',{name:'Favourite Fictional Fly',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('.gym-exercise-row input[name=name]').first()).toHaveValue('Fictional Fly');
+  await click(page.getByRole('button',{name:'Move Fictional Curl up',exact:true}));
+  await page.getByRole('button',{name:'Move Fictional Curl up',exact:true}).click({modifiers:['Shift']});
+  await page.waitForLoadState('load');await page.reload();
+  assert.equal(context.pages().length,1,'Shift ordering must not open a new window');
+  assert.deepEqual(await page.locator('.gym-exercise-row input[name=name]').evaluateAll(nodes=>nodes.map(n=>n.value)),['Fictional Fly','Fictional Curl','Fictional Press','Fictional Raise']);
+  // Template CRUD, ordering, independent copy, archived skip, current edits.
+  await go('/gym/templates');
+  await page.getByLabel('Template name',{exact:true}).fill('Fictional Push');
+  await click(page.getByRole('button',{name:'Create template',exact:true}));
+  const templatePath=new URL(page.url()).pathname;
+  for(const id of ['1','2','3']){await page.locator('select[name=exercise_id]').selectOption(id);await click(page.getByRole('button',{name:'Add to template',exact:true}));}
+  await click(page.getByRole('button',{name:'Move Fictional Fly up',exact:true}));
+  assert.deepEqual(await page.locator('[data-template-exercise]').evaluateAll(nodes=>nodes.map(n=>n.dataset.templateExercise)),['1','3','2']);
+  await go('/gym/exercises');
+  await click(page.locator('.gym-exercise-row').filter({has:page.locator('input[value="Fictional Raise"]')}).getByRole('button',{name:'Archive',exact:true}));
+  await go('/gym');
+  await click(page.getByRole('button',{name:'Start from template',exact:true}));
+  await expect(page.getByText('1 archived exercise was skipped.',{exact:true})).toBeVisible();
+  await expect(page.locator('.gym-workout-card')).toHaveCount(2);
+  await click(page.locator('.gym-workout-card').filter({hasText:'Fictional Fly'}).getByRole('button',{name:'Remove from today',exact:true}));
+  await page.locator('select[name=exercise_id]').selectOption('4');
+  await click(page.getByRole('button',{name:'Add to workout',exact:true}));
+  await click(page.getByRole('button',{name:'Move Fictional Curl up',exact:true}));
+  await go(templatePath);
+  assert.deepEqual(await page.locator('[data-template-exercise]').evaluateAll(nodes=>nodes.map(n=>n.dataset.templateExercise)),['1','3','2']);
+  await click(page.locator('[data-template-exercise="1"]').getByRole('button',{name:'Remove',exact:true}));
+  await page.getByLabel('Template name',{exact:true}).fill('Fictional Push Updated');
+  await click(page.getByRole('button',{name:'Rename',exact:true}));
+  await go('/gym');
+  await expect(page.locator('.gym-workout-card h2')).toHaveText(['Fictional Curl','Fictional Press']);
+  await expect(page.getByRole('button',{name:'Start from template',exact:true})).toHaveCount(0);
+  // Runs coexist with the active strength workout.
+  const log=async({km,duration,day='2026-09-02',newRoute=''})=>{
+    await go('/gym/runs');
+    const form=page.locator('.exercise-run-form');
+    if(newRoute)await form.locator('[name=new_route]').fill(newRoute);else await form.locator('[name=route_id]').selectOption('1');
+    await form.locator('[name=run_date]').fill(day);await form.locator('[name=distance_km]').fill(km);await form.locator('[name=duration]').fill(duration);
+    await form.locator('textarea[name=run_notes]').fill('Fictional <b>plain text</b> notes');
+    await click(form.getByRole('button',{name:'Save run',exact:true}));
+    await expect(page.locator('.exercise-notes')).toHaveText('Fictional <b>plain text</b> notes');
+    await expect(page.locator('.exercise-notes b')).toHaveCount(0);
+    return new URL(page.url()).pathname;
+  };
+  const first=await log({km:'6.42',duration:'31:18',day:'2026-09-01',newRoute:'Fictional Loop'});
+  await expect(page.locator('.exercise-metrics')).toContainText('4:53 /km');
+  const second=await log({km:'6.42',duration:'30:00'});
+  await expect(page.getByText('New route pace PB',{exact:true})).toBeVisible();
+  const longer=await log({km:'12',duration:'1:10:00'});
+  await expect(page.getByText('New longest run PB',{exact:true})).toBeVisible();
+  await go('/gym/runs');
+  const fiveRecord=()=>page.locator('.exercise-record').filter({hasText:'Fastest recorded 5 km'});
+  await expect(fiveRecord()).toContainText('No qualifying run yet');
+  const five=await log({km:'5',duration:'24:00'});
+  await go('/gym/runs');await expect(fiveRecord()).toContainText('24:00');
+  await expect(page.locator('.exercise-metrics')).toContainText('29.84 km');
+  await expect(page.locator('.gym-chart svg')).toHaveCount(2);
+  const point=page.locator('.gym-chart[data-metric=pace] circle').first();await point.hover();
+  await expect(page.locator('.gym-chart[data-metric=pace] .gym-chart-detail')).toContainText('31:18');
+  assert((await page.locator('.gym-chart[data-metric=pace] svg text').allTextContents()).some(t=>t.includes('/km')));
+  await page.screenshot({path:path.join('instance','exercise-runs-desktop.png'),fullPage:true});
+  await go(second);await click(page.getByText('Edit run',{exact:true}));
+  await page.locator('[name=duration]').fill('40:00');await click(page.getByRole('button',{name:'Save changes',exact:true}));
+  await go('/gym/runs/routes/1');await expect(page.locator('.exercise-record').filter({hasText:'Fastest pace on this route'})).toContainText('4:48 /km');
+  await go(longer);await click(page.getByRole('button',{name:'Delete run',exact:true}));
+  await expect(page.locator('.exercise-record').filter({hasText:'Longest run'})).toContainText('6.42 km');
+  await expect(page.locator('.exercise-metrics')).toContainText('17.84 km');
+  await go(five);await click(page.getByRole('button',{name:'Delete run',exact:true}));
+  await expect(fiveRecord()).toContainText('No qualifying run yet');
+  await go('/gym/runs/routes/1');await expect(page.locator('.exercise-record').filter({hasText:'Fastest pace on this route'})).toContainText('4:53 /km');
+  // Search route navigation, expanded rail and contextual home.
+  await page.locator('[data-nav-toggle]').click();
+  await expect(page.getByRole('navigation',{name:'Top-level sections'}).getByRole('link',{name:'Exercise',exact:true})).toBeVisible();
+  await page.locator('[data-search-open]').click();
+  await page.locator('[data-search-input]').fill('Fictional Loop');
+  await expect(page.locator('.search-result')).toHaveCount(1);
+  await page.locator('.search-result').click();await expect(page).toHaveURL(base+'/gym/runs/routes/1');
+  await expect(page.locator('.gym-home')).toHaveAttribute('aria-label','Exercise Today');
+  await click(page.locator('.gym-home'));await expect(page).toHaveURL(/\/gym(?:\/today)?$/);
+  const paths=['/gym','/gym/exercises','/gym/exercises/1','/gym/templates',templatePath,'/gym/runs',first,'/gym/runs/routes/1','/gym/history','/gym/history?kind=runs'];
+  for(const width of [320,375,390,430]){
+    const mobile=await browser.newContext({viewport:{width,height:900},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+    const p=await mobile.newPage();observe(p);
+    for(const target of paths){await p.goto(base+target);await p.waitForLoadState('load');await overflow(p);}
+    await p.goto(base+'/gym/runs');
+    await p.locator('.gym-chart[data-metric=pace] circle').first().tap();
+    await expect(p.locator('.gym-chart[data-metric=pace] .gym-chart-detail')).toContainText('31:18');
+    await p.screenshot({path:path.join('instance',`exercise-runs-${width}.png`),fullPage:true});
+    await p.locator('[data-nav-toggle]').tap();
+    await expect(p.getByRole('navigation',{name:'Top-level sections'}).getByRole('link',{name:'Exercise',exact:true})).toBeVisible();
+    await mobile.close();
+  }
+  await go(templatePath);await click(page.getByRole('button',{name:'Delete template',exact:true}));
+  await go('/gym');await expect(page.locator('.gym-workout-card')).toHaveCount(2);
+  assert.deepEqual(errors,[]);
+  console.log(JSON.stringify({desktop:true,mobileWidths:[320,375,390,430],touch:true,templateIndependence:true,pbs:true,search:true,overflow:0,consoleErrors:errors.length}));
+  await browser.close();
+})().catch(async error=>{console.error(error);if(browser)await browser.close();process.exitCode=1;});

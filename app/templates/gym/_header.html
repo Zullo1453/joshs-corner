@@ -1,10 +1,10 @@
 {% macro header(page) %}
   <header class="gym-header">
     <a class="gym-home" href="{{ section_home_url }}" aria-label="{{ section_home_label }}" title="{{ section_home_label }}">⌂</a>
-    <div><p class="gym-kicker">Josh's Corner</p><h1>Gym</h1></div>
+    <div><p class="gym-kicker">Josh's Corner</p><h1>Exercise</h1></div>
   </header>
-  <nav class="gym-subnav" aria-label="Gym">
-    {% for endpoint, key, label in (('gym.today','today','Today'), ('gym.exercises','exercises','Exercises'), ('gym.history','history','History')) %}
+  <nav class="gym-subnav" aria-label="Exercise">
+    {% for endpoint, key, label in (('gym.today','today','Today'), ('gym.exercises','exercises','Exercises'), ('exercise.runs','runs','Runs'), ('exercise.templates','templates','Templates'), ('gym.history','history','History')) %}
       <a href="{{ url_for(endpoint) }}"{% if page == key %} class="is-active" aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
   </nav>

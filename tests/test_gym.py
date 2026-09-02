@@ -26,8 +26,8 @@ def test_gym_empty_views_and_navigation(client):
         response = client.get(path)
         assert response.status_code == 200
     response = client.get("/gym")
-    assert b"Gym" in response.data
-    assert b"Start today" in response.data
+    assert b"Exercise" in response.data
+    assert b"Start strength" in response.data
 
 
 def test_exercise_lifecycle_and_today_set_persistence(app, client):

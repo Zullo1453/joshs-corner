@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/application_nav.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/universal_search.css') }}">
-    {% block styles %}{% endblock %}
+    {% block styles %}{% endblock %}{% if current_section == 'gym' %}<link rel="stylesheet" href="{{ url_for('static', filename='css/exercise.css') }}">{% endif %}
   </head>
   <body class="{% block body_class %}{% endblock %}">
     <aside class="application-nav" data-application-nav aria-label="Main navigation">
@@ -37,7 +37,7 @@
             <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__radar"><i></i></span></span><span>Intelligence</span>
           </a>
           <a href="{{ url_for('gym.today') }}"{% if current_section == 'gym' %} class="is-active" aria-current="page"{% endif %}>
-            <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__dumbbell"><i></i></span></span><span>Gym</span>
+            <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__dumbbell"><i></i></span></span><span>Exercise</span>
           </a>
           <span class="application-nav__future" aria-label="Future sections"><span aria-hidden="true">…</span><span>Future sections</span></span>
         </nav>
@@ -54,6 +54,7 @@
     <script src="{{ url_for('static', filename='js/rich_text.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/autosave.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/application_nav.js') }}" defer></script>
+    {% if current_section == 'gym' %}<script src="{{ url_for('static', filename='js/order_controls.js') }}" defer></script><script src="{{ url_for('static', filename='js/exercise.js') }}" defer></script>{% endif %}
     {% block scripts %}{% endblock %}
   </body>
 </html>

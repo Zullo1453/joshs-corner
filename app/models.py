@@ -319,6 +319,7 @@ class Exercise(TimestampMixin, db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     body_part: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
@@ -331,6 +332,48 @@ class Exercise(TimestampMixin, db.Model):
         return value
 
 
+
+class WorkoutTemplate(TimestampMixin, db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    exercises: Mapped[list["WorkoutTemplateExercise"]] = relationship(
+        back_populates="template", cascade="all, delete-orphan",
+        order_by="WorkoutTemplateExercise.sort_order",
+    )
+
+
+class WorkoutTemplateExercise(db.Model):
+    __table_args__ = (UniqueConstraint("template_id", "exercise_id", name="uq_template_exercise"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    template_id: Mapped[int] = mapped_column(ForeignKey("workout_template.id", ondelete="CASCADE"), nullable=False, index=True)
+    exercise_id: Mapped[int] = mapped_column(ForeignKey("exercise.id"), nullable=False, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    template: Mapped[WorkoutTemplate] = relationship(back_populates="exercises")
+    exercise: Mapped[Exercise] = relationship()
+
+
+class RunRoute(TimestampMixin, db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    name_key: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+
+
+class Run(TimestampMixin, db.Model):
+    __table_args__ = (
+        CheckConstraint("distance_km > 0 AND distance_km <= 1000", name="run_distance_range"),
+        CheckConstraint("elapsed_seconds > 0 AND elapsed_seconds <= 604800", name="run_duration_range"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    route_id: Mapped[int] = mapped_column(ForeignKey("run_route.id"), nullable=False, index=True)
+    run_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    run_time: Mapped[time | None] = mapped_column(Time)
+    distance_km: Mapped[object] = mapped_column(Numeric(8, 3), nullable=False)
+    elapsed_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    route: Mapped[RunRoute] = relationship()
+
+
 class WorkoutSession(TimestampMixin, db.Model):
     """One workout occurrence. The UI resumes the unfinished session for today."""
 
@@ -339,7 +382,8 @@ class WorkoutSession(TimestampMixin, db.Model):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     workout_exercises: Mapped[list["WorkoutExercise"]] = relationship(
-        back_populates="session", cascade="all, delete-orphan", passive_deletes=True
+        back_populates="session", cascade="all, delete-orphan", passive_deletes=True,
+        order_by="(WorkoutExercise.sort_order, WorkoutExercise.id)",
     )
 
 

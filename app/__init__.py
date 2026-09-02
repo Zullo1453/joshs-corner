@@ -85,6 +85,13 @@ def create_app(test_config=None):
     app.add_template_filter(format_kg, "gym_kg")
     app.add_template_filter(format_volume, "gym_volume")
     app.add_template_filter(set_summary, "gym_set_summary")
+    from .running import format_duration, format_pace, pace, format_distance
+    from .gym import format_number
+    app.add_template_filter(format_duration, "run_duration")
+    app.add_template_filter(format_pace, "run_pace")
+    app.add_template_filter(pace, "run_pace_value")
+    app.add_template_filter(format_distance, "run_distance")
+    app.add_template_filter(format_number, "exercise_number")
 
     from .deadlines import human_date
 
@@ -112,6 +119,7 @@ def create_app(test_config=None):
     from .routes.attachments import attachments_bp
     from .routes.automations import automations_bp
     from .routes.gym import gym_bp
+    from .routes.exercise import exercise_bp
     from .routes.deadlines import deadlines_bp
     from .routes.upcoming import upcoming_bp
     from .routes.search import search_bp
@@ -127,6 +135,7 @@ def create_app(test_config=None):
         attachments_bp,
         automations_bp,
         gym_bp,
+        exercise_bp,
         deadlines_bp,
         upcoming_bp,
         search_bp,
@@ -137,7 +146,7 @@ def create_app(test_config=None):
     def application_section_context():
         """Expose one canonical top-level section to every page template."""
         current_section = (
-            "gym" if request.blueprint == "gym" else "automations" if request.blueprint == "automations" else "hub"
+            "gym" if request.blueprint in ("gym", "exercise") else "automations" if request.blueprint == "automations" else "hub"
         )
         home_endpoint = {
             "gym": "gym.today",
@@ -148,7 +157,7 @@ def create_app(test_config=None):
             "current_section": current_section,
             "section_home_url": url_for(home_endpoint),
             "section_home_label": {
-                "gym": "Gym Today",
+                "gym": "Exercise Today",
                 "automations": "Intelligence home",
                 "hub": "Hub home",
             }[current_section],

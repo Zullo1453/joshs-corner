@@ -39,7 +39,7 @@ The client cannot choose models or fields.
 
 The service uses a separate SQLAlchemy Core connection and returns scalar rows:
 no ORM autoflush, relationship traversal, cached record objects, or N+1 queries.
-Each non-empty search executes 12 bounded SELECTs. Empty/one-character queries
+Each non-empty search executes 13 bounded SELECTs. Empty/one-character queries
 execute none. Results are capped at 40 globally and 40 per source before merging.
 Play-log candidates are ranked once per parent game with a SQL window function;
 a matching review and multiple sessions yield one game result.
@@ -80,7 +80,8 @@ Testing mode re-raises the error; unrelated programmer errors are not swallowed.
 | Game Journal | Game title, platform, review; play-entry title/body | Exact game, with Play Log anchor where relevant |
 | Watchlist | Title, genre, media type, recommendation note, review | Watchlist with exact item_id |
 | Reading List | Title, format, book type, notes | Reading with exact book_id |
-| Gym | Exercise name, body part | Exact exercise/progress page |
+| Exercise | Exercise name, body part | Exact exercise/progress page |
+| Exercise · Run route | Named run route | Exact route progress/history page |
 
 Completed/archived tasks and projects, completed deadlines, past events, stopped
 recurrence rules, and archived exercises remain retrievable and labelled.
@@ -167,7 +168,7 @@ offline data services and a separate headless browser profile. The normal Browse
 tool could not start because of the environment's sandbox-helper failure; the
 available local Playwright/Chrome runtime was used instead.
 
-Verified from Hub, Journal, To-Dos, Intelligence and Gym: keyboard opening, focused
+Verified from Hub, Journal, To-Dos, Intelligence and Exercise: keyboard opening, focused
 input, cross-module results, exact Note navigation and Back. Additional checks
 cover click and Enter, Up/Down, Ctrl+K and Cmd+K, Escape, repeated opening,
 rapid typing, empty/no-results/200-character input, literal XSS-looking titles,

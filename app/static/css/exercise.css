@@ -1,0 +1,30 @@
+/* Stage 4B extends the established warm strength palette. */
+.gym-content>*{min-width:0}.gym-content :is(input,select,textarea){box-sizing:border-box;max-width:100%;color-scheme:dark}
+.gym-subnav{flex-wrap:wrap;overflow:visible}.gym-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.gym-content :is(h2,h3,strong,small,dd,a){overflow-wrap:anywhere}
+.exercise-actions,.exercise-pbs,.exercise-order{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.exercise-actions{margin:.7rem 0}.exercise-actions form,.exercise-order{margin:0}.exercise-center{justify-content:center}
+.exercise-actions>.gym-field{display:grid;gap:.4rem}.exercise-actions:has(>.gym-field){align-items:end}
+.gym-row-actions{flex-wrap:wrap}.exercise-star,.exercise-order button{min-width:44px;min-height:44px}.exercise-star[aria-pressed=true]{color:#edc576;border-color:#b89854}
+.exercise-form{display:flex;align-items:end;flex-wrap:wrap;gap:.75rem}.exercise-form label{width:min(100%,24rem)}
+.exercise-form label,.exercise-run-form label{display:grid;gap:.45rem;min-width:0;color:#e4cdbb;font-size:1rem}
+.exercise-form :is(input,select),.exercise-run-form :is(input,select,textarea),.exercise-actions select{width:100%;min-width:0;min-height:44px;border:1px solid #705847;border-radius:9px;padding:.65rem .75rem;background:#1a1716;color:#fff4ec;font:inherit}
+.exercise-run-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem;margin-top:1rem}
+.exercise-run-form small,.exercise-hint{color:#c6b2a3;font-size:.9rem;line-height:1.5}.exercise-run-form label>small{margin-top:-.15rem}.exercise-wide{grid-column:1/-1}
+.exercise-run-form :is(input[type=date],input[type=time],input[type=number]){max-width:17rem}.exercise-run-form textarea{resize:vertical}
+.exercise-metrics,.exercise-records{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:.75rem;margin:0}
+.exercise-metrics>div,.exercise-record{padding:1rem;border:1px solid #574537;border-radius:12px;background:rgba(34,29,27,.78)}
+.exercise-metrics dt,.exercise-record dt{color:#cbb09b;font-size:.9rem;line-height:1.4}
+.exercise-metrics dd,.exercise-record dd{margin:.5rem 0 0;font-size:1.3rem;color:#fff0e4}
+.exercise-metrics dd small,.exercise-record small{display:block;margin-top:.5rem;font-size:.83rem;color:#c7b4a6;line-height:1.55}
+.exercise-metrics a,.exercise-record a{color:#f5d8b8;text-underline-offset:4px}
+.exercise-pb{display:inline-block;border:1px solid #967c43;border-radius:99px;padding:.3rem .6rem;background:#3b3120;color:#efd49a;font-size:.82rem;line-height:1.4}
+.exercise-template-item>div.exercise-actions{display:flex;border:0;padding:0}.exercise-template-item>div:first-child{border:0;padding:0}
+.exercise-segments{display:flex;gap:.5rem}.exercise-segments a{padding:.55rem .85rem;border:1px solid #705847;border-radius:8px;color:#f1cba9;text-decoration:none}.exercise-segments [aria-current=page]{background:#704c33;color:#fff4ea}
+.exercise-run-card>a{display:grid;gap:.6rem}.exercise-run-card strong{font-size:1.18rem}.exercise-run-numbers{display:flex;flex-wrap:wrap;gap:.6rem 1.2rem}
+.exercise-notes{white-space:pre-wrap}.exercise-correction{margin-top:.75rem}.gym-content summary{cursor:pointer;color:#eec8a8;min-height:32px}.exercise-correction form{margin-top:.5rem}
+.gym-chart-detail{padding:0 .8rem .8rem;line-height:1.6;overflow-wrap:anywhere}.gym-chart circle:focus{outline:none;stroke:#fff;stroke-width:3}
+.gym-content :is(input,select,textarea):focus-visible{outline:2px solid #d6a374;outline-offset:2px}
+@media(max-width:900px){.gym-exercise-row{flex-wrap:wrap}.gym-row-actions{width:100%;justify-content:flex-start}}
+@media(max-width:600px){.exercise-run-form{grid-template-columns:1fr}.exercise-form label{width:100%}.exercise-metrics,.exercise-records{grid-template-columns:repeat(2,minmax(0,1fr))}.exercise-metrics dd,.exercise-record dd{font-size:1.1rem}.exercise-metrics>div,.exercise-record{padding:.8rem}.gym-subnav a{padding:.7rem .65rem}.gym-chart{min-height:0}.exercise-actions .exercise-hint{flex-basis:100%}}
+@media(max-width:360px){.exercise-records{grid-template-columns:1fr}.gym-subnav a{font-size:.9rem;padding:.7rem .55rem}}

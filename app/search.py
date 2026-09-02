@@ -16,7 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .extensions import db
 from .models import (
     Deadline, Exercise, GameJournal, GamePlayEntry, JournalEntry, Note, Project,
-    ReadingItem, RecurrenceRule, Todo, UpcomingEvent, WatchlistItem,
+    ReadingItem, RecurrenceRule, Todo, UpcomingEvent, WatchlistItem, RunRoute,
 )
 from .note_content import rich_text_preview
 
@@ -90,7 +90,8 @@ SOURCES = (
     Source("Play log", GamePlayEntry, GameJournal.title, ("title",), ("body",)),
     Source("Watchlist", WatchlistItem, WatchlistItem.title, ("genre", "media_type", "recommendation_note"), ("notes",)),
     Source("Reading", ReadingItem, ReadingItem.title, ("format", "book_type"), ("notes",)),
-    Source("Gym", Exercise, Exercise.name, ("body_part",)),
+    Source("Exercise", Exercise, Exercise.name, ("body_part",)),
+    Source("Run route", RunRoute, RunRoute.name),
 )
 
 
@@ -238,6 +239,9 @@ class UniversalSearchService:
         elif kind == "Reading":
             status = row["status"]
             url = url_for("reading.index", book_id=identifier)
+        elif kind == "Run route":
+            url = url_for("exercise.route_detail", route_id=identifier)
+            kind = "Exercise · Run route"
         else:
             status = "" if row["active"] else "Archived"
             url = url_for("gym.exercise_detail", exercise_id=identifier)

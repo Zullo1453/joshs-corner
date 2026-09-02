@@ -1,0 +1,6 @@
+{% extends "gym/layout.html" %}{% from "gym/_exercise_macros.html" import csrf with context %}
+{% block exercise_content %}
+<section class="gym-detail-heading"><div><p class="gym-kicker">Your strength routines</p><h2>Workout templates</h2><p>Choose the exercises once, then make each workout your own.</p></div></section>
+<section class="gym-add-exercise"><h2>New template</h2><form method="post" class="exercise-form" action="{{ url_for('exercise.create_template') }}">{{ csrf() }}<label>Template name<input name="name" maxlength="160" placeholder="e.g. Push or Full Body" required></label><button class="gym-button">Create template</button></form></section>
+<div class="gym-history-list">{% for template in templates %}<article><h3><a href="{{ url_for('exercise.template_detail', template_id=template.id) }}">{{ template.name }}</a></h3><span>Add, remove and reorder its exercises.</span></article>{% else %}<section class="gym-empty"><h2>No templates yet</h2><p>Create a starting layout for a strength workout above.</p></section>{% endfor %}</div>
+{% endblock %}

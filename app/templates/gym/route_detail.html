@@ -1,0 +1,10 @@
+{% extends "gym/layout.html" %}{% from "gym/_exercise_macros.html" import run_card, record, charts with context %}
+{% block exercise_content %}
+<section class="gym-detail-heading"><div><p class="gym-kicker">Run route</p><h2>{{ route.name }}</h2></div><a class="gym-quiet-button" href="{{ url_for('exercise.runs') }}">All runs</a></section>
+<dl class="exercise-metrics"><div><dt>Runs logged</dt><dd>{{ summary.total }}</dd></div><div><dt>Most recent</dt><dd>{{ summary.latest.run_date.strftime('%d %b %Y').lstrip('0') if summary.latest else '—' }}</dd></div></dl>
+<dl class="exercise-records">{{ record('Fastest pace on this route', summary.fastest, summary.fastest|run_pace_value|run_pace if summary.fastest else '') }}
+{% if elapsed_best %}{{ record('Fastest comparable elapsed time', elapsed_best, elapsed_best.elapsed_seconds|run_duration) }}{% endif %}</dl>
+{% if runs and not elapsed_best %}<p class="exercise-hint">Recorded distances vary by more than 1%; use average pace to compare this route.</p>{% endif %}
+{{ charts(points) }}
+<section class="gym-history-list"><h2>Route history</h2>{% for run in runs %}{{ run_card(run) }}{% else %}<p>No runs logged on this route yet.</p>{% endfor %}</section>
+{% endblock %}

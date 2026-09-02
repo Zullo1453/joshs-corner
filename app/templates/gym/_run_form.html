@@ -1,0 +1,12 @@
+{% from "gym/_exercise_macros.html" import csrf with context %}
+<form method="post" class="exercise-run-form" action="{{ url_for('exercise.edit_run', run_id=editing.id) if editing else url_for('exercise.create_run') }}">
+{{ csrf() }}
+<label>Route<select name="route_id"><option value="">Choose a route</option>{% for route in routes %}<option value="{{ route.id }}"{% if draft.get('route_id', '')|string == route.id|string %} selected{% endif %}>{{ route.name }}</option>{% endfor %}</select></label>
+<label>Or a new route<input name="new_route" maxlength="160" value="{{ draft.get('new_route', '') }}" placeholder="e.g. Home 5K"><small>A new name takes priority over the selected route.</small></label>
+<label>Date<input name="run_date" type="date" value="{{ draft.get('run_date', today.isoformat() if today else '') }}" required></label>
+<label>Start time <small>optional</small><input name="run_time" type="time" value="{{ draft.get('run_time', '') }}"></label>
+<label>Distance (km)<input name="distance_km" type="number" min="0.001" max="1000" step="0.001" inputmode="decimal" value="{{ draft.get('distance_km', '') }}" placeholder="6.42" required></label>
+<label>Elapsed time<input name="duration" inputmode="text" value="{{ draft.get('duration', '') }}" placeholder="31:18 or 1:05:42" aria-describedby="run-duration-hint" required><small id="run-duration-hint">Minutes:seconds or hours:minutes:seconds</small></label>
+<label class="exercise-wide">Notes <small>optional</small><textarea name="run_notes" maxlength="10000" rows="3">{{ draft.get('run_notes', draft.get('notes', '')) }}</textarea></label>
+<div class="exercise-wide exercise-actions"><button class="gym-button">{{ 'Save changes' if editing else 'Save run' }}</button><span class="exercise-hint">Average pace is calculated from distance and elapsed time.</span></div>
+</form>

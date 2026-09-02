@@ -82,7 +82,7 @@ def test_all_supported_modules_exact_targets_and_no_mutation(client, app):
     result = search(client, "  PUBLIC   economics ")
     assert {item["result_type"] for item in result} == {
         "Journal", "Note", "To-Do", "Recurring To-Do", "Project", "Deadline",
-        "Upcoming", "Game", "Watchlist", "Reading", "Gym",
+        "Upcoming", "Game", "Watchlist", "Reading", "Exercise",
     }
     assert len(result) == 11
     destinations = {
@@ -91,7 +91,7 @@ def test_all_supported_modules_exact_targets_and_no_mutation(client, app):
         "Project": "/todos/projects/1", "Deadline": "/deadlines/1",
         "Upcoming": "/upcoming/1", "Game": "/games/?game_id=1",
         "Watchlist": "/watchlist/?item_id=1", "Reading": "/reading/?book_id=1",
-        "Gym": "/gym/exercises/1",
+        "Exercise": "/gym/exercises/1",
     }
     for item in result:
         assert item["destination_url"].split("#")[0] == destinations[item["result_type"]].split("#")[0]
@@ -118,7 +118,7 @@ def test_all_supported_modules_exact_targets_and_no_mutation(client, app):
     (WatchlistItem, dict(title="Alpha", media_type="Movie", recommendation_note="Quantum"), "quantum", "Watchlist"),
     (WatchlistItem, dict(title="Alpha", media_type="Movie", notes="<p>Quantum review</p>"), "quantum", "Watchlist"),
     (ReadingItem, dict(title="Alpha", notes="<p>Quantum author in notes</p>"), "quantum", "Reading"),
-    (Exercise, dict(name="Press", body_part="Shoulders"), "shoulders", "Gym"),
+    (Exercise, dict(name="Press", body_part="Shoulders"), "shoulders", "Exercise"),
 ])
 def test_supported_secondary_fields(client, app, model, values, query, kind):
     with app.app_context():
@@ -254,7 +254,7 @@ def test_only_selects_and_bounded_query_count(client, app):
             search(client, "public economics")
         finally:
             event.remove(db.engine, "before_cursor_execute", capture)
-    assert len(statements) == 12
+    assert len(statements) == 13
     assert all(statement.lstrip().startswith("SELECT") for statement in statements)
 
 

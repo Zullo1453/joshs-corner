@@ -123,3 +123,58 @@ def parse_reps(value: str) -> int:
     if not 1 <= reps <= 1000:
         raise ValueError("Reps must be between 1 and 1,000.")
     return reps
+
+def strength_summary(exercise_id, occurrences=None):
+    """All summaries derive from saved sets, including archived exercises."""
+    saved = [item for item in (occurrences if occurrences is not None else _occurrences(exercise_id)) if item.sets]
+    if not saved:
+        return dict(count=0, last=None, heaviest=None, weight=None, reps=0, volume=None)
+    heaviest = max(saved, key=lambda item: (max_weight(item), reps_at_max_weight(item), item.session.started_at, item.id))
+    return dict(count=len(saved), last=max(saved, key=occurrence_key), heaviest=heaviest,
+                weight=max_weight(heaviest), reps=reps_at_max_weight(heaviest),
+                volume=max(saved, key=lambda item: (exercise_volume(item), occurrence_key(item))))
+
+
+def occurrence_key(item):
+    return item.session.workout_date, item.session.started_at, item.id
+
+
+def new_strength_pbs(occurrence):
+    previous = [item for item in _occurrences(occurrence.exercise_id)
+                if item.sets and occurrence_key(item) < occurrence_key(occurrence)]
+    if not occurrence.sets or not previous:
+        return []
+    labels = []
+    prior_weight = max(max_weight(item) for item in previous)
+    if max_weight(occurrence) > prior_weight:
+        labels.append("New weight PB")
+    reps_by_weight = {}
+    for item in previous:
+        for saved_set in item.sets:
+            weight = decimal_value(saved_set.weight_kg)
+            reps_by_weight[weight] = max(reps_by_weight.get(weight, 0), saved_set.reps)
+    current_reps = {}
+    for saved_set in occurrence.sets:
+        weight = decimal_value(saved_set.weight_kg)
+        current_reps[weight] = max(current_reps.get(weight, 0), saved_set.reps)
+    for weight, reps in sorted(current_reps.items()):
+        if weight in reps_by_weight and reps > reps_by_weight[weight]:
+            labels.append(f"New rep PB at {format_kg(weight)}")
+    if exercise_volume(occurrence) > max(exercise_volume(item) for item in previous):
+        labels.append("New volume PB")
+    return labels
+
+
+def move_in_group(items, item_id, action):
+    """Caller supplies the exact ordering group; no other group is rewritten."""
+    if action not in {"up", "down", "top", "bottom"}:
+        raise ValueError("Choose a valid ordering action.")
+    items = list(items)
+    index = next((i for i, item in enumerate(items) if item.id == item_id), None)
+    if index is None:
+        raise ValueError("Item is not in this ordering group.")
+    target = {"up": max(0, index - 1), "down": min(len(items) - 1, index + 1),
+              "top": 0, "bottom": len(items) - 1}[action]
+    items.insert(target, items.pop(index))
+    for position, item in enumerate(items):
+        item.sort_order = position

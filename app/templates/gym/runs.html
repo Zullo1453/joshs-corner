@@ -1,0 +1,15 @@
+{% extends "gym/layout.html" %}{% from "gym/_exercise_macros.html" import run_card, record, charts with context %}
+{% block exercise_content %}
+<section class="gym-detail-heading"><div><p class="gym-kicker">Running</p><h2>Runs</h2><p>Your routes, distance and pace.</p></div><a class="gym-button" href="#log-run">Log a run</a></section>
+<dl class="exercise-metrics"><div><dt>Total runs</dt><dd>{{ summary.total }}</dd></div><div><dt>This week · Mon–Sun</dt><dd>{{ summary.week|run_distance }} km</dd></div><div><dt>{{ today.strftime('%B') }} distance</dt><dd>{{ summary.month|run_distance }} km</dd></div></dl>
+<dl class="exercise-records">
+{{ record('Longest run', summary.longest, (summary.longest.distance_km|run_distance ~ ' km') if summary.longest else '') }}
+{{ record('Fastest average pace', summary.fastest, summary.fastest|run_pace_value|run_pace if summary.fastest else '') }}
+{% for distance, run in summary.distance_bests.items() %}{{ record('Fastest recorded ' ~ distance ~ ' km', run, run.elapsed_seconds|run_duration if run else '') }}{% endfor %}
+</dl>
+<p class="exercise-hint">Distance records use whole runs close to 1, 5 or 10 km, with a small GPS tolerance. They are not estimated splits.</p>
+<section class="gym-add-exercise" id="log-run"><h2>{{ 'Correct run' if editing else 'Log a run' }}</h2>{% if error %}<p class="gym-message gym-message--error" role="alert">{{ error }}</p>{% endif %}{% include "gym/_run_form.html" %}</section>
+{% if routes %}<section class="gym-add-exercise"><h2>Your routes</h2><div class="exercise-actions">{% for route in routes %}<a class="gym-quiet-button" href="{{ url_for('exercise.route_detail', route_id=route.id) }}">{{ route.name }}</a>{% endfor %}</div></section>{% endif %}
+{{ charts(points) }}
+<section class="gym-history-list"><h2>Recent runs</h2>{% for run in runs %}{{ run_card(run) }}{% else %}<section class="gym-empty"><p>No runs logged yet. Add your first run above.</p></section>{% endfor %}</section>
+{% endblock %}

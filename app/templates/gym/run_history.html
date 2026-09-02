@@ -1,0 +1,4 @@
+{% extends "gym/layout.html" %}{% from "gym/_exercise_macros.html" import run_card with context %}
+{% block exercise_content %}<h2 class="gym-page-title">History</h2>
+<nav class="exercise-segments" aria-label="History type"><a href="{{ url_for('gym.history') }}">Strength</a><a aria-current="page" href="{{ url_for('gym.history', kind='runs') }}">Runs</a></nav>
+<section class="gym-history-list">{% for run in runs %}{{ run_card(run) }}{% else %}<section class="gym-empty"><h2>No runs logged yet</h2><a class="gym-button" href="{{ url_for('exercise.runs', _anchor='log-run') }}">Log a run</a></section>{% endfor %}</section>{% endblock %}
