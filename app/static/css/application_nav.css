@@ -50,11 +50,15 @@
   white-space: nowrap;
   color: #f0eaf9;
   font-size: 1.02rem;
+  border-radius: 10px;
+  text-decoration: none;
 }
 
 .application-nav__brand img { flex: 0 0 38px; border-radius: 10px; }
 .application-nav__brand span { opacity: 0; transition: opacity 100ms ease; }
 .application-nav.is-open .application-nav__brand span { opacity: 1; }
+.application-nav__brand:hover img { filter: brightness(1.12); }
+.application-nav__brand:focus-visible { outline: 2px solid #a889da; outline-offset: 3px; }
 
 .application-nav__toggle,
 .application-nav__close {
@@ -98,6 +102,7 @@
 }
 .application-nav__icon,
 .application-nav__future > span:first-child { display: grid; width: 38px; height: 42px; place-items: center; font-family: system-ui, sans-serif; }
+.application-nav__hub-icon svg { width: 23px; height: 23px; stroke-width: 1.9; }
 .application-nav__radar{position:relative;display:grid;width:18px;height:18px;place-items:center;border:1px solid currentColor;border-radius:50%}.application-nav__radar::before,.application-nav__radar::after{position:absolute;content:"";border:1px solid currentColor;border-radius:50%;opacity:.52}.application-nav__radar::before{inset:3px}.application-nav__radar::after{width:3px;height:3px;background:currentColor;border:0;opacity:1}.application-nav__radar i{position:absolute;width:7px;height:1px;right:-3px;top:3px;background:currentColor;transform:rotate(43deg);transform-origin:left center}
 .application-nav__dumbbell{position:relative;display:grid;width:21px;height:18px;place-items:center}.application-nav__dumbbell i{width:13px;height:3px;border-radius:2px;background:currentColor}.application-nav__dumbbell::before,.application-nav__dumbbell::after{position:absolute;content:"";width:4px;height:14px;border:2px solid currentColor;border-radius:2px}.application-nav__dumbbell::before{left:0}.application-nav__dumbbell::after{right:0}
 .application-nav__links a > span:last-child,

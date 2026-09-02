@@ -80,6 +80,13 @@ def test_hub_and_intelligence_share_a_centred_rail_icon_wrapper():
     assert "width: 38px; height: 42px; place-items: center;" in stylesheet
 
 
+def test_jz_brand_returns_to_hub_and_hub_icon_has_windows(client):
+    page = client.get("/gym/runs")
+    assert b'href="/" aria-label="Josh\'s Corner Hub" title="Go to Hub"' in page.data
+    assert b'application-nav__hub-icon' in page.data
+    assert b'M7.2 11.2h2.1v2.1H7.2z' in page.data
+
+
 @pytest.mark.parametrize("status", ("active", "paused", "archived"))
 def test_automation_statuses_validate(app, status):
     with app.app_context():
