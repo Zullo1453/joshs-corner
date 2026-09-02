@@ -12,3 +12,5 @@
 .recurring-frequency{grid-template-columns:275px max-content;gap:.7rem}.recurring-frequency label+label{min-width:0}.recurrence-interval{width:max-content;justify-content:start;grid-template-columns:max-content 4.5rem max-content;gap:.4rem}
 
 .recurring-specifics{grid-template-columns:repeat(3,max-content);justify-content:start}.recurring-specifics>label{min-width:0;width:max-content}.recurring-specifics input[type="date"]{width:14.5rem}.recurring-specifics input[type="number"]{width:5.5rem}.recurring-specifics .repeat-weekdays{min-width:540px}@media(max-width:760px){.recurring-specifics{grid-template-columns:1fr 1fr}.recurring-specifics .repeat-weekdays{min-width:0}}@media(max-width:620px){.recurring-specifics{grid-template-columns:1fr}.recurring-specifics input[type="date"]{width:100%}}
+
+.recurring-frequency>label:first-child{width:190px}.recurring-frequency>label:first-child select{width:100%}.recurring-specifics input[name="repeat_day_of_month"]{width:8.5rem}
