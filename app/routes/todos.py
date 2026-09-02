@@ -5,7 +5,8 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from sqlalchemy import or_
 
 from ..extensions import db
-from ..models import Project, ProjectActivity, Todo, TodoActivity, utc_now
+from ..models import Project, ProjectActivity, RecurrenceRule, Todo, TodoActivity, utc_now
+from ..recurrence import active_recurring_tasks, complete_oldest, discard_oldest, summary
 
 
 todos_bp = Blueprint("todos", __name__, url_prefix="/todos")
@@ -450,7 +451,7 @@ def render_today(error=None, draft="", status=200):
         "today", today=today, active_todos=active_todos,
         completed_todos=[] if hide_completed else completed_todos,
         completed_count=len(completed_todos), hide_completed=hide_completed,
-        error=error, draft=draft, status=status,
+        error=error, draft=draft, status=status, recurring_tasks=active_recurring_tasks(today),
     )
 
 
@@ -472,6 +473,7 @@ def render_todos(view, status=200, **context):
         "rollover_disabled_todos": [],
         "projects": [],
         "format_todo_date": format_todo_date,
+        "recurrence_summary": summary,
     }
     template_context.update(context)
     return render_template("todos/index.html", **template_context), status

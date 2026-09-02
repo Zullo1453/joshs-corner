@@ -51,6 +51,32 @@ class Todo(TimestampMixin, db.Model):
     activities: Mapped[list["TodoActivity"]] = relationship(back_populates="todo")
 
 
+class RecurrenceRule(TimestampMixin, db.Model):
+    """Standalone To-Do recurrence definition; project tasks intentionally do not use it."""
+    id: Mapped[int] = mapped_column(primary_key=True)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    recurrence_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    interval: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    weekdays_json: Mapped[str] = mapped_column(String(32), default="", server_default="", nullable=False)
+    day_of_month: Mapped[int | None] = mapped_column(Integer)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    end_date: Mapped[date | None] = mapped_column(Date, index=True)
+    rollover_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    occurrences: Mapped[list["TaskOccurrence"]] = relationship(back_populates="rule", cascade="all, delete-orphan")
+
+
+class TaskOccurrence(TimestampMixin, db.Model):
+    """One generated obligation; its unique rule/date pair makes lazy generation idempotent."""
+    __table_args__ = (UniqueConstraint("recurrence_rule_id", "due_date", name="uq_task_occurrence_rule_due_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recurrence_rule_id: Mapped[int] = mapped_column(ForeignKey("recurrence_rule.id"), nullable=False, index=True)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    discarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    rule: Mapped["RecurrenceRule"] = relationship(back_populates="occurrences")
+
 class TodoActivity(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     todo_id: Mapped[int] = mapped_column(ForeignKey("todo.id"), nullable=False, index=True)
