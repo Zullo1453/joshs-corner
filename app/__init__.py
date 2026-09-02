@@ -114,6 +114,7 @@ def create_app(test_config=None):
     from .routes.gym import gym_bp
     from .routes.deadlines import deadlines_bp
     from .routes.upcoming import upcoming_bp
+    from .routes.search import search_bp
 
     for blueprint in (
         home_bp,
@@ -128,6 +129,7 @@ def create_app(test_config=None):
         gym_bp,
         deadlines_bp,
         upcoming_bp,
+        search_bp,
     ):
         app.register_blueprint(blueprint)
 

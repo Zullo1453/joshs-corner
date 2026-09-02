@@ -53,6 +53,13 @@ def recurring():
     return render_todos("recurring", recurrence_rules=rules)
 
 
+@todos_bp.get("/task/<int:todo_id>")
+def task_detail(todo_id):
+    """Read-only retrieval for any task state, without rollover or generation."""
+    todo = db.get_or_404(Todo, todo_id)
+    return render_todos("task_detail", selected_task=todo)
+
+
 @todos_bp.post("/recurring/new")
 def create_recurring():
     text = normalise_task(request.form.get("text"))

@@ -1,0 +1,12 @@
+<dialog class="search-dialog" data-universal-search data-search-url="{{ url_for('search.query') }}" aria-labelledby="search-dialog-title">
+  <div class="search-dialog__header">
+    <h2 id="search-dialog-title">Search Josh's Corner</h2>
+    <button class="search-dialog__close" type="button" data-search-close aria-label="Close search">Close</button>
+  </div>
+  <input class="search-dialog__input" type="search" data-search-input maxlength="200"
+         aria-label="Search Josh's Corner" placeholder="Search your notes, tasks and more…"
+         autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list"
+         aria-controls="universal-search-results" aria-expanded="true" aria-describedby="universal-search-status">
+  <p class="search-dialog__status" id="universal-search-status" data-search-status role="status" aria-live="polite">Start typing to search Josh's Corner</p>
+  <div class="search-dialog__results" id="universal-search-results" data-search-results role="listbox" aria-label="Search results"></div>
+</dialog>

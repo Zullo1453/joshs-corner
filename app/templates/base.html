@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/rich_text.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar_layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/application_nav.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/universal_search.css') }}">
     {% block styles %}{% endblock %}
   </head>
   <body class="{% block body_class %}{% endblock %}">
@@ -40,9 +41,14 @@
           </a>
           <span class="application-nav__future" aria-label="Future sections"><span aria-hidden="true">…</span><span>Future sections</span></span>
         </nav>
+        <button class="application-nav__search" type="button" data-search-open aria-label="Search Josh's Corner" title="Search Josh's Corner (Ctrl/Cmd+K)" aria-haspopup="dialog">
+          <span class="application-nav__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></span><span>Search</span>
+        </button>
       </div>
     </aside>
     {% block body %}{% endblock %}
+    {% include "_universal_search.html" %}
+    <script src="{{ url_for('static', filename='js/universal_search.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/sidebar_scroll.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/rich_text.js') }}" defer></script>
