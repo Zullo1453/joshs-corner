@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..gym import exercise_volume, heaviest_occurrence, max_weight, parse_reps, parse_weight, previous_occurrence, progress_points, strength_summary, new_strength_pbs
+from ..gym import exercise_volume, heaviest_occurrence, max_weight, previous_occurrence, progress_points, strength_summary, new_strength_pbs, set_values, timed_summary, longest_hold, total_time
 from ..models import BODY_PARTS, Exercise, ExerciseSet, WorkoutExercise, WorkoutSession, WorkoutTemplate, utc_now
 from ..running import local_today, all_runs
 
@@ -83,13 +83,16 @@ def exercises():
 @gym_bp.post("/exercises")
 def add_exercise():
     name, body_part = request.form.get("name", "").strip(), request.form.get("body_part", "")
+    tracking_type = request.form.get("tracking_type", "reps")
     if not name or len(name) > 160:
         flash("Enter an exercise name up to 160 characters.", "error")
     elif body_part not in BODY_PARTS:
         flash("Choose a valid body part.", "error")
+    elif tracking_type not in ("reps", "timed"):
+        flash("Choose weight and reps or time.", "error")
     else:
         highest = db.session.scalar(select(func.max(Exercise.sort_order)).where(Exercise.body_part == body_part))
-        db.session.add(Exercise(name=name, body_part=body_part, sort_order=(highest or 0) + 1))
+        db.session.add(Exercise(name=name, body_part=body_part, tracking_type=tracking_type, sort_order=(highest or 0) + 1))
         db.session.commit()
         flash("Exercise added.", "success")
     return redirect(url_for("gym.exercises"))
@@ -99,10 +102,15 @@ def add_exercise():
 def edit_exercise(exercise_id):
     exercise = db.get_or_404(Exercise, exercise_id)
     name, body_part = request.form.get("name", "").strip(), request.form.get("body_part", "")
-    if not name or len(name) > 160 or body_part not in BODY_PARTS:
+    tracking_type = request.form.get("tracking_type", exercise.tracking_type)
+    has_history = db.session.scalar(select(ExerciseSet.id).join(ExerciseSet.workout_exercise).where(WorkoutExercise.exercise_id == exercise.id).limit(1)) is not None
+    if not name or len(name) > 160 or body_part not in BODY_PARTS or tracking_type not in ("reps", "timed"):
         flash("Use a valid exercise name and body part.", "error")
+    elif has_history and tracking_type != exercise.tracking_type:
+        flash("This exercise has saved history. Create a separate exercise to use a different tracking type.", "error")
     else:
         exercise.name, exercise.body_part = name, body_part
+        exercise.tracking_type = tracking_type
         db.session.commit()
         flash("Exercise updated.", "success")
     return redirect(url_for("gym.exercises"))
@@ -138,9 +146,11 @@ def add_to_today():
         flash("That exercise is already in today’s workout.", "info")
     else:
         next_order = max((item.sort_order for item in session.workout_exercises), default=0) + 1
-        db.session.add(WorkoutExercise(session=session, exercise=exercise, sort_order=next_order))
+        occurrence = WorkoutExercise(session=session, exercise=exercise, sort_order=next_order)
+        db.session.add(occurrence)
         db.session.commit()
         flash(f"{exercise.name} added to today’s workout.", "success")
+        return redirect(url_for("gym.today", _anchor=f"exercise-{occurrence.id}"))
     return redirect(url_for("gym.today"))
 
 
@@ -150,26 +160,34 @@ def add_set(workout_exercise_id):
     if not _today_mutable(occurrence):
         abort(404)
     try:
-        weight, reps = parse_weight(request.form.get("weight_kg", "")), parse_reps(request.form.get("reps", ""))
+        if request.form.get("action") == "same":
+            if not occurrence.sets:
+                raise ValueError("Save a set first, then use Add same set.")
+            source = max(occurrence.sets, key=lambda item: item.set_number)
+            values = dict(weight_kg=source.weight_kg, reps=source.reps, duration_seconds=source.duration_seconds)
+        else:
+            values = set_values(occurrence.exercise, request.form)
     except ValueError as error:
         flash(str(error), "error")
     else:
-        db.session.add(ExerciseSet(workout_exercise=occurrence, set_number=len(occurrence.sets) + 1, weight_kg=weight, reps=reps))
+        db.session.add(ExerciseSet(workout_exercise=occurrence, set_number=max((item.set_number for item in occurrence.sets),default=0) + 1, **values))
         db.session.commit()
         flash("Set saved.", "success")
-    return redirect(url_for("gym.today"))
+    return redirect(url_for("gym.today", _anchor=f"set-entry-{occurrence.id}"))
 
 
 @gym_bp.post("/sets/<int:set_id>/edit")
 def edit_set(set_id):
     item = db.get_or_404(ExerciseSet, set_id)
     try:
-        item.weight_kg, item.reps = parse_weight(request.form.get("weight_kg", "")), parse_reps(request.form.get("reps", ""))
+        values = set_values(item.workout_exercise.exercise, request.form)
+        for key, value in values.items():
+            setattr(item, key, value)
         db.session.commit()
         flash("Set saved.", "success")
     except ValueError as error:
         flash(str(error), "error")
-    return redirect(url_for("gym.today") if _today_mutable(item.workout_exercise) else url_for("gym.workout_detail", session_id=item.workout_exercise.workout_session_id))
+    return redirect(url_for("gym.today", _anchor=f"saved-set-{item.id}") if _today_mutable(item.workout_exercise) else url_for("gym.workout_detail", session_id=item.workout_exercise.workout_session_id, _anchor=f"saved-set-{item.id}"))
 
 
 @gym_bp.post("/sets/<int:set_id>/remove")
@@ -189,7 +207,7 @@ def remove_set(set_id):
         saved.set_number = index
     db.session.commit()
     flash("Set removed.", "info")
-    return redirect(url_for("gym.today"))
+    return redirect(url_for("gym.today", _anchor=f"set-entry-{occurrence.id}"))
 
 
 @gym_bp.post("/today/workout-exercises/<int:workout_exercise_id>/copy-previous")
@@ -205,16 +223,19 @@ def copy_previous(workout_exercise_id):
             flash("There is no previous workout to copy.", "info")
         else:
             for index, source in enumerate(previous.sets, 1):
-                db.session.add(ExerciseSet(workout_exercise=occurrence, set_number=index, weight_kg=source.weight_kg, reps=source.reps))
+                db.session.add(ExerciseSet(workout_exercise=occurrence, set_number=index, weight_kg=source.weight_kg, reps=source.reps, duration_seconds=source.duration_seconds))
             db.session.commit()
             flash("Previous sets copied. They are now independent of history.", "success")
-    return redirect(url_for("gym.today"))
+    return redirect(url_for("gym.today", _anchor=f"set-entry-{occurrence.id}"))
 
 
 @gym_bp.get("/exercises/<int:exercise_id>")
 def exercise_detail(exercise_id):
     exercise = db.get_or_404(Exercise, exercise_id)
     points = progress_points(exercise.id)
+    if exercise.tracking_type == "timed":
+        return render_template("gym/timed_detail.html", gym_page="exercises", exercise=exercise,
+                               progress=timed_summary(exercise.id), points=points)
     last = next((item for item in reversed([item for item in _occurrences_for_detail(exercise.id) if item.sets])), None)
     return render_template(
         "gym/exercise_detail.html", gym_page="exercises", exercise=exercise, last=last,

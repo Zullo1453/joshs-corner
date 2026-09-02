@@ -134,7 +134,7 @@ def run_points(runs):
     return [{
         "id": run.id, "date": run.run_date.isoformat(), "route": run.route.name,
         "distance": float(run.distance_km), "pace": float(pace(run)),
-        "duration": format_duration(run.elapsed_seconds), "pace_label": format_pace(pace(run)),
+        "duration": format_duration(run.elapsed_seconds), "elapsed": run.elapsed_seconds, "pace_label": format_pace(pace(run)),
     } for run in sorted(runs, key=run_key)]
 
 
@@ -156,7 +156,7 @@ def validated_run_values(form):
         name, key = route_name(new_name)
         route = db.session.scalar(select(RunRoute).where(RunRoute.name_key == key))
         if route is None:
-            route = RunRoute(name=name, name_key=key)
+            route = RunRoute(name=name, name_key=key, distance_km=values['distance_km'])
             db.session.add(route)
     else:
         try:
@@ -167,3 +167,13 @@ def validated_run_values(form):
         if route is None:
             raise ValueError("Choose an existing route.")
     return dict(values, route=route)
+
+
+def route_progress(route, runs):
+    """Compare actual completion times only around a user-defined route distance."""
+    comparable = sorted((run for run in runs if route.distance_km is not None and
+                         abs(run.distance_km-route.distance_km) <= route.distance_km*Decimal('0.01')),key=run_key)
+    first, latest = (comparable[0], comparable[-1]) if comparable else (None, None)
+    best = min(comparable,key=lambda run:(run.elapsed_seconds,-run.run_date.toordinal(),-run.id),default=None)
+    change = first.elapsed_seconds-latest.elapsed_seconds if len(comparable)>1 else None
+    return dict(runs=comparable,first=first,latest=latest,best=best,change=change,excluded=len(runs)-len(comparable))

@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from ..extensions import db
 from ..gym import move_in_group
 from ..models import Exercise, ExerciseSet, Run, RunRoute, WorkoutExercise, WorkoutSession, WorkoutTemplate, WorkoutTemplateExercise, utc_now
-from ..running import all_runs, comparable_elapsed_best, local_today, run_pbs, run_points, run_summary, validated_run_values
+from ..running import all_runs, comparable_elapsed_best, local_today, run_pbs, run_points, run_summary, validated_run_values, route_progress, parse_distance
 from .gym import _today_mutable, _today_session, _grouped_active_exercises
 
 exercise_bp = Blueprint("exercise", __name__, url_prefix="/gym")
@@ -240,5 +240,27 @@ def delete_run(run_id):
 def route_detail(route_id):
     route = db.get_or_404(RunRoute, route_id)
     runs = all_runs(route.id)
+    comparison = route_progress(route, runs)
     return render_template("gym/route_detail.html", gym_page="runs", route=route, runs=runs,
-        summary=run_summary(runs), elapsed_best=comparable_elapsed_best(runs), points=run_points(runs))
+        summary=run_summary(runs), elapsed_best=comparable_elapsed_best(runs), points=run_points(runs),
+        comparison=comparison, comparison_points=run_points(comparison['runs']))
+
+
+@exercise_bp.get('/runs/progress')
+def choose_route_progress():
+    route = db.get_or_404(RunRoute, request.args.get('route_id', type=int))
+    return redirect(url_for('exercise.route_detail', route_id=route.id))
+
+
+@exercise_bp.post('/runs/routes/<int:route_id>/distance')
+def update_route_distance(route_id):
+    route = db.get_or_404(RunRoute, route_id)
+    try:
+        distance = parse_distance(request.form.get('distance_km'))
+    except ValueError as error:
+        flash(str(error), 'error')
+    else:
+        route.distance_km = distance
+        db.session.commit()
+        flash('Route distance saved. Actual run distances and times were not changed.', 'success')
+    return redirect(url_for('exercise.route_detail', route_id=route.id))

@@ -33,17 +33,21 @@ def format_volume(value) -> str:
 
 
 def set_summary(exercise_set: ExerciseSet) -> str:
+    if exercise_set.duration_seconds is not None:
+        from .running import format_duration
+        return format_duration(exercise_set.duration_seconds)
     return f"{format_number(exercise_set.weight_kg)} × {exercise_set.reps}"
 
 
 def exercise_volume(workout_exercise: WorkoutExercise) -> Decimal:
-    return sum((decimal_value(item.weight_kg) * item.reps for item in workout_exercise.sets), ZERO)
+    return sum((decimal_value(item.weight_kg) * item.reps for item in workout_exercise.sets if item.duration_seconds is None), ZERO)
 
 
 def max_weight(workout_exercise: WorkoutExercise) -> Decimal | None:
-    if not workout_exercise.sets:
+    weighted = [item for item in workout_exercise.sets if item.duration_seconds is None]
+    if not weighted:
         return None
-    return max(decimal_value(item.weight_kg) for item in workout_exercise.sets)
+    return max(decimal_value(item.weight_kg) for item in weighted)
 
 
 def reps_at_max_weight(workout_exercise: WorkoutExercise) -> int:
@@ -72,7 +76,7 @@ def previous_occurrence(exercise_id: int, current_session_id: int | None = None)
 
 
 def heaviest_occurrence(exercise_id: int) -> WorkoutExercise | None:
-    candidates = [item for item in _occurrences(exercise_id) if item.sets]
+    candidates = [item for item in _occurrences(exercise_id) if max_weight(item) is not None]
     if not candidates:
         return None
     return max(
@@ -97,8 +101,9 @@ def progress_points(exercise_id: int) -> list[dict]:
                 "id": occurrence.id,
                 "date": occurrence.session.workout_date.isoformat(),
                 "started_at": occurrence.session.started_at.isoformat(),
-                "max_weight": float(max_weight(occurrence)),
+                "max_weight": float(max_weight(occurrence)) if max_weight(occurrence) is not None else None,
                 "volume": float(exercise_volume(occurrence)),
+                "hold": longest_hold(occurrence), "total_time": total_time(occurrence),
                 "sets": [set_summary(item) for item in occurrence.sets],
             }
         )
@@ -126,7 +131,7 @@ def parse_reps(value: str) -> int:
 
 def strength_summary(exercise_id, occurrences=None):
     """All summaries derive from saved sets, including archived exercises."""
-    saved = [item for item in (occurrences if occurrences is not None else _occurrences(exercise_id)) if item.sets]
+    saved = [item for item in (occurrences if occurrences is not None else _occurrences(exercise_id)) if max_weight(item) is not None]
     if not saved:
         return dict(count=0, last=None, heaviest=None, weight=None, reps=0, volume=None)
     heaviest = max(saved, key=lambda item: (max_weight(item), reps_at_max_weight(item), item.session.started_at, item.id))
@@ -140,6 +145,13 @@ def occurrence_key(item):
 
 
 def new_strength_pbs(occurrence):
+    if occurrence.exercise.tracking_type == "timed":
+        previous = [item for item in _occurrences(occurrence.exercise_id)
+                    if longest_hold(item) and occurrence_key(item) < occurrence_key(occurrence)]
+        if not previous or not longest_hold(occurrence):
+            return []
+        return [label for label, calculation in (("New longest hold PB", longest_hold), ("New total time PB", total_time))
+                if calculation(occurrence) > max(calculation(item) for item in previous)]
     previous = [item for item in _occurrences(occurrence.exercise_id)
                 if item.sets and occurrence_key(item) < occurrence_key(occurrence)]
     if not occurrence.sets or not previous:
@@ -178,3 +190,36 @@ def move_in_group(items, item_id, action):
     items.insert(target, items.pop(index))
     for position, item in enumerate(items):
         item.sort_order = position
+
+
+def longest_hold(occurrence):
+    return max((item.duration_seconds or 0 for item in occurrence.sets), default=0)
+
+
+def total_time(occurrence):
+    return sum(item.duration_seconds or 0 for item in occurrence.sets)
+
+
+def occurrence_summary(occurrence):
+    if occurrence.exercise.tracking_type == "timed":
+        from .running import format_duration
+        return f"Longest hold {format_duration(longest_hold(occurrence))} · Total time {format_duration(total_time(occurrence))}"
+    return f"Max {format_kg(max_weight(occurrence))} · Volume {format_volume(exercise_volume(occurrence))}"
+
+
+def timed_summary(exercise_id):
+    saved = [item for item in _occurrences(exercise_id) if longest_hold(item)]
+    return dict(count=len(saved), last=max(saved,key=occurrence_key,default=None),
+                best=max(saved,key=lambda item:(longest_hold(item),occurrence_key(item)),default=None),
+                total=max(saved,key=lambda item:(total_time(item),occurrence_key(item)),default=None))
+
+
+def set_values(exercise, form):
+    if exercise.tracking_type == "timed":
+        from .running import parse_duration
+        raw = form.get("duration", "").strip()
+        seconds = int(raw) if raw.isascii() and raw.isdigit() and len(raw) <= 5 else parse_duration(raw)
+        if not 1 <= seconds <= 86400:
+            raise ValueError("Duration must be between one second and 24 hours.")
+        return dict(duration_seconds=seconds, weight_kg=None, reps=None)
+    return dict(duration_seconds=None, weight_kg=parse_weight(form.get("weight_kg", "")), reps=parse_reps(form.get("reps", "")))

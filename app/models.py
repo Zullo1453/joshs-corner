@@ -320,6 +320,7 @@ class Exercise(TimestampMixin, db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    tracking_type: Mapped[str] = mapped_column(String(12), default="reps", server_default="reps", nullable=False)
     body_part: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
@@ -356,6 +357,7 @@ class RunRoute(TimestampMixin, db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     name_key: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    distance_km: Mapped[object | None] = mapped_column(Numeric(8, 3), nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
 
 
@@ -415,6 +417,9 @@ class ExerciseSet(TimestampMixin, db.Model):
         CheckConstraint("weight_kg >= 0 AND weight_kg <= 1000", name="exercise_set_weight_range"),
         CheckConstraint("reps >= 1 AND reps <= 1000", name="exercise_set_reps_range"),
         UniqueConstraint("workout_exercise_id", "set_number", name="exercise_set_workout_exercise_number"),
+        CheckConstraint("(duration_seconds IS NULL AND weight_kg IS NOT NULL AND reps IS NOT NULL) OR "
+                        "(duration_seconds IS NOT NULL AND duration_seconds BETWEEN 1 AND 86400 AND weight_kg IS NULL AND reps IS NULL)",
+                        name="exercise_set_measurement"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -422,8 +427,9 @@ class ExerciseSet(TimestampMixin, db.Model):
         ForeignKey("workout_exercise.id", ondelete="CASCADE"), nullable=False, index=True
     )
     set_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    weight_kg: Mapped[object] = mapped_column(Numeric(8, 2), nullable=False)
-    reps: Mapped[int] = mapped_column(Integer, nullable=False)
+    weight_kg: Mapped[object | None] = mapped_column(Numeric(8, 2), nullable=True)
+    reps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     workout_exercise: Mapped[WorkoutExercise] = relationship(back_populates="sets")
 
 

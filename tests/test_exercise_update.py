@@ -350,11 +350,13 @@ def test_additive_migration_preserves_raw_strength_and_matches_models(tmp_path):
             conn.execute(text("INSERT INTO exercise_set (id,workout_exercise_id,set_number,weight_kg,reps,created_at,updated_at) VALUES (1,1,1,22.55,7,'2026-09-01','2026-09-01')"))
         def raw():
             with db.engine.connect() as conn:
-                return {name:conn.execute(text(f'SELECT * FROM {name}')).all() for name in ['workout_session','workout_exercise','exercise_set']}
+                    return {name:conn.execute(text(f"SELECT {'id,workout_exercise_id,set_number,weight_kg,reps,created_at,updated_at' if name == 'exercise_set' else '*'} FROM {name}")).all() for name in ['workout_session','workout_exercise','exercise_set']}
         before=raw()
         upgrade(directory=migrations,revision='head')
         assert raw()==before
         assert not db.session.get(Exercise,1).is_favorite
+        assert db.session.get(Exercise,1).tracking_type=='reps'
+        assert db.session.get(ExerciseSet,1).duration_seconds is None
         for model in [Run,RunRoute,WorkoutTemplate,WorkoutTemplateExercise]:
             assert db.session.scalar(select(db.func.count(model.id)))==0
         with db.engine.connect() as conn:

@@ -1,4 +1,13 @@
 /* Stage 4B extends the established warm strength palette. */
+.gym-content a:is(.gym-button,.gym-quiet-button){display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+.gym-empty{display:flex;flex-direction:column;align-items:center;gap:.65rem}.gym-empty>h2,.gym-empty>p{margin:0}
+.exercise-run-form label{align-content:start}.exercise-run-form label>span{line-height:1.5}.exercise-run-form label>span small{display:inline;margin-left:.3rem}
+.gym-content [id^=exercise-],.gym-content [id^=set-entry-],.gym-content [id^=saved-set-]{scroll-margin-top:1rem}
+.exercise-set-buttons{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem}.exercise-set-buttons small{flex-basis:100%;color:#c6b2a3;font-size:.8rem}
+.gym-new-set .exercise-set-buttons{grid-column:1/-1}.gym-new-set:has([name=duration]),.gym-set-row:has([name=duration]){grid-template-columns:80px minmax(0,1fr) auto}
+.gym-add-form:has([name=tracking_type]){grid-template-columns:minmax(0,1fr) 150px 180px auto}
+.gym-exercise-row>form:has([name=tracking_type]){grid-template-columns:minmax(140px,1fr) 130px 165px auto}
+@media(max-width:700px){.gym-add-form:has([name=tracking_type]),.gym-exercise-row>form:has([name=tracking_type]){grid-template-columns:1fr}.gym-new-set:has([name=duration]),.gym-set-row:has([name=duration]){grid-template-columns:1fr}.gym-content [id^=exercise-],.gym-content [id^=set-entry-],.gym-content [id^=saved-set-]{scroll-margin-top:1rem}}
 .gym-content>*{min-width:0}.gym-content :is(input,select,textarea){box-sizing:border-box;max-width:100%;color-scheme:dark}
 .gym-subnav{flex-wrap:wrap;overflow:visible}.gym-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .gym-content :is(h2,h3,strong,small,dd,a){overflow-wrap:anywhere}

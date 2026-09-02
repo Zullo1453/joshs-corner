@@ -1,0 +1,14 @@
+{% extends 'gym/layout.html' %}
+{% block exercise_content %}
+<section class="gym-detail-heading"><div><p class="gym-kicker">{{ exercise.body_part }} · Timed exercise</p><h2>{{ exercise.name }}</h2>{% if not exercise.active %}<p>Archived · history is retained.</p>{% endif %}</div><a class="gym-quiet-button" href="{{ url_for('gym.today') }}">Go to Today</a></section>
+<dl class="exercise-metrics">
+<div><dt>Last trained</dt><dd>{{ progress.last.session.workout_date.strftime('%d %b %Y') if progress.last else '—' }}</dd></div>
+<div><dt>Sessions logged</dt><dd>{{ progress.count }}</dd></div>
+<div><dt>Longest hold</dt><dd>{% if progress.best %}<a href="{{ url_for('gym.workout_detail', session_id=progress.best.workout_session_id) }}">{{ progress.best|gym_longest_hold|run_duration }}</a><small>{{ progress.best.session.workout_date.strftime('%d %b %Y') }}</small>{% else %}—{% endif %}</dd></div>
+<div><dt>Highest session time</dt><dd>{% if progress.total %}<a href="{{ url_for('gym.workout_detail', session_id=progress.total.workout_session_id) }}">{{ progress.total|gym_total_time|run_duration }}</a><small>{{ progress.total.session.workout_date.strftime('%d %b %Y') }}</small>{% else %}—{% endif %}</dd></div>
+</dl>
+{% if progress.last %}<section class="gym-add-exercise"><h2>Last session</h2><p>{{ progress.last.sets|map('gym_set_summary')|join(' · ') }}</p><p>{{ progress.last|gym_occurrence_summary }}</p></section>
+{% for metric, title in [('hold','Longest hold progression'),('total_time','Session time')] %}<section class="gym-chart-card"><h2>{{ title }}</h2><p>Saved time per workout. Higher means a longer hold or more total time.</p><div class="gym-chart" data-metric="{{ metric }}" data-points='{{ points|tojson }}' aria-label="{{ title }}"></div></section>{% endfor %}
+<section class="gym-history-list"><h2>History</h2>{% for point in points|reverse %}<article><strong>{{ point.date }}</strong><span>{{ point.sets|join(' · ') }}</span><span>Longest hold {{ point.hold|run_duration }} · Total time {{ point.total_time|run_duration }}</span></article>{% endfor %}</section>
+{% else %}<section class="gym-empty"><h2>No timed sets yet</h2><p>Log a hold to start seeing your progress.</p></section>{% endif %}
+{% endblock %}

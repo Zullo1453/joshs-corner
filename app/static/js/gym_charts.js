@@ -2,12 +2,13 @@
   const number = value => new Intl.NumberFormat(undefined, {maximumFractionDigits: 2}).format(value);
   const date = value => new Intl.DateTimeFormat(undefined, {day:'numeric', month:'short', year:'numeric'}).format(new Date(`${value}T12:00:00`));
   const pace = value => {const seconds=Math.round(value); return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')} /km`;};
-  const names = {volume:'Session volume', max_weight:'Maximum weight', pace:'Average pace · lower is faster', distance:'Distance by run'};
+  const duration=value=>{const seconds=Math.round(value);return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;};
+  const names = {volume:'Session volume', max_weight:'Maximum weight', pace:'Average pace · lower is faster', distance:'Distance by run',elapsed:'Completion time · lower is quicker',hold:'Longest hold',total_time:'Session time'};
   function chart(element) {
     const points=JSON.parse(element.dataset.points||'[]'), metric=element.dataset.metric;
     if (!points.length) return;
-    const running=metric==='pace'||metric==='distance';
-    const unit=value=>metric==='pace'?pace(value):`${number(value)} ${metric==='distance'?'km':'kg'}`;
+    const running=['pace','distance','elapsed'].includes(metric), timed=['hold','total_time'].includes(metric);
+    const unit=value=>metric==='pace'?pace(value):(timed||metric==='elapsed'?duration(value):`${number(value)} ${metric==='distance'?'km':'kg'}`);
     const width=Math.max(280,element.clientWidth||600), height=250, pad={left:70,right:30,top:22,bottom:42};
     const values=points.map(point=>point[metric]);
     let min=metric==='pace'?Math.min(...values)*.95:0, max=Math.max(...values,1)*1.05;
@@ -22,7 +23,7 @@
     }
     node('polyline',{points:points.map((point,i)=>`${x(i)},${y(point[metric])}`).join(' '),fill:'none',stroke:'#e4a36d','stroke-width':2.5});
     const detail=document.createElement('p');detail.className='gym-chart-detail';detail.setAttribute('aria-live','polite');
-    const description=point=>running?`${point.route} · ${number(point.distance)} km · ${point.duration} · ${point.pace_label}`:`Max weight: ${number(point.max_weight)} kg · Volume: ${number(point.volume)} kg · ${point.sets.join(' · ')}`;
+    const description=point=>running?`${point.route} · ${number(point.distance)} km · ${point.duration} · ${point.pace_label}`:(timed?`Longest hold: ${duration(point.hold)} · Total time: ${duration(point.total_time)} · ${point.sets.join(' · ')}`:`Max weight: ${number(point.max_weight)} kg · Volume: ${number(point.volume)} kg · ${point.sets.join(' · ')}`);
     const show=point=>{const heading=document.createElement('strong');heading.textContent=date(point.date);detail.replaceChildren(heading,document.createTextNode(description(point)));};
     points.forEach((point,i)=>{
       const circle=node('circle',{cx:x(i),cy:y(point[metric]),r:7,fill:'#f5d1b0',stroke:'#8e5938',tabindex:0,role:'button','aria-label':`${date(point.date)}: ${description(point)}`});

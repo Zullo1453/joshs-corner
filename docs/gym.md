@@ -1,5 +1,58 @@
 # Exercise — Stage 4B
 
+## Workout and route refinements
+
+Workout POSTs redirect to stable exercise/set anchors. Adding an exercise brings
+its card into view; adding a set returns to that exercise's entry controls instead
+of the page top. Saving an existing set returns to that set. Native anchors work
+without JavaScript; focus enhancement is restricted to these explicit targets.
+
+**Add same set** saves a new independent copy of the last saved set in that
+occurrence, without requiring the blank new-set form to be filled. Server-side
+values are used, not unsaved browser fields. It supports weighted and timed sets.
+
+Exercises now have **Track by: Weight & reps / Time · plank / hang**. Timed sets
+store integer `duration_seconds` and NULL weight/reps, with a database constraint
+requiring exactly one measurement type. Enter seconds (`45`) or `m:ss` (`1:30`),
+up to 24 hours. Duration-only history, copy previous, corrections, longest-hold
+and total-session-time summaries/PBs/charts are supported. No placeholder kg or
+reps enter strength volume/PBs. Tracking type cannot change once sets are saved;
+create a separate exercise when a different measurement is needed.
+
+**Progress by route** sits near the top of Runs and opens that route's progress.
+New routes save the first entered distance as a reference; existing routes are
+not assigned an inferred distance. Their reference can be set explicitly on the
+route page. Selecting a saved route pre-fills its distance on the run form.
+Changing the reference never changes recorded run distances or times.
+
+Same-route completion-time comparisons include only runs within ±1% of the saved
+reference distance. They show best completion time, latest-versus-first difference,
+and a chronological elapsed-time chart (lower is quicker). Outliers remain in
+route history and the original all-run pace/distance charts, with an exclusion
+count for the fixed-distance comparison. Different routes remain separate.
+
+Migration `f6c8d2e4a910` follows `e4b7a9c2d610`, adding tracking type, nullable
+duration and route reference distance, and safely relaxing weight/reps nullability
+with an either/or measurement constraint. Existing values are preserved. Downgrade
+refuses to discard timed history. `tests/exercise_refinement_release.py` provides
+pre/post backup restoration, a migration rehearsal on a restored copy, original
+field-hash comparison and schema checks. No samples are inserted into the live DB.
+
+The run form uses top-aligned labels/controls with inline optional hints. Empty
+states give links real button layout and explicit spacing to prevent overlap.
+`tests/exercise_refinement_browser.cjs` checks these layouts, scrolling, repetition,
+timed sets and route comparisons on desktop and 320/375/390/430 px touch screens.
+
+Refinement release verification: 19 new tests and 378 full-suite tests passed.
+Both the refinement and original Stage 4B browser suites passed at all four phone
+widths, with no overflow or console errors. The migration rehearsal and live
+upgrade preserved all original fields across 27 tables, including 8 exercises,
+4 sessions, 8 workout occurrences and 24 sets. Backups/restores, schema comparison,
+SQLite integrity/foreign keys, compilation, privacy scans and prototype hashes
+passed. The site remains on a single local `127.0.0.1:5000` listener.
+
+---
+
 The user-facing section is **Exercise**. Its existing warm styling, dumbbell icon,
 collapsed/expanded rail, mobile drawer and contextual home remain. The five tabs
 are Today, Exercises, Runs, Templates and History. Established `/gym` URLs and

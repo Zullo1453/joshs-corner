@@ -92,6 +92,10 @@ def create_app(test_config=None):
     app.add_template_filter(pace, "run_pace_value")
     app.add_template_filter(format_distance, "run_distance")
     app.add_template_filter(format_number, "exercise_number")
+    from .gym import longest_hold, total_time, occurrence_summary
+    app.add_template_filter(longest_hold, "gym_longest_hold")
+    app.add_template_filter(total_time, "gym_total_time")
+    app.add_template_filter(occurrence_summary, "gym_occurrence_summary")
 
     from .deadlines import human_date
 

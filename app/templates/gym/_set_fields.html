@@ -1,0 +1,9 @@
+{% macro fields(exercise, item=none) %}
+{% if exercise.tracking_type == 'timed' %}
+<label><span>Duration · seconds or m:ss</span><input name="duration" inputmode="text" placeholder="45 or 1:30" value="{{ item.duration_seconds|run_duration if item else '' }}" aria-label="Duration · seconds or minutes:seconds" required></label>
+{% else %}
+<label><span>Weight (kg)</span><input name="weight_kg" type="number" inputmode="decimal" min="0" max="1000" step="0.01" value="{{ item.weight_kg if item else '' }}" required></label>
+<label><span>Reps</span><input name="reps" type="number" inputmode="numeric" min="1" max="1000" step="1" value="{{ item.reps if item else '' }}" required></label>
+{% endif %}
+{% endmacro %}
+{% macro tracking(value='reps') %}<label><span>Track by</span><select name="tracking_type"><option value="reps"{% if value == 'reps' %} selected{% endif %}>Weight &amp; reps</option><option value="timed"{% if value == 'timed' %} selected{% endif %}>Time · plank / hang</option></select></label>{% endmacro %}

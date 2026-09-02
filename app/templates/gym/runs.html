@@ -1,6 +1,7 @@
 {% extends "gym/layout.html" %}{% from "gym/_exercise_macros.html" import run_card, record, charts with context %}
 {% block exercise_content %}
 <section class="gym-detail-heading"><div><p class="gym-kicker">Running</p><h2>Runs</h2><p>Your routes, distance and pace.</p></div><a class="gym-button" href="#log-run">Log a run</a></section>
+{% if routes %}<section class="gym-add-exercise exercise-route-progress"><h2>Progress by route</h2><p>See whether you are getting quicker on the same course and distance.</p><form method="get" action="{{ url_for('exercise.choose_route_progress') }}" class="exercise-form"><label><span>Choose a route to compare</span><select name="route_id" required>{% for route in routes %}<option value="{{ route.id }}">{{ route.name }}{% if route.distance_km %} · {{ route.distance_km|run_distance }} km{% endif %}</option>{% endfor %}</select></label><button class="gym-button">View route progress</button></form></section>{% endif %}
 <dl class="exercise-metrics"><div><dt>Total runs</dt><dd>{{ summary.total }}</dd></div><div><dt>This week · Mon–Sun</dt><dd>{{ summary.week|run_distance }} km</dd></div><div><dt>{{ today.strftime('%B') }} distance</dt><dd>{{ summary.month|run_distance }} km</dd></div></dl>
 <dl class="exercise-records">
 {{ record('Longest run', summary.longest, (summary.longest.distance_km|run_distance ~ ' km') if summary.longest else '') }}
