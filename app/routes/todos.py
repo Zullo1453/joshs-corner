@@ -45,6 +45,42 @@ def backlog():
     return render_todos("backlog", backlog_todos=todos, scheduled_todos=scheduled_todos)
 
 
+@todos_bp.get("/recurring")
+def recurring():
+    rules = db.session.execute(
+        db.select(RecurrenceRule).order_by(RecurrenceRule.is_active.desc(), RecurrenceRule.updated_at.desc(), RecurrenceRule.id.desc())
+    ).scalars().all()
+    return render_todos("recurring", recurrence_rules=rules)
+
+
+@todos_bp.post("/recurring/new")
+def create_recurring():
+    text = normalise_task(request.form.get("text"))
+    repeat_type = (request.form.get("repeat_type") or "").strip()
+    if text is None:
+        return render_todos("recurring", recurrence_rules=[], error=f"Tasks need between 1 and {MAX_TASK_LENGTH} characters.", status=400)
+    values = recurrence_values_from_form(text, repeat_type, local_today(), request.form.get("rollover_enabled") == "true")
+    if values is None:
+        return render_todos("recurring", recurrence_rules=[], error="Choose a repeat pattern, valid interval, and start date.", status=400)
+    db.session.add(RecurrenceRule(**values))
+    db.session.commit()
+    return redirect(url_for("todos.recurring"))
+
+
+@todos_bp.post("/recurrences/<int:rule_id>/edit")
+def edit_recurring(rule_id):
+    rule = db.get_or_404(RecurrenceRule, rule_id)
+    text = normalise_task(request.form.get("text"))
+    if text is None:
+        abort(400)
+    values = recurrence_values_from_form(text, (request.form.get("repeat_type") or "").strip(), local_today(), request.form.get("rollover_enabled") == "true")
+    if values is None:
+        abort(400)
+    for key, value in values.items():
+        setattr(rule, key, value)
+    db.session.commit()
+    return redirect(url_for("todos.recurring"))
+
 @todos_bp.get("/history")
 def history():
     selected_date = parse_history_date(request.args.get("date"))
@@ -474,6 +510,7 @@ def render_todos(view, status=200, **context):
         "projects": [],
         "format_todo_date": format_todo_date,
         "recurrence_summary": summary,
+        "recurrence_rules": [],
     }
     template_context.update(context)
     return render_template("todos/index.html", **template_context), status

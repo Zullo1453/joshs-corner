@@ -4,7 +4,7 @@ document.querySelectorAll("[data-archive-form]").forEach((form) => {
   });
 });
 
-document.querySelectorAll(".add-row").forEach((form) => {
+document.querySelectorAll("form.add-row, [data-recurrence-create]").forEach((form) => {
   form.addEventListener("submit", () => {
     const submit = form.querySelector('button[type="submit"]');
     if (submit) submit.disabled = true;
@@ -72,4 +72,18 @@ document.querySelectorAll("[data-task-schedule]").forEach((button) => {
     if (form.dataset.submitting) { event.preventDefault(); return; }
     form.dataset.submitting = "1"; if (save) save.disabled = true;
   });
+});
+
+document.querySelectorAll("[data-recurrence-create]").forEach((form) => {
+  const type = form.querySelector("[data-recurrence-type]");
+  const options = form.querySelector("[data-recurrence-options]");
+  const sync = () => {
+    const selected = type.value;
+    options.hidden = selected === "none";
+    options.querySelectorAll("[data-recurrence-for]").forEach((field) => {
+      field.hidden = !field.dataset.recurrenceFor.split(" ").includes(selected);
+    });
+  };
+  type.addEventListener("change", sync);
+  sync();
 });
