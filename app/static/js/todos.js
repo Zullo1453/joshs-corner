@@ -87,3 +87,16 @@ document.querySelectorAll("[data-recurrence-create]").forEach((form) => {
   type.addEventListener("change", sync);
   sync();
 });
+
+document.querySelectorAll("[data-recurring-form]").forEach((form) => {
+  const type = form.querySelector("[data-recurring-type]");
+  const unit = form.querySelector("[data-interval-unit]");
+  const fields = form.querySelectorAll("[data-recurring-for]");
+  const sync = () => {
+    const selected = type.value;
+    unit.textContent = selected === "daily" ? "day" : selected === "weekly" ? "week" : "month";
+    fields.forEach((field) => { field.hidden = field.dataset.recurringFor !== selected; });
+  };
+  type.addEventListener("change", sync);
+  sync();
+});
