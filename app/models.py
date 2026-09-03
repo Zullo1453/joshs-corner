@@ -418,6 +418,7 @@ class ExerciseSet(TimestampMixin, db.Model):
         CheckConstraint("reps >= 1 AND reps <= 1000", name="exercise_set_reps_range"),
         UniqueConstraint("workout_exercise_id", "set_number", name="exercise_set_workout_exercise_number"),
         CheckConstraint("(duration_seconds IS NULL AND weight_kg IS NOT NULL AND reps IS NOT NULL) OR "
+                        "(duration_seconds IS NULL AND weight_kg IS NULL AND reps IS NOT NULL) OR "
                         "(duration_seconds IS NOT NULL AND duration_seconds BETWEEN 1 AND 86400 AND weight_kg IS NULL AND reps IS NULL)",
                         name="exercise_set_measurement"),
     )

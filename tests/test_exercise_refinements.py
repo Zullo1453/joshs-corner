@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import Exercise, ExerciseSet, WorkoutExercise, WorkoutSession, RunRoute
-from app.gym import new_strength_pbs, timed_summary, set_summary, exercise_volume, max_weight, progress_points, set_values
+from app.gym import new_strength_pbs, timed_summary, set_summary, exercise_volume, max_weight, max_reps, progress_points, set_values, total_reps
 from app.running import route_progress
 from test_exercise_update import DAY, exercise, route, run
 
@@ -84,6 +84,30 @@ def test_weighted_repeat_uses_saved_values_not_blank_form(app,client):
     db.session.expire_all()
     assert [(entry.weight_kg,entry.reps,entry.duration_seconds) for entry in occurrence.sets]==[(Decimal('22.55'),7,None)]*2
     assert b'Add same set' in client.get('/gym').data
+
+
+def test_reps_only_set_create_repeat_edit_and_progress(app, client):
+    item, occurrence = start(client, app, 'bodyweight')
+    endpoint = f'/gym/today/workout-exercises/{occurrence.id}/sets'
+    page = client.get('/gym').data
+    assert b'<option value="bodyweight" selected>Reps</option>' in client.get('/gym/exercises').data
+    assert b'Weight (kg)' not in page and b'<span>Reps</span>' in page
+    client.post(endpoint, data={'reps': '12'})
+    client.post(endpoint, data={'action': 'same'})
+    db.session.expire_all()
+    assert [(entry.weight_kg, entry.reps, entry.duration_seconds) for entry in occurrence.sets] == [(None, 12, None)] * 2
+    assert set_summary(occurrence.sets[0]) == '12 reps'
+    assert max_reps(occurrence) == 12 and total_reps(occurrence) == 24
+    assert exercise_volume(occurrence) == 0 and max_weight(occurrence) is None
+    entry = occurrence.sets[0]
+    client.post(f'/gym/sets/{entry.id}/edit', data={'reps': '15'})
+    assert entry.weight_kg is None and entry.reps == 15
+    point = progress_points(item.id)[0]
+    assert point['max_reps'] == 15 and point['total_reps'] == 27
+    for path in ['/gym', f'/gym/exercises/{item.id}', '/gym/history', f'/gym/history/{occurrence.workout_session_id}']:
+        assert client.get(path).status_code == 200
+    detail = client.get(f'/gym/exercises/{item.id}').data
+    assert b'Best set progression' in detail and b'Weight Progression' not in detail
 
 
 @pytest.mark.parametrize('raw',['0','-1','1:60','abc','24:00:01','86401','','NaN'])

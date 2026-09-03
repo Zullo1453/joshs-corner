@@ -84,7 +84,8 @@ def test_jz_brand_returns_to_hub_and_hub_icon_has_windows(client):
     page = client.get("/gym/runs")
     assert b'href="/" aria-label="Josh\'s Corner Hub" title="Go to Hub"' in page.data
     assert b'application-nav__hub-icon' in page.data
-    assert b'M7.2 11.2h2.1v2.1H7.2z' in page.data
+    assert b'M6.3 11.5h11.4v4.1H6.3z' in page.data
+    assert b'M9.5 20.5v-5.4h5v5.4' not in page.data
 
 
 @pytest.mark.parametrize("status", ("active", "paused", "archived"))

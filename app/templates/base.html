@@ -31,7 +31,7 @@
         <button class="application-nav__close" type="button" aria-label="Close main navigation" data-nav-close>×</button>
         <nav class="application-nav__links" aria-label="Top-level sections">
           <a href="{{ url_for('home.index') }}"{% if current_section == 'hub' %} class="is-active" aria-current="page"{% endif %}>
-            <span class="application-nav__icon application-nav__hub-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 10 8.5-6.5 8.5 6.5v10.5H3.5Z"/><path d="M9.5 20.5v-5.4h5v5.4M7.2 11.2h2.1v2.1H7.2zM14.7 11.2h2.1v2.1h-2.1z"/></svg></span><span>Hub</span>
+            <span class="application-nav__icon application-nav__hub-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 10 8.5-6.5 8.5 6.5v10.5H3.5Z"/><path d="M6.3 11.5h11.4v4.1H6.3zM12 11.5v4.1"/></svg></span><span>Hub</span>
           </a>
           <a href="{{ url_for('automations.overview') }}"{% if current_section == 'automations' %} class="is-active" aria-current="page"{% endif %}>
             <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__radar"><i></i></span></span><span>Intelligence</span>

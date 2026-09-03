@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..gym import exercise_volume, heaviest_occurrence, max_weight, previous_occurrence, progress_points, strength_summary, new_strength_pbs, set_values, timed_summary, longest_hold, total_time
+from ..gym import exercise_volume, heaviest_occurrence, max_weight, max_reps, previous_occurrence, progress_points, reps_summary, strength_summary, new_strength_pbs, set_values, timed_summary, total_reps
 from ..models import BODY_PARTS, Exercise, ExerciseSet, WorkoutExercise, WorkoutSession, WorkoutTemplate, utc_now
 from ..running import local_today, all_runs
 
@@ -50,6 +50,8 @@ def today():
                     "occurrence": occurrence,
                     "volume": exercise_volume(occurrence),
                     "max_weight": max_weight(occurrence),
+                    "max_reps": max_reps(occurrence),
+                    "total_reps": total_reps(occurrence),
                     "previous": previous_occurrence(occurrence.exercise_id, session.id),
                     "pbs": new_strength_pbs(occurrence),
                 }
@@ -88,8 +90,8 @@ def add_exercise():
         flash("Enter an exercise name up to 160 characters.", "error")
     elif body_part not in BODY_PARTS:
         flash("Choose a valid body part.", "error")
-    elif tracking_type not in ("reps", "timed"):
-        flash("Choose weight and reps or time.", "error")
+    elif tracking_type not in ("reps", "bodyweight", "timed"):
+        flash("Choose a valid tracking type.", "error")
     else:
         highest = db.session.scalar(select(func.max(Exercise.sort_order)).where(Exercise.body_part == body_part))
         db.session.add(Exercise(name=name, body_part=body_part, tracking_type=tracking_type, sort_order=(highest or 0) + 1))
@@ -104,7 +106,7 @@ def edit_exercise(exercise_id):
     name, body_part = request.form.get("name", "").strip(), request.form.get("body_part", "")
     tracking_type = request.form.get("tracking_type", exercise.tracking_type)
     has_history = db.session.scalar(select(ExerciseSet.id).join(ExerciseSet.workout_exercise).where(WorkoutExercise.exercise_id == exercise.id).limit(1)) is not None
-    if not name or len(name) > 160 or body_part not in BODY_PARTS or tracking_type not in ("reps", "timed"):
+    if not name or len(name) > 160 or body_part not in BODY_PARTS or tracking_type not in ("reps", "bodyweight", "timed"):
         flash("Use a valid exercise name and body part.", "error")
     elif has_history and tracking_type != exercise.tracking_type:
         flash("This exercise has saved history. Create a separate exercise to use a different tracking type.", "error")
@@ -236,6 +238,10 @@ def exercise_detail(exercise_id):
     if exercise.tracking_type == "timed":
         return render_template("gym/timed_detail.html", gym_page="exercises", exercise=exercise,
                                progress=timed_summary(exercise.id), points=points)
+    if exercise.tracking_type == "bodyweight":
+        return render_template("gym/reps_detail.html", gym_page="exercises", exercise=exercise,
+                               progress=reps_summary(exercise.id), points=points,
+                               max_reps=max_reps, total_reps=total_reps)
     last = next((item for item in reversed([item for item in _occurrences_for_detail(exercise.id) if item.sets])), None)
     return render_template(
         "gym/exercise_detail.html", gym_page="exercises", exercise=exercise, last=last,
