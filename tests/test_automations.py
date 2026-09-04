@@ -13,7 +13,7 @@ from app.models import Automation, AutomationRun, CurrencyPair, WeatherLocation
 
 
 HUB_PATHS = ("/", "/journal/", "/notes/", "/todos/", "/games/", "/watchlist/", "/reading/")
-AUTOMATION_PATHS = ("/automations", "/automations/weather", "/automations/currency", "/automations/health")
+AUTOMATION_PATHS = ("/automations", "/automations/weather", "/automations/currency", "/automations/health", "/automations/usage")
 
 
 def test_shared_navigation_identifies_hub_and_links_top_level_sections(client):
@@ -37,6 +37,7 @@ def test_intelligence_routes_identify_the_section_and_render_real_empty_states(c
         "/automations/weather": b"No saved locations",
         "/automations/currency": b"No saved currency pairs",
         "/automations/health": b"Josh's Corner Health",
+        "/automations/usage": b"Total Josh's Corner local data",
     }
     for path, copy in expected.items():
         response = client.get(path)
@@ -47,7 +48,7 @@ def test_intelligence_routes_identify_the_section_and_render_real_empty_states(c
 
 def test_intelligence_subnavigation_links_and_active_states(client):
     response = client.get("/automations/weather")
-    for href in (b'/automations', b'/automations/weather', b'/automations/currency', b'/automations/health'):
+    for href in (b'/automations', b'/automations/weather', b'/automations/currency', b'/automations/health', b'/automations/usage'):
         assert b'href="' + href + b'"' in response.data
     assert b'href="/automations/weather" class="is-active" aria-current="page"' in response.data
 

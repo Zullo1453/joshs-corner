@@ -4,7 +4,7 @@
     <div><p class="automations-kicker">Josh's Corner</p><h1>Intelligence</h1></div>
   </header>
   <nav class="automations-subnav" aria-label="Intelligence">
-    {% for endpoint, key, label in (('automations.overview','overview','Overview'), ('automations.weather','weather','Weather'), ('automations.currency','currency','Currency'), ('automations.health','health','Health')) %}
+    {% for endpoint, key, label in (('automations.overview','overview','Overview'), ('automations.weather','weather','Weather'), ('automations.currency','currency','Currency'), ('automations.health','health','Health'), ('automations.usage','usage','Usage')) %}
       <a href="{{ url_for(endpoint) }}"{% if page == key %} class="is-active" aria-current="page"{% endif %}>{{ label }}</a>
     {% endfor %}
   </nav>

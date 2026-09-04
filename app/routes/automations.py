@@ -8,6 +8,7 @@ from ..extensions import db
 from ..health import collect_health
 from ..models import CurrencyPair, WeatherLocation
 from ..ordering import active_items, move_active_item, next_sort_order, normalize_active_items
+from ..usage import UsageService
 from ..weather import LocationMatch, WeatherProviderError, WeatherService
 
 
@@ -190,6 +191,12 @@ def move_currency(pair_id):
 @automations_bp.route("/health", methods=["GET", "POST"])
 def health():
     return render_template("automations/health.html", automation_page="health", health=collect_health(current_app), checked=request.method == "POST")
+
+
+@automations_bp.get("/usage")
+def usage():
+    service = UsageService(current_app)
+    return render_template("automations/usage.html", automation_page="usage", usage=service.local_usage(), counts=service.database_counts())
 
 
 @automations_bp.get("/trackers")

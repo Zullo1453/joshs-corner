@@ -24,9 +24,14 @@ class ImageValidationError(ValueError):
     """The submitted upload is not a supported safe image."""
 
 
+def configured_upload_root(app=None) -> Path:
+    app = app or current_app
+    configured = app.config.get("UPLOAD_ROOT")
+    return Path(configured) if configured else Path(app.instance_path) / "uploads"
+
+
 def upload_root() -> Path:
-    configured = current_app.config.get("UPLOAD_ROOT")
-    root = Path(configured) if configured else Path(current_app.instance_path) / "uploads"
+    root = configured_upload_root()
     root.mkdir(parents=True, exist_ok=True)
     return root
 
