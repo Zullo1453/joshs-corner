@@ -4,7 +4,19 @@ import os
 
 import pytest
 
-from app.backup import _prune_validated, apply_retention, create_backup, create_backup_package, create_scheduled_backups, integrity_check, restore_backup, validate_backup_package
+from app.backup import (
+    MONTHLY_PACKAGE_LIMIT,
+    ROLLING_PACKAGE_LIMIT,
+    _prune_validated,
+    apply_retention,
+    create_backup,
+    create_backup_package,
+    create_rolling_backup_package,
+    create_scheduled_backups,
+    integrity_check,
+    restore_backup,
+    validate_backup_package,
+)
 
 
 def make_database(path):
@@ -92,3 +104,70 @@ def test_zip_backup_package_and_separate_restore_include_uploads(tmp_path):
     restore_backup(package, target, uploads_target=restored_uploads)
     assert manifest["attachment_count"] == 1 and integrity_check(target)
     assert (restored_uploads / "image.webp").read_bytes() == b"image bytes"
+
+
+def test_direct_rolling_package_creation_retains_ten_validated_zips_only(tmp_path):
+    live, uploads, root = tmp_path / "live.db", tmp_path / "uploads", tmp_path / "backups"
+    rolling, historical = root / "rolling", root / "migration-safety"
+    make_database(live)
+    legacy = create_backup(live, rolling, now=datetime(2026, 1, 1, 8))
+    historical_package = create_backup_package(live, uploads, historical, now=datetime(2026, 1, 1, 9))
+    created = []
+    for day in range(1, 15):
+        timestamp = datetime(2026, 2, day, 12)
+        package = create_rolling_backup_package(live, uploads, rolling, now=timestamp)
+        os.utime(package, (timestamp.timestamp(), timestamp.timestamp()))
+        created.append(package)
+
+    retained = sorted(rolling.glob("joshs_corner_backup_*.zip"), key=lambda path: path.stat().st_mtime)
+    assert retained == created[-ROLLING_PACKAGE_LIMIT:]
+    assert all(validate_backup_package(package) for package in retained)
+    assert legacy.exists()
+    assert historical_package.exists() and validate_backup_package(historical_package)
+
+
+def test_failed_direct_rolling_validation_does_not_prune_existing_packages(tmp_path, monkeypatch):
+    live, uploads, rolling = tmp_path / "live.db", tmp_path / "uploads", tmp_path / "rolling"
+    make_database(live)
+    for day in range(1, ROLLING_PACKAGE_LIMIT + 1):
+        package = create_rolling_backup_package(live, uploads, rolling, now=datetime(2026, 3, day, 12))
+        timestamp = datetime(2026, 3, day, 12)
+        os.utime(package, (timestamp.timestamp(), timestamp.timestamp()))
+    before = sorted(path.name for path in rolling.glob("*.zip"))
+
+    monkeypatch.setattr("app.backup.validate_backup_package", lambda _package: (_ for _ in ()).throw(ValueError("invalid")))
+    with pytest.raises(ValueError):
+        create_rolling_backup_package(live, uploads, rolling, now=datetime(2026, 3, 20, 12))
+
+    assert sorted(path.name for path in rolling.glob("*.zip")) == before
+
+
+def test_scheduled_rolling_retention_and_monthly_retention_are_independent(tmp_path):
+    live, uploads, root = tmp_path / "live.db", tmp_path / "uploads", tmp_path / "backups"
+    rolling, monthly = root / "rolling", root / "monthly"
+    make_database(live)
+    rolling_packages = []
+    for day in range(1, ROLLING_PACKAGE_LIMIT + 1):
+        timestamp = datetime(2026, 1, day, 12)
+        package = create_backup_package(live, uploads, rolling, now=timestamp)
+        os.utime(package, (timestamp.timestamp(), timestamp.timestamp()))
+        rolling_packages.append(package)
+    monthly_packages = []
+    for month in range(1, MONTHLY_PACKAGE_LIMIT + 1):
+        timestamp = datetime(2025, month, 1, 12)
+        package = create_backup_package(live, uploads, monthly, now=timestamp)
+        os.utime(package, (timestamp.timestamp(), timestamp.timestamp()))
+        monthly_packages.append(package)
+
+    rolling_backup, monthly_backup = create_scheduled_backups(
+        live, root, now=datetime(2026, 2, 10, 12), uploads_dir=uploads
+    )
+
+    assert rolling_backup is not None and rolling_backup.exists()
+    assert monthly_backup is not None and monthly_backup.exists()
+    assert len(list(rolling.glob("joshs_corner_backup_*.zip"))) == ROLLING_PACKAGE_LIMIT
+    assert rolling_packages[0] not in rolling.iterdir()
+    assert len(list(monthly.glob("joshs_corner_backup_*.zip"))) == MONTHLY_PACKAGE_LIMIT
+    assert monthly_packages[0] not in monthly.iterdir()
+    assert validate_backup_package(rolling_backup)
+    assert validate_backup_package(monthly_backup)

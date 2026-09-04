@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 
 LOGGER = logging.getLogger(__name__)
+ROLLING_PACKAGE_LIMIT = 10
+MONTHLY_PACKAGE_LIMIT = 12
 
 
 def _checksum(path: Path) -> str:
@@ -82,6 +84,13 @@ def create_backup_package(source: Path, uploads_dir: Path, backup_dir: Path, now
         raise
     LOGGER.info("Backup package validated: %s", target)
     return target
+
+
+def create_rolling_backup_package(source: Path, uploads_dir: Path, rolling_dir: Path, now=None) -> Path:
+    """Create, validate, then retain the newest rolling ZIP packages."""
+    package = create_backup_package(source, uploads_dir, rolling_dir, now=now)
+    _prune_validated(rolling_dir, ROLLING_PACKAGE_LIMIT, suffix=".zip")
+    return package
 
 
 def validate_backup_package(package_path: Path) -> dict:
@@ -183,8 +192,7 @@ def create_scheduled_backups(source: Path, backup_root: Path, secondary_monthly:
     latest = sorted(rolling.glob("joshs_corner_backup_*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
     rolling_backup = None
     if not latest or now.timestamp() - latest[0].stat().st_mtime >= 3 * 86400:
-        rolling_backup = create_backup_package(source, uploads_dir, rolling, now=now)
-        _prune_validated(rolling, 10, suffix=".zip")
+        rolling_backup = create_rolling_backup_package(source, uploads_dir, rolling, now=now)
     month_prefix = f"joshs_corner_backup_{now:%Y-%m}-"
     monthly_backup = next(
         (path for path in sorted(monthly.glob(month_prefix + "*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -193,7 +201,7 @@ def create_scheduled_backups(source: Path, backup_root: Path, secondary_monthly:
     )
     if monthly_backup is None:
         monthly_backup = create_backup_package(source, uploads_dir, monthly, now=now)
-        _prune_validated(monthly, 12, suffix=".zip")
+        _prune_validated(monthly, MONTHLY_PACKAGE_LIMIT, suffix=".zip")
     if secondary_monthly:
         try:
             destination = Path(secondary_monthly); destination.mkdir(parents=True, exist_ok=True)

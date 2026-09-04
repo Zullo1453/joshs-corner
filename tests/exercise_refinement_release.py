@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from exercise_release_audit import ROOT, DATABASE, inspect_database, restored
-from app.backup import create_backup_package, validate_backup_package
+from app.backup import create_rolling_backup_package, validate_backup_package
 
 BASELINE=ROOT/'instance'/'exercise-refinement-baseline.json'
 OLD_HEAD='e4b7a9c2d610'
@@ -30,7 +30,7 @@ def main():
         assert not BASELINE.exists(),'Never overwrite an existing baseline.'
         head,tables=inspect_database(DATABASE)
         assert head==OLD_HEAD
-        rolling=create_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
+        rolling=create_rolling_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
         monthly=max((ROOT/'backups'/'monthly').glob('*.zip'),key=lambda item:item.stat().st_mtime)
         validate_backup_package(rolling);validate_backup_package(monthly)
         trial=restored(rolling,'refinement-rehearsal')
@@ -48,7 +48,7 @@ def main():
         baseline=json.loads(BASELINE.read_text(encoding='utf-8'));tables=baseline['tables']
         assert inspect_database(DATABASE,tables)==(NEW_HEAD,tables)
         schema_matches(DATABASE)
-        backup=create_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
+        backup=create_rolling_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
         assert inspect_database(restored(backup,'refinement-after'))==inspect_database(DATABASE)
         validate_backup_package(ROOT/baseline['monthly'])
         print(json.dumps({'stage':'verified','head':NEW_HEAD,'original_tables_preserved':len(tables),'integrity':'ok','foreign_keys':0,'schema_differences':0,'post_backup_restore':True}))

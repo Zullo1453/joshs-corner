@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy import func, select
 
 from .attachments import configured_upload_root
+from .backup import MONTHLY_PACKAGE_LIMIT, ROLLING_PACKAGE_LIMIT
 from .extensions import db
 from .models import Deadline, Exercise, ExerciseSet, GameJournal, JournalEntry, Note, Project, ReadingItem, Run, RunRoute, Todo, UpcomingEvent, WatchlistItem, WorkoutSession, WorkoutTemplate
 
@@ -54,10 +55,15 @@ class UsageService:
 
     def _backup_usage(self) -> dict:
         root = self._backup_root or Path(self.app.root_path).parent / "backups"
-        rolling, monthly = _directory_usage(root / "rolling"), _directory_usage(root / "monthly")
-        legacy = [item for item in root.glob("joshs_corner_*") if item.is_file()] if root.is_dir() else []
-        return {"bytes": rolling["bytes"] + monthly["bytes"] + sum(item.stat().st_size for item in legacy),
-                "count": rolling["count"] + monthly["count"] + len(legacy), "rolling": rolling, "monthly": monthly}
+        rolling_dir, monthly_dir = root / "rolling", root / "monthly"
+        rolling = [item for item in rolling_dir.glob("joshs_corner_backup_*.zip") if item.is_file()] if rolling_dir.is_dir() else []
+        monthly = [item for item in monthly_dir.glob("joshs_corner_backup_*.zip") if item.is_file()] if monthly_dir.is_dir() else []
+        legacy = [item for directory in (root, rolling_dir, monthly_dir) if directory.is_dir() for item in directory.glob("joshs_corner_*.db") if item.is_file()]
+        total_bytes = sum(item.stat().st_size for item in [*rolling, *monthly, *legacy])
+        return {"bytes": total_bytes, "package_count": len(rolling) + len(monthly),
+                "rolling": {"count": len(rolling), "limit": ROLLING_PACKAGE_LIMIT},
+                "monthly": {"count": len(monthly), "limit": MONTHLY_PACKAGE_LIMIT},
+                "legacy": {"count": len(legacy)}}
 
     def local_usage(self) -> dict:
         database = self._database_file()

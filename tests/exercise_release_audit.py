@@ -14,7 +14,7 @@ from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from app.backup import create_backup_package, validate_backup_package, restore_backup_package
+from app.backup import create_rolling_backup_package, validate_backup_package, restore_backup_package
 
 DATABASE = ROOT/'instance'/'joshs_corner.db'
 SNAPSHOT = ROOT/'instance'/'stage4b-release-baseline.json'
@@ -56,7 +56,7 @@ def main():
         head,tables=inspect_database(DATABASE)
         assert head=='0dd8dae16435'
         assert not set(NEW_TABLES)&tables.keys()
-        rolling=create_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
+        rolling=create_rolling_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
         monthly_files=sorted((ROOT/'backups'/'monthly').glob('*.zip'),key=lambda item:item.stat().st_mtime)
         assert monthly_files,'A validated monthly backup is required.'
         monthly=monthly_files[-1]
@@ -90,7 +90,7 @@ def main():
     engine.dispose()
     config=Config();config.set_main_option('script_location',str(ROOT/'migrations'))
     assert ScriptDirectory.from_config(config).get_current_head()==head
-    postbackup=create_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
+    postbackup=create_rolling_backup_package(DATABASE,ROOT/'instance'/'uploads',ROOT/'backups'/'rolling')
     validate_backup_package(postbackup)
     assert inspect_database(restored(postbackup,'postmigration'))==inspect_database(DATABASE)
     validate_backup_package(ROOT/baseline['monthly'])

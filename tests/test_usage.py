@@ -23,14 +23,21 @@ def test_local_usage_counts_only_known_data_directories(app, tmp_path):
     (backups / "monthly").mkdir()
     (backups / "rolling" / "joshs_corner_backup_a.zip").write_bytes(b"r" * 400)
     (backups / "monthly" / "joshs_corner_backup_b.zip").write_bytes(b"m" * 500)
+    (backups / "joshs_corner_legacy-root.db").write_bytes(b"l" * 100)
+    (backups / "rolling" / "joshs_corner_legacy-rolling.db").write_bytes(b"l" * 200)
+    (backups / "monthly" / "joshs_corner_legacy-monthly.db").write_bytes(b"l" * 300)
+    (backups / "migration-safety").mkdir()
+    (backups / "migration-safety" / "joshs_corner_backup_historical.zip").write_bytes(b"h" * 700)
     (backups / "unrelated.bin").write_bytes(b"x" * 9999)
     with app.app_context():
         usage = UsageService(app, database_path=database, upload_directory=uploads, backup_root=backups).local_usage()
     assert usage["database"]["bytes"] == 2048
     assert usage["uploads"] == {"bytes": 300, "count": 1, "label": "0.3 KB"}
-    assert usage["backups"]["bytes"] == 900 and usage["backups"]["count"] == 2
-    assert usage["backups"]["rolling"]["count"] == usage["backups"]["monthly"]["count"] == 1
-    assert usage["total"]["bytes"] == 3248
+    assert usage["backups"]["bytes"] == 1500 and usage["backups"]["package_count"] == 2
+    assert usage["backups"]["rolling"] == {"count": 1, "limit": 10}
+    assert usage["backups"]["monthly"] == {"count": 1, "limit": 12}
+    assert usage["backups"]["legacy"] == {"count": 3}
+    assert usage["total"]["bytes"] == 3848
 
 
 def test_usage_handles_absent_optional_directories_without_creating_them(app, tmp_path):
@@ -58,6 +65,7 @@ def test_usage_record_counts_and_page_are_read_only_and_private(app, client, tmp
     response = client.get("/automations/usage")
     assert response.status_code == 200
     assert b"Supabase" in response.data and b"Vercel" in response.data and response.data.count(b"Not connected") == 2
+    assert b"Current backup packages" in response.data and b"Legacy database backups" in response.data
     assert b"Fictional task" not in response.data and str(Path(app.instance_path)).encode() not in response.data and b"D:\\" not in response.data
     assert client.post("/automations/usage").status_code == 405
     with app.app_context():
