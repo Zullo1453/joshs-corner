@@ -6,6 +6,7 @@ from io import BytesIO
 from pathlib import Path
 import re
 import secrets
+from typing import Protocol
 
 from flask import current_app
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -24,21 +25,70 @@ class ImageValidationError(ValueError):
     """The submitted upload is not a supported safe image."""
 
 
+class StorageBackend(Protocol):
+    """Physical attachment storage behind stable Attachment IDs."""
+
+    def path_for(self, stored_filename: str) -> Path: ...
+    def write(self, stored_filename: str, data: bytes) -> Path: ...
+    def delete(self, stored_filename: str) -> None: ...
+    def exists(self, stored_filename: str) -> bool: ...
+    def files(self) -> list[Path]: ...
+
+
+class LocalStorageBackend:
+    """Current local filesystem storage; a future backend can replace this only."""
+
+    def __init__(self, root: str | Path):
+        self.root = Path(root)
+
+    def path_for(self, stored_filename: str) -> Path:
+        # stored filenames are generated server-side; name-only resolution blocks traversal.
+        return self.root / Path(stored_filename).name
+
+    def write(self, stored_filename: str, data: bytes) -> Path:
+        self.root.mkdir(parents=True, exist_ok=True)
+        path = self.path_for(stored_filename)
+        path.write_bytes(data)
+        return path
+
+    def delete(self, stored_filename: str) -> None:
+        self.path_for(stored_filename).unlink(missing_ok=True)
+
+    def exists(self, stored_filename: str) -> bool:
+        return self.path_for(stored_filename).is_file()
+
+    def files(self) -> list[Path]:
+        if not self.root.is_dir():
+            return []
+        return [path for path in self.root.iterdir() if path.is_file()]
+
+
 def configured_upload_root(app=None) -> Path:
     app = app or current_app
     configured = app.config.get("UPLOAD_ROOT")
-    return Path(configured) if configured else Path(app.instance_path) / "uploads"
+    if configured:
+        return Path(configured)
+    paths = app.config.get("RUNTIME_PATHS")
+    return paths.uploads if paths else Path(app.instance_path) / "uploads"
+
+
+def storage_backend(app=None) -> StorageBackend:
+    app = app or current_app
+    configured = app.config.get("ATTACHMENT_STORAGE_BACKEND")
+    return configured if configured is not None else LocalStorageBackend(configured_upload_root(app))
 
 
 def upload_root() -> Path:
-    root = configured_upload_root()
-    root.mkdir(parents=True, exist_ok=True)
-    return root
+    backend = storage_backend()
+    if isinstance(backend, LocalStorageBackend):
+        backend.root.mkdir(parents=True, exist_ok=True)
+        return backend.root
+    return configured_upload_root()
 
 
 def attachment_path(attachment: Attachment) -> Path:
-    # stored_filename is generated below; name-only resolution prevents traversal.
-    return upload_root() / Path(attachment.stored_filename).name
+    # The local serving route stays unchanged while IDs remain the rich-text contract.
+    return storage_backend().path_for(attachment.stored_filename)
 
 
 def _process_image(raw: bytes) -> tuple[bytes, str, str, int, int]:
@@ -89,13 +139,13 @@ def create_draft_attachment(file_storage, draft_token: str) -> Attachment:
         width=width,
         height=height,
     )
-    path = attachment_path(attachment)
+    backend = storage_backend()
     try:
-        path.write_bytes(data)
+        path = backend.write(attachment.stored_filename, data)
         db.session.add(attachment)
         db.session.commit()
     except Exception:
-        path.unlink(missing_ok=True)
+        backend.delete(attachment.stored_filename)
         db.session.rollback()
         raise
     return attachment
@@ -106,10 +156,10 @@ def local_attachment_ids(html: str) -> set[int]:
 
 
 def delete_attachment(attachment: Attachment) -> None:
-    path = attachment_path(attachment)
+    backend = storage_backend()
     db.session.delete(attachment)
     db.session.flush()
-    path.unlink(missing_ok=True)
+    backend.delete(attachment.stored_filename)
 
 
 def sync_attachments(html: str, owner_type: str, owner_id: int, draft_token: str | None = None) -> None:
@@ -153,12 +203,13 @@ def delete_owner_attachments(owner_type: str, owner_id: int) -> None:
 
 
 def attachment_diagnostics(candidate_age_days: int = 30) -> dict:
+    backend = storage_backend()
     root = upload_root()
     records = db.session.execute(db.select(Attachment)).scalars().all()
     record_names = {attachment.stored_filename for attachment in records}
-    files = [path for path in root.iterdir() if path.is_file()]
+    files = backend.files()
     cutoff = datetime.now(timezone.utc) - timedelta(days=candidate_age_days)
-    missing = [attachment.id for attachment in records if not attachment_path(attachment).is_file()]
+    missing = [attachment.id for attachment in records if not backend.exists(attachment.stored_filename)]
     candidates = [
         path.name for path in files
         if path.name not in record_names and datetime.fromtimestamp(path.stat().st_mtime, timezone.utc) < cutoff

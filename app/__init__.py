@@ -5,14 +5,15 @@ from pathlib import Path
 from flask import Flask, request, url_for
 
 from .extensions import csrf, db, migrate
+from .runtime import RuntimePaths, configured_database_uri
 
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
-    database_path = Path(app.instance_path) / "joshs_corner.db"
+    paths = RuntimePaths.for_project(Path(app.root_path).parent)
     app.config.from_mapping(
         SECRET_KEY="local-development-only",
-        SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path.as_posix()}",
+        SQLALCHEMY_DATABASE_URI=configured_database_uri(app.instance_path),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         WTF_CSRF_TIME_LIMIT=None,
         BACKUP_SECONDARY_DIR=os.environ.get("JOSHS_CORNER_BACKUP_SECONDARY_DIR"),
@@ -23,18 +24,19 @@ def create_app(test_config=None):
     else:
         app.config.from_pyfile("local_config.py", silent=True)
 
+    app.config["RUNTIME_PATHS"] = paths
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
 
-    from .backup import create_backup, create_scheduled_backups
+    from .backup import create_scheduled_backups
 
     @app.cli.command("backup-db")
     def backup_db_command():
         """Create and validate a local SQLite backup."""
         create_scheduled_backups(
-            database_path, Path(app.root_path).parent / "backups",
+            paths.local_database, paths.backups,
             Path(app.config["BACKUP_SECONDARY_DIR"]) if app.config["BACKUP_SECONDARY_DIR"] else None,
         )
 
@@ -42,10 +44,10 @@ def create_app(test_config=None):
     from .figure_of_day import FigureOfDayService
 
     app.extensions["on_this_day"] = app.config.get("ON_THIS_DAY_SERVICE") or OnThisDayService(
-        Path(app.instance_path) / "on_this_day_cache.json"
+        paths.on_this_day_cache
     )
     app.extensions["figure_of_day"] = app.config.get("FIGURE_OF_DAY_SERVICE") or FigureOfDayService(
-        Path(app.instance_path) / "figure_of_day_cache.json"
+        paths.figure_of_day_cache
     )
 
     @app.template_filter("local_saved_time")
@@ -167,15 +169,5 @@ def create_app(test_config=None):
             }[current_section],
         }
 
-    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
-    if not app.testing and database_path.exists() and (not app.debug or is_reloader_child):
-        try:
-            create_scheduled_backups(
-                database_path,
-                Path(app.root_path).parent / "backups",
-                Path(app.config["BACKUP_SECONDARY_DIR"]) if app.config["BACKUP_SECONDARY_DIR"] else None,
-            )
-        except Exception:
-            app.logger.exception("Startup database backup failed")
 
     return app

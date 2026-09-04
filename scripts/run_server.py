@@ -9,7 +9,10 @@ from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-LOG_PATH = ROOT / "instance" / "server.log"
+from app.runtime import RuntimePaths
+
+# The local server log remains instance/server.log through the runtime path boundary.
+LOG_PATH = RuntimePaths.for_project(ROOT).server_log
 
 
 def configure_logging():

@@ -3,6 +3,7 @@
 No index, triggers, cached records, ownership assumptions, or persistent queries.
 A request-local SQLite function provides Unicode/plain-text matching in SQL.
 """
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
@@ -95,58 +96,44 @@ SOURCES = (
 )
 
 
-class UniversalSearchService:
-    def search(self, query):
-        if not isinstance(query, str) or len(query) > MAX_QUERY_LENGTH:
-            raise ValueError("Search queries must contain at most 200 characters.")
-        normalized = normalize_query(query)
-        if len(normalized) < 2:
-            return [], []
-        terms = tuple(dict.fromkeys(normalized.split()))
-        results, unavailable = [], []
+class SearchQueryAdapter:
+    """Internal boundary for database-specific universal search SQL."""
 
-        @lru_cache(maxsize=2048)
-        def text_for_sql(value, rich):
-            return normalize_query(plain_text(value, bool(rich)))
+    @contextmanager
+    def connection(self):
+        raise NotImplementedError
+        yield
 
-        # A separate connection prevents autoflush and stale ORM objects. Future
-        # ownership restrictions belong in scope_statement(), in one place.
+    def statement(self, service, source, query, terms):
+        raise NotImplementedError
+
+
+class SQLiteSearchAdapter(SearchQueryAdapter):
+    """SQLite custom functions and candidate ranking used by local Search."""
+
+    @contextmanager
+    def connection(self):
         with db.engine.connect() as connection:
+            if connection.dialect.name != "sqlite":
+                raise RuntimeError("SQLite universal search cannot run on this database dialect.")
+
+            @lru_cache(maxsize=2048)
+            def text_for_sql(value, rich):
+                return normalize_query(plain_text(value, bool(rich)))
+
             raw = connection.connection.driver_connection
             raw.create_function("jc_search_text", 2, text_for_sql, deterministic=True)
             raw.create_function("jc_search_date", 1, lambda value: (
                 f"{value} {date.fromisoformat(value).strftime('%A %d %B %Y %d %b %Y %d/%m/%Y')}"
             ), deterministic=True)
             try:
-                for source in SOURCES:
-                    try:
-                        rows = connection.execute(self._statement(source, normalized, terms)).mappings().all()
-                        results.extend(self._result(source, row, query) for row in rows)
-                    except SQLAlchemyError as error:
-                        if current_app.testing:
-                            raise
-                        unavailable.append(source.kind)
-                        # Exception messages can contain SQL parameters. Never log them.
-                        current_app.logger.error("Universal search source %s unavailable (%s)", source.kind, type(error).__name__)
+                yield connection
             finally:
                 raw.create_function("jc_search_text", 2, None)
                 raw.create_function("jc_search_date", 1, None)
                 text_for_sql.cache_clear()
 
-        results.sort(key=lambda item: (-item.score, item.result_type, item.record_id))
-        results.sort(key=lambda item: item.recency, reverse=True)
-        results.sort(key=lambda item: -item.score)
-        # Multiple play entries and a matching review produce one useful game.
-        unique = {}
-        for result in results:
-            unique.setdefault((result.result_type, result.record_id), result)
-        return list(unique.values())[:RESULT_LIMIT], unavailable
-
-    def scope_statement(self, statement, source):
-        """Central hook for future owner filtering; never client-selected tables."""
-        return statement
-
-    def _statement(self, source, query, terms):
+    def statement(self, service, source, query, terms):
         model = source.model
         title = func.jc_search_text(func.jc_search_date(source.title) if source.kind == "Journal" else source.title, 0)
         body = literal("")
@@ -168,7 +155,8 @@ class UniversalSearchService:
             statement = statement.join(GameJournal, GameJournal.id == model.game_id).add_columns(
                 GameJournal.title.label("game_title"), GameJournal.status.label("game_status"),
             )
-        statement = self.scope_statement(statement, source)
+        # Future authenticated owner filtering remains centralized here.
+        statement = service.scope_statement(statement, source)
         if source.kind == "Play log":
             ranked = statement.add_columns(func.row_number().over(
                 partition_by=model.game_id, order_by=(score.desc(), model.updated_at.desc(), model.id),
@@ -177,6 +165,53 @@ class UniversalSearchService:
                 ranked.c.search_score.desc(), ranked.c.updated_at.desc(), ranked.c.id,
             ).limit(RESULT_LIMIT)
         return statement.order_by(score.desc(), model.updated_at.desc(), model.id).limit(RESULT_LIMIT)
+
+
+class UniversalSearchService:
+    def search(self, query):
+        if not isinstance(query, str) or len(query) > MAX_QUERY_LENGTH:
+            raise ValueError("Search queries must contain at most 200 characters.")
+        normalized = normalize_query(query)
+        if len(normalized) < 2:
+            return [], []
+        terms = tuple(dict.fromkeys(normalized.split()))
+        results, unavailable = [], []
+
+        # A separate connection prevents autoflush and stale ORM objects. The
+        # adapter keeps SQLite-only functions out of the portable service layer.
+        adapter = self._adapter()
+        with adapter.connection() as connection:
+            for source in SOURCES:
+                try:
+                    rows = connection.execute(self._statement(source, normalized, terms)).mappings().all()
+                    results.extend(self._result(source, row, query) for row in rows)
+                except SQLAlchemyError as error:
+                    if current_app.testing:
+                        raise
+                    unavailable.append(source.kind)
+                    # Exception messages can contain SQL parameters. Never log them.
+                    current_app.logger.error("Universal search source %s unavailable (%s)", source.kind, type(error).__name__)
+        results.sort(key=lambda item: (-item.score, item.result_type, item.record_id))
+        results.sort(key=lambda item: item.recency, reverse=True)
+        results.sort(key=lambda item: -item.score)
+        # Multiple play entries and a matching review produce one useful game.
+        unique = {}
+        for result in results:
+            unique.setdefault((result.result_type, result.record_id), result)
+        return list(unique.values())[:RESULT_LIMIT], unavailable
+
+    def scope_statement(self, statement, source):
+        """Central hook for future owner filtering; never client-selected tables."""
+        return statement
+
+    def _adapter(self):
+        if db.engine.dialect.name == "sqlite":
+            return SQLiteSearchAdapter()
+        raise RuntimeError("Universal Search has no adapter for the active database dialect.")
+
+    def _statement(self, source, query, terms):
+        # Kept as a seam for source-level failure handling and focused tests.
+        return self._adapter().statement(self, source, query, terms)
 
     def _result(self, source, row, query):
         kind, model = source.kind, source.model
