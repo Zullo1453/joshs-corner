@@ -3,6 +3,8 @@
 {% block lists_content %}
 <section class="list-detail-header">
   <div><a class="back-link" href="{{ url_for('lists.index') }}">← Back to my lists</a><h2>{{ checklist.name }}</h2>{% if checklist.description %}<p>{{ checklist.description }}</p>{% endif %}</div>
+  <div class="list-detail-actions">
+    {% if checklist.is_completed %}<form method="post" action="{{ url_for('lists.reopen', list_id=checklist.id) }}"><button class="button">Reopen list</button></form>{% else %}<form method="post" action="{{ url_for('lists.complete', list_id=checklist.id) }}" onsubmit="return confirm('Complete this list now? Unticked items will stay unticked.')"><button class="button">Complete list</button></form>{% endif %}
   <details class="header-menu">
     <summary class="button secondary">Manage list</summary>
     <div class="header-menu__content">
@@ -18,7 +20,7 @@
         <form method="post" action="{{ url_for('lists.delete', list_id=checklist.id) }}" onsubmit="return confirm('Permanently delete this list and all its items?')"><input type="hidden" name="confirm" value="yes"><button class="link-button danger">Delete list</button></form>
       </div>
     </div>
-  </details>
+  </details></div>
 </section>
 
 <section class="fast-add" aria-labelledby="add-item-heading">

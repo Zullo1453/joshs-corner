@@ -27,6 +27,7 @@
     form.querySelector('.check-button').setAttribute('aria-label', data.completed ? 'Mark incomplete' : 'Mark complete');
     const target = data.completed ? document.querySelector('[data-completed-items]') : document.querySelector(`[data-active-items][data-section-id="${data.section_id || ''}"]`);
     if (target) target.append(item);
+    if (data.list_completed) window.location.assign('/lists/?completed=1');
   }));
   document.querySelectorAll('[data-list-fast-add]').forEach((form) => form.addEventListener('submit', async (event) => {
     event.preventDefault();

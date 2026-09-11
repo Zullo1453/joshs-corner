@@ -8,6 +8,7 @@
     <nav class="lists-tabs" aria-label="Lists views">
       <a href="{{ url_for('lists.index') }}"{% if lists_page == 'lists' %} aria-current="page"{% endif %}>✓ My lists</a>
       <a href="{{ url_for('lists.templates') }}"{% if lists_page == 'templates' %} aria-current="page"{% endif %}>▦ Templates</a>
+      <a href="{{ url_for('lists.index', completed=1) }}"{% if lists_page == 'completed' %} aria-current="page"{% endif %}>★ Completed</a>
     </nav>
   </header>
   {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="lists-flash {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}

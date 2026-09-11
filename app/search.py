@@ -156,9 +156,9 @@ class SQLiteSearchAdapter(SearchQueryAdapter):
         )
         rank_score = score
         if source.kind == "List":
-            rank_score = score + case((model.is_archived, -16), else_=0)
+            rank_score = score + case((model.is_completed, -8), else_=0) + case((model.is_archived, -16), else_=0)
         if source.kind == "List item":
-            rank_score = score + case((model.is_completed, -8), else_=0) + case((Checklist.is_archived, -16), else_=0)
+            rank_score = score + case((model.is_completed, -8), else_=0) + case((Checklist.is_completed, -8), else_=0) + case((Checklist.is_archived, -16), else_=0)
         statement = select(model.__table__, rank_score.label("search_score")).where(score > 0)
         if source.kind == "Play log":
             statement = statement.join(GameJournal, GameJournal.id == model.game_id).add_columns(
@@ -167,6 +167,7 @@ class SQLiteSearchAdapter(SearchQueryAdapter):
         if source.kind == "List item":
             statement = statement.join(Checklist, Checklist.id == model.checklist_id).add_columns(
                 Checklist.name.label("checklist_name"), Checklist.is_archived.label("checklist_archived"),
+                Checklist.is_completed.label("checklist_completed"),
             )
         # Future authenticated owner filtering remains centralized here.
         statement = service.scope_statement(statement, source)
@@ -237,9 +238,9 @@ class PostgresSearchAdapter(SearchQueryAdapter):
         )
         rank_score = score
         if source.kind == "List":
-            rank_score = score + case((model.is_archived, -16), else_=0)
+            rank_score = score + case((model.is_completed, -8), else_=0) + case((model.is_archived, -16), else_=0)
         if source.kind == "List item":
-            rank_score = score + case((model.is_completed, -8), else_=0) + case((Checklist.is_archived, -16), else_=0)
+            rank_score = score + case((model.is_completed, -8), else_=0) + case((Checklist.is_completed, -8), else_=0) + case((Checklist.is_archived, -16), else_=0)
         statement = select(model.__table__, rank_score.label("search_score")).where(score > 0)
         if source.kind == "Play log":
             statement = statement.join(GameJournal, GameJournal.id == model.game_id).add_columns(
@@ -248,6 +249,7 @@ class PostgresSearchAdapter(SearchQueryAdapter):
         if source.kind == "List item":
             statement = statement.join(Checklist, Checklist.id == model.checklist_id).add_columns(
                 Checklist.name.label("checklist_name"), Checklist.is_archived.label("checklist_archived"),
+                Checklist.is_completed.label("checklist_completed"),
             )
         statement = service.scope_statement(statement, source)
         if source.kind == "Play log":
@@ -375,10 +377,10 @@ class UniversalSearchService:
             url = url_for("exercise.route_detail", route_id=identifier)
             kind = "Exercise · Run route"
         elif kind == "List":
-            status = "Archived" if row["is_archived"] else ""
+            status = "Archived" if row["is_archived"] else ("Completed" if row["is_completed"] else "")
             url = url_for("lists.detail", list_id=identifier)
         elif kind == "List item":
-            status = "Archived" if row["checklist_archived"] else ("Completed" if row["is_completed"] else "")
+            status = "Archived" if row["checklist_archived"] else ("Completed" if row["checklist_completed"] or row["is_completed"] else "")
             kind = "List item"
             title = row["text"]
             url = url_for("lists.detail", list_id=row["checklist_id"], _anchor=f"list-item-{identifier}")

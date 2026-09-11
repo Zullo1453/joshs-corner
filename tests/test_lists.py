@@ -12,6 +12,9 @@ def test_lists_navigation_order_and_pages(client):
     assert body.index(">Hub<") < body.index(">Exercise<") < body.index(">Lists<") < body.index(">Intelligence<") < body.index(">Search<")
     assert 'href="/lists/"' in body
     assert client.get("/lists/templates").status_code == 200
+    completed = client.get("/lists/?completed=1")
+    assert completed.status_code == 200 and b"Completed lists" in completed.data
+    assert body.index("✓ My lists") < body.index("▦ Templates") < body.index("★ Completed")
 
 
 def test_lists_refined_ui_keeps_clear_buttons_and_auto_growing_fields(client):
@@ -23,6 +26,7 @@ def test_lists_refined_ui_keeps_clear_buttons_and_auto_growing_fields(client):
     javascript = client.get("/static/js/lists.js").data.decode()
     assert "resize: none" in css and ".editor-panel[open]" in css
     assert "resizeTextarea" in javascript
+    assert "list-card__open::after" in css and "align-items: center" in css
 
 
 def test_list_sections_items_completion_and_template_copy(client, app):
@@ -47,6 +51,31 @@ def test_list_sections_items_completion_and_template_copy(client, app):
         copied = db.session.scalars(select(Checklist).where(Checklist.name.like("Copy of%"))).one()
         assert copied.is_favorite is False and copied.is_archived is False
         assert copied.items[0].is_completed is False and copied.items[0].detail == "Oat milk"
+
+
+def test_lists_auto_complete_override_reopen_and_filter(client, app):
+    client.post("/lists/", data={"name": "Trip"})
+    with app.app_context():
+        list_id = db.session.scalar(select(Checklist).where(Checklist.name == "Trip")).id
+    client.post(f"/lists/{list_id}/items", data={"text": "Passport"})
+    client.post(f"/lists/{list_id}/items", data={"text": "Shoes"})
+    with app.app_context():
+        item_ids = list(db.session.scalars(select(ListItem.id).where(ListItem.checklist_id == list_id).order_by(ListItem.id)))
+    first = client.post(f"/lists/{list_id}/items/{item_ids[0]}/toggle", headers={"Accept": "application/json"})
+    assert first.json["list_completed"] is False
+    second = client.post(f"/lists/{list_id}/items/{item_ids[1]}/toggle", headers={"Accept": "application/json"})
+    assert second.json["list_completed"] is True
+    assert b"Trip" not in client.get("/lists/").data
+    assert b"Trip" in client.get("/lists/?completed=1").data
+    client.post(f"/lists/{list_id}/reopen")
+    assert b"Trip" in client.get("/lists/").data
+    client.post(f"/lists/{list_id}/items/{item_ids[0]}/toggle")
+    client.post(f"/lists/{list_id}/complete")
+    with app.app_context():
+        checklist = db.session.get(Checklist, list_id)
+        assert checklist.is_completed is True and checklist.completed_at is not None
+        assert any(not item.is_completed for item in checklist.items)
+    assert b"Reopen" in client.get("/lists/?completed=1").data
 
 
 def test_template_copies_content_without_live_link(client, app):

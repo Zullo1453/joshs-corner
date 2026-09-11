@@ -39,12 +39,13 @@ body.lists-page {
 .list-panel,.fast-add,.section-create,.template-start { padding: 1.35rem; margin: 1.25rem 0; }
 .list-panel > h2 { margin-bottom: 1rem; }
 .list-card-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(275px,1fr)); gap: 1rem; margin-top: 1rem; }
-.list-card { display: flex; min-height: 9rem; justify-content: space-between; gap: 1rem; padding: 1.25rem; transition: border-color .16s ease,transform .16s ease,box-shadow .16s ease; }
+.list-card { position: relative; display: flex; min-height: 7rem; justify-content: space-between; gap: 1rem; padding: 1rem; transition: border-color .16s ease,transform .16s ease,box-shadow .16s ease; }
 .list-card:hover { transform: translateY(-2px); border-color: #b9a9e7; box-shadow: 0 16px 36px rgba(67,52,108,.14); }
 .list-card h3 a { text-decoration: none; }
 .list-card h3 a:hover { text-decoration: underline; }
+.list-card__open::after { position: absolute; inset: 0; content: ""; }
 .list-card__title { display: flex; gap: .55rem; align-items: center; }
-.card-actions { margin-left: auto; }
+.card-actions { position: relative; z-index: 1; margin-left: auto; }
 
 .stacked-form { display: grid; gap: .8rem; }
 .inline-form,.move-row,.bulk-actions { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
@@ -69,18 +70,19 @@ body.lists-page {
 .fast-add .item-create-form { display: grid; grid-template-columns: minmax(12rem,2fr) minmax(12rem,2fr) minmax(9rem,1fr) auto; gap: .7rem; align-items: start; }
 .template-start-form { display: grid; grid-template-columns: minmax(12rem,1fr) auto; gap: .7rem; }
 .list-detail-header { align-items: center; margin-bottom: 1.25rem; }
+.list-detail-actions { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
 .list-detail-header h2 { margin-bottom: .35rem; }
 .back-link { display: inline-flex; margin-bottom: .8rem; font: 700 .9rem/1 system-ui,sans-serif; text-decoration: none; }
 
 .sections { display: grid; gap: 1rem; }
-.list-section { padding: 1.25rem; }
+.list-section { padding: 1rem; }
 .list-section > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .list-section > header h3 { margin: 0; }
-.item-list { min-height: .25rem; margin: .8rem 0 0; padding: 0; list-style: none; }
+.item-list { min-height: .25rem; margin: .5rem 0 0; padding: 0; list-style: none; }
 .item-list:empty::after { content: "No items here yet"; display: block; padding: .8rem 0 .2rem; color: #8a93a5; font: 500 .9rem/1.3 system-ui,sans-serif; }
-.list-item { display: flex; align-items: flex-start; gap: .8rem; flex-wrap: wrap; padding: .9rem 0; border-top: 1px solid #e3e6ef; }
+.list-item { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; padding: .65rem 0; border-top: 1px solid #e3e6ef; }
 .list-item:first-child { border-top: 0; }
-.list-item__copy { min-width: 0; flex: 1; padding-top: .25rem; }
+.list-item__copy { min-width: 0; flex: 1; padding-top: 0; }
 .list-item__copy strong { font: 700 1rem/1.35 system-ui,sans-serif; }
 .list-item__copy p { margin: .28rem 0 0; color: var(--lists-muted); font: 500 .92rem/1.45 system-ui,sans-serif; white-space: pre-wrap; }
 .list-item.is-completed .list-item__copy strong { color: #7b8495; text-decoration: line-through; }
@@ -119,7 +121,7 @@ body.lists-page {
   .lists-heading > div:first-child { padding-left: 58px; }
   .lists-heading,.lists-intro,.list-detail-header { align-items: stretch; flex-direction: column; }
   .lists-heading { gap: 1.15rem; margin-bottom: 1.5rem; }
-  .lists-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .lists-tabs { display: grid; grid-template-columns: repeat(3,1fr); width: 100%; }
   .lists-tabs a { min-width: 0; }
   .list-card-grid { grid-template-columns: 1fr; }
   .fast-add .item-create-form,.template-start-form,.section-create,.editor-panel .stacked-form,.section-menu .inline-form,.expandable-panel .inline-form { grid-template-columns: 1fr; }
@@ -127,4 +129,6 @@ body.lists-page {
   .editor-actions { align-items: stretch; flex-direction: column; }
   .editor-actions .move-row { width: 100%; }
   .header-menu[open] { min-width: 100%; }
+  .list-detail-actions { display: grid; grid-template-columns: 1fr; width: 100%; }
+  .list-detail-actions .button,.list-detail-actions .header-menu { width: 100%; }
 }

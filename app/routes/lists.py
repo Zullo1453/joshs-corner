@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from ..extensions import db
-from ..models import Checklist, ListItem, ListSection, ListTemplate, ListTemplateItem, ListTemplateSection
+from ..models import Checklist, ListItem, ListSection, ListTemplate, ListTemplateItem, ListTemplateSection, utc_now
 
 lists_bp = Blueprint("lists", __name__, url_prefix="/lists")
 
@@ -92,10 +92,14 @@ def _copy_list(source, name):
 @lists_bp.get("/")
 def index():
     archived = request.args.get("archived") == "1"
-    lists = db.session.scalars(select(Checklist).where(Checklist.is_archived == archived).options(selectinload(Checklist.items)).order_by(
-        Checklist.is_favorite.desc(), Checklist.sort_order, Checklist.name, Checklist.id)).all()
+    completed = request.args.get("completed") == "1" and not archived
+    filters = [Checklist.is_archived.is_(True)] if archived else [Checklist.is_archived.is_(False), Checklist.is_completed.is_(completed)]
+    order = (Checklist.completed_at.desc(), Checklist.updated_at.desc(), Checklist.id.desc()) if completed else (
+        Checklist.is_favorite.desc(), Checklist.sort_order, Checklist.name, Checklist.id)
+    lists = db.session.scalars(select(Checklist).where(*filters).options(selectinload(Checklist.items)).order_by(*order)).all()
     templates = db.session.scalars(select(ListTemplate).order_by(ListTemplate.sort_order, ListTemplate.name, ListTemplate.id)).all()
-    return render_template("lists/index.html", lists_page="lists", lists=lists, templates=templates, archived=archived)
+    page = "completed" if completed else "lists"
+    return render_template("lists/index.html", lists_page=page, lists=lists, templates=templates, archived=archived, completed=completed)
 
 
 @lists_bp.post("/")
@@ -116,7 +120,7 @@ def from_template():
 @lists_bp.get("/<int:list_id>")
 def detail(list_id):
     checklist = _list(list_id)
-    return render_template("lists/detail.html", lists_page="lists", checklist=checklist)
+    return render_template("lists/detail.html", lists_page="completed" if checklist.is_completed else "lists", checklist=checklist)
 
 
 @lists_bp.post("/<int:list_id>/edit")
@@ -142,6 +146,24 @@ def archive(list_id):
 def restore(list_id):
     checklist = _list(list_id); checklist.is_archived = False
     db.session.commit(); return redirect(url_for("lists.index", archived=1))
+
+
+@lists_bp.post("/<int:list_id>/complete")
+def complete(list_id):
+    checklist = _list(list_id)
+    checklist.is_completed = True
+    checklist.completed_at = utc_now()
+    db.session.commit(); flash("List completed. You can reopen it anytime.", "success")
+    return redirect(url_for("lists.index", completed=1))
+
+
+@lists_bp.post("/<int:list_id>/reopen")
+def reopen(list_id):
+    checklist = _list(list_id)
+    checklist.is_completed = False
+    checklist.completed_at = None
+    db.session.commit(); flash("List moved back to My lists.", "success")
+    return redirect(url_for("lists.detail", list_id=list_id))
 
 
 @lists_bp.post("/<int:list_id>/delete")
@@ -197,6 +219,7 @@ def add_item(list_id):
     if section_id and not any(section.id == section_id for section in checklist.sections): abort(400)
     siblings = [item for item in checklist.items if item.section_id == section_id and not item.is_completed]
     item = ListItem(checklist_id=list_id, section_id=section_id, text=_text("text", 500), detail=_detail(), sort_order=_next(siblings))
+    checklist.is_completed = False; checklist.completed_at = None
     db.session.add(item); db.session.commit()
     if request.accept_mimetypes.best == "application/json":
         return jsonify(id=item.id, text=item.text, detail=item.detail, section_id=item.section_id)
@@ -218,8 +241,13 @@ def edit_item(list_id, item_id):
 @lists_bp.post("/<int:list_id>/items/<int:item_id>/toggle")
 def toggle_item(list_id, item_id):
     item = _item_for_list(list_id, item_id); item.is_completed = not item.is_completed
+    checklist = _list(list_id)
+    if not item.is_completed:
+        checklist.is_completed = False; checklist.completed_at = None
+    elif checklist.items and all(entry.is_completed for entry in checklist.items):
+        checklist.is_completed = True; checklist.completed_at = utc_now()
     db.session.commit()
-    if request.accept_mimetypes.best == "application/json": return jsonify(id=item.id, completed=item.is_completed, section_id=item.section_id)
+    if request.accept_mimetypes.best == "application/json": return jsonify(id=item.id, completed=item.is_completed, section_id=item.section_id, list_completed=checklist.is_completed)
     return redirect(url_for("lists.detail", list_id=list_id, _anchor=f"list-item-{item_id}"))
 
 
@@ -248,13 +276,17 @@ def clear_completed(list_id):
 def reset_completed(list_id):
     checklist = _list(list_id)
     for item in checklist.items: item.is_completed = False
+    checklist.is_completed = False; checklist.completed_at = None
     db.session.commit(); return redirect(url_for("lists.detail", list_id=list_id))
 
 
 @lists_bp.post("/<int:list_id>/mark-all")
 def mark_all(list_id):
     checklist = _list(list_id)
-    for item in checklist.items: item.is_completed = request.form.get("completed") == "yes"
+    completed = request.form.get("completed") == "yes"
+    for item in checklist.items: item.is_completed = completed
+    checklist.is_completed = completed and bool(checklist.items)
+    checklist.completed_at = utc_now() if checklist.is_completed else None
     db.session.commit(); return redirect(url_for("lists.detail", list_id=list_id))
 
 

@@ -314,6 +314,8 @@ class Checklist(TimestampMixin, db.Model):
     description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     sections: Mapped[list["ListSection"]] = relationship(
         back_populates="checklist", cascade="all, delete-orphan", order_by="ListSection.sort_order"
