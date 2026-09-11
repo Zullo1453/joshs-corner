@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from .attachments import configured_upload_root
 from .backup import MONTHLY_PACKAGE_LIMIT, ROLLING_PACKAGE_LIMIT
 from .extensions import db
-from .models import Deadline, Exercise, ExerciseSet, GameJournal, JournalEntry, Note, Project, ReadingItem, Run, RunRoute, Todo, UpcomingEvent, WatchlistItem, WorkoutSession, WorkoutTemplate
+from .models import Checklist, Deadline, Exercise, ExerciseSet, GameJournal, JournalEntry, ListItem, ListTemplate, Note, Project, ReadingItem, Run, RunRoute, Todo, UpcomingEvent, WatchlistItem, WorkoutSession, WorkoutTemplate
 
 
 UNITS = ("KB", "MB", "GB")
@@ -18,6 +18,7 @@ COUNT_MODELS = (
     ("Watchlist items", WatchlistItem), ("Reading List items", ReadingItem), ("Exercises", Exercise),
     ("Strength workouts", WorkoutSession), ("Exercise sets", ExerciseSet), ("Runs", Run),
     ("Run routes", RunRoute), ("Workout templates", WorkoutTemplate),
+    ("Lists", Checklist), ("List items", ListItem), ("List templates", ListTemplate),
 )
 
 

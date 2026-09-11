@@ -88,6 +88,12 @@ PostgreSQL connectivity, migrations, CRUD, constraints, transactions, and Search
 parity remain explicitly pending. See `docs/postgresql-stage-2a.md` for the audit
 and `docs/supabase-stage-2b-setup.md` for Josh's exact next steps.
 
+Lists is included in the portable local schema and remains owned by the existing future Online work; it does not begin cloud execution.
+
+REAL POSTGRES EXECUTION PENDING STAGE 2B
+
+Next stage: Online Stage 2B — Disposable Supabase/PostgreSQL Compatibility Environment
+
 Stage 2B is database validation against a Josh-approved disposable Supabase
 staging project. Supabase Auth, ownership fields, profiles, RLS, cloud Storage,
 Vercel, deployment, and user-data migration are separate later stages. Likely

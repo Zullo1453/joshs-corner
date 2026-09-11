@@ -33,11 +33,14 @@
           <a href="{{ url_for('home.index') }}"{% if current_section == 'hub' %} class="is-active" aria-current="page"{% endif %}>
             <span class="application-nav__icon application-nav__hub-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 10 8.5-6.5 8.5 6.5v10.5H3.5Z"/><path d="M6.3 11.5h11.4v4.1H6.3zM12 11.5v4.1"/></svg></span><span>Hub</span>
           </a>
-          <a href="{{ url_for('automations.overview') }}"{% if current_section == 'automations' %} class="is-active" aria-current="page"{% endif %}>
-            <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__radar"><i></i></span></span><span>Intelligence</span>
-          </a>
           <a href="{{ url_for('gym.today') }}"{% if current_section == 'gym' %} class="is-active" aria-current="page"{% endif %}>
             <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__dumbbell"><i></i></span></span><span>Exercise</span>
+          </a>
+          <a href="{{ url_for('lists.index') }}"{% if current_section == 'lists' %} class="is-active" aria-current="page"{% endif %}>
+            <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__checklist"><i></i></span></span><span>Lists</span>
+          </a>
+          <a href="{{ url_for('automations.overview') }}"{% if current_section == 'automations' %} class="is-active" aria-current="page"{% endif %}>
+            <span class="application-nav__icon" aria-hidden="true"><span class="application-nav__radar"><i></i></span></span><span>Intelligence</span>
           </a>
           <span class="application-nav__future" aria-label="Future sections"><span aria-hidden="true">…</span><span>Future sections</span></span>
         </nav>

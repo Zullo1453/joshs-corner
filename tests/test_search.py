@@ -12,7 +12,7 @@ from app.models import (
     Deadline, Exercise, GameJournal, GamePlayEntry, JournalEntry, Note, Project,
     ReadingItem, RecurrenceRule, TaskOccurrence, Todo, UpcomingEvent, WatchlistItem,
 )
-from app.search import UniversalSearchService, normalize_query, plain_text, matching_snippet
+from app.search import SOURCES, UniversalSearchService, normalize_query, plain_text, matching_snippet
 
 DAY = date(2026, 9, 2)
 
@@ -254,7 +254,7 @@ def test_only_selects_and_bounded_query_count(client, app):
             search(client, "public economics")
         finally:
             event.remove(db.engine, "before_cursor_execute", capture)
-    assert len(statements) == 13
+    assert len(statements) == len(SOURCES)
     assert all(statement.lstrip().startswith("SELECT") for statement in statements)
 
 

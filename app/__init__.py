@@ -135,6 +135,7 @@ def create_app(test_config=None):
     from .routes.deadlines import deadlines_bp
     from .routes.upcoming import upcoming_bp
     from .routes.search import search_bp
+    from .routes.lists import lists_bp
 
     for blueprint in (
         home_bp,
@@ -151,6 +152,7 @@ def create_app(test_config=None):
         deadlines_bp,
         upcoming_bp,
         search_bp,
+        lists_bp,
     ):
         app.register_blueprint(blueprint)
 
@@ -158,11 +160,12 @@ def create_app(test_config=None):
     def application_section_context():
         """Expose one canonical top-level section to every page template."""
         current_section = (
-            "gym" if request.blueprint in ("gym", "exercise") else "automations" if request.blueprint == "automations" else "hub"
+            "gym" if request.blueprint in ("gym", "exercise") else "lists" if request.blueprint == "lists" else "automations" if request.blueprint == "automations" else "hub"
         )
         home_endpoint = {
             "gym": "gym.today",
             "automations": "automations.overview",
+            "lists": "lists.index",
             "hub": "home.index",
         }[current_section]
         return {
@@ -171,6 +174,7 @@ def create_app(test_config=None):
             "section_home_label": {
                 "gym": "Exercise Today",
                 "automations": "Intelligence home",
+                "lists": "Lists home",
                 "hub": "Hub home",
             }[current_section],
         }

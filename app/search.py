@@ -16,8 +16,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .extensions import db
 from .models import (
-    Deadline, Exercise, GameJournal, GamePlayEntry, JournalEntry, Note, Project,
-    ReadingItem, RecurrenceRule, Todo, UpcomingEvent, WatchlistItem, RunRoute,
+    Checklist, Deadline, Exercise, GameJournal, GamePlayEntry, JournalEntry, ListItem,
+    ListTemplate, Note, Project, ReadingItem, RecurrenceRule, RunRoute, Todo,
+    UpcomingEvent, WatchlistItem,
 )
 from .note_content import rich_text_preview
 
@@ -93,6 +94,9 @@ SOURCES = (
     Source("Reading", ReadingItem, ReadingItem.title, ("format", "book_type"), ("notes",)),
     Source("Exercise", Exercise, Exercise.name, ("body_part",)),
     Source("Run route", RunRoute, RunRoute.name),
+    Source("List", Checklist, Checklist.name, ("description",)),
+    Source("List item", ListItem, ListItem.text, ("detail",)),
+    Source("List template", ListTemplate, ListTemplate.name, ("description",)),
 )
 
 
@@ -150,10 +154,19 @@ class SQLiteSearchAdapter(SearchQueryAdapter):
             (and_(*(contains(combined, term) for term in terms)), 100),
             else_=0,
         )
-        statement = select(model.__table__, score.label("search_score")).where(score > 0)
+        rank_score = score
+        if source.kind == "List":
+            rank_score = score + case((model.is_archived, -16), else_=0)
+        if source.kind == "List item":
+            rank_score = score + case((model.is_completed, -8), else_=0) + case((Checklist.is_archived, -16), else_=0)
+        statement = select(model.__table__, rank_score.label("search_score")).where(score > 0)
         if source.kind == "Play log":
             statement = statement.join(GameJournal, GameJournal.id == model.game_id).add_columns(
                 GameJournal.title.label("game_title"), GameJournal.status.label("game_status"),
+            )
+        if source.kind == "List item":
+            statement = statement.join(Checklist, Checklist.id == model.checklist_id).add_columns(
+                Checklist.name.label("checklist_name"), Checklist.is_archived.label("checklist_archived"),
             )
         # Future authenticated owner filtering remains centralized here.
         statement = service.scope_statement(statement, source)
@@ -164,7 +177,7 @@ class SQLiteSearchAdapter(SearchQueryAdapter):
             return select(ranked).where(ranked.c.game_rank == 1).order_by(
                 ranked.c.search_score.desc(), ranked.c.updated_at.desc(), ranked.c.id,
             ).limit(RESULT_LIMIT)
-        return statement.order_by(score.desc(), model.updated_at.desc(), model.id).limit(RESULT_LIMIT)
+        return statement.order_by(rank_score.desc(), model.updated_at.desc(), model.id).limit(RESULT_LIMIT)
 
 class PostgresSearchAdapter(SearchQueryAdapter):
     """PostgreSQL expressions matching the established deterministic ranking."""
@@ -222,10 +235,19 @@ class PostgresSearchAdapter(SearchQueryAdapter):
             (and_(*(contains(combined, term) for term in terms)), 100),
             else_=0,
         )
-        statement = select(model.__table__, score.label("search_score")).where(score > 0)
+        rank_score = score
+        if source.kind == "List":
+            rank_score = score + case((model.is_archived, -16), else_=0)
+        if source.kind == "List item":
+            rank_score = score + case((model.is_completed, -8), else_=0) + case((Checklist.is_archived, -16), else_=0)
+        statement = select(model.__table__, rank_score.label("search_score")).where(score > 0)
         if source.kind == "Play log":
             statement = statement.join(GameJournal, GameJournal.id == model.game_id).add_columns(
                 GameJournal.title.label("game_title"), GameJournal.status.label("game_status"),
+            )
+        if source.kind == "List item":
+            statement = statement.join(Checklist, Checklist.id == model.checklist_id).add_columns(
+                Checklist.name.label("checklist_name"), Checklist.is_archived.label("checklist_archived"),
             )
         statement = service.scope_statement(statement, source)
         if source.kind == "Play log":
@@ -237,7 +259,7 @@ class PostgresSearchAdapter(SearchQueryAdapter):
                 ranked.c.search_score.desc(), ranked.c.updated_at.desc(), ranked.c.id,
             ).limit(RESULT_LIMIT)
         return statement.order_by(
-            score.desc(), model.updated_at.desc(), model.id
+            rank_score.desc(), model.updated_at.desc(), model.id
         ).limit(RESULT_LIMIT)
 
 class UniversalSearchService:
@@ -352,6 +374,20 @@ class UniversalSearchService:
         elif kind == "Run route":
             url = url_for("exercise.route_detail", route_id=identifier)
             kind = "Exercise · Run route"
+        elif kind == "List":
+            status = "Archived" if row["is_archived"] else ""
+            url = url_for("lists.detail", list_id=identifier)
+        elif kind == "List item":
+            status = "Archived" if row["checklist_archived"] else ("Completed" if row["is_completed"] else "")
+            kind = "List item"
+            title = row["text"]
+            url = url_for("lists.detail", list_id=row["checklist_id"], _anchor=f"list-item-{identifier}")
+            subtitle = " · ".join(part for part in (kind, row["checklist_name"], status) if part)
+            return SearchResult(kind, identifier, title, subtitle, matching_snippet(body, query), status,
+                                row["search_score"], url, "", row["updated_at"].isoformat())
+        elif kind == "List template":
+            kind = "List template"
+            url = url_for("lists.template_detail", template_id=identifier)
         else:
             status = "" if row["active"] else "Archived"
             url = url_for("gym.exercise_detail", exercise_id=identifier)

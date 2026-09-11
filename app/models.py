@@ -304,6 +304,89 @@ class CurrencyPair(TimestampMixin, db.Model):
         return value
 
 
+# "list" is intentionally avoided as a table name: checklists stays clear and
+# portable across SQLite and PostgreSQL while the product remains called Lists.
+class Checklist(TimestampMixin, db.Model):
+    __tablename__ = "checklists"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    sections: Mapped[list["ListSection"]] = relationship(
+        back_populates="checklist", cascade="all, delete-orphan", order_by="ListSection.sort_order"
+    )
+    items: Mapped[list["ListItem"]] = relationship(
+        back_populates="checklist", cascade="all, delete-orphan", order_by="ListItem.sort_order"
+    )
+
+
+class ListSection(TimestampMixin, db.Model):
+    __tablename__ = "list_sections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    checklist_id: Mapped[int] = mapped_column(ForeignKey("checklists.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    checklist: Mapped[Checklist] = relationship(back_populates="sections")
+    items: Mapped[list["ListItem"]] = relationship(back_populates="section")
+
+
+class ListItem(TimestampMixin, db.Model):
+    __tablename__ = "list_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    checklist_id: Mapped[int] = mapped_column(ForeignKey("checklists.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_id: Mapped[int | None] = mapped_column(ForeignKey("list_sections.id", ondelete="SET NULL"), index=True)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    detail: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    checklist: Mapped[Checklist] = relationship(back_populates="items")
+    section: Mapped[ListSection | None] = relationship(back_populates="items")
+
+
+class ListTemplate(TimestampMixin, db.Model):
+    __tablename__ = "list_templates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    sections: Mapped[list["ListTemplateSection"]] = relationship(
+        back_populates="template", cascade="all, delete-orphan", order_by="ListTemplateSection.sort_order"
+    )
+    items: Mapped[list["ListTemplateItem"]] = relationship(
+        back_populates="template", cascade="all, delete-orphan", order_by="ListTemplateItem.sort_order"
+    )
+
+
+class ListTemplateSection(TimestampMixin, db.Model):
+    __tablename__ = "list_template_sections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    template_id: Mapped[int] = mapped_column(ForeignKey("list_templates.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    template: Mapped[ListTemplate] = relationship(back_populates="sections")
+    items: Mapped[list["ListTemplateItem"]] = relationship(back_populates="section")
+
+
+class ListTemplateItem(TimestampMixin, db.Model):
+    __tablename__ = "list_template_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    template_id: Mapped[int] = mapped_column(ForeignKey("list_templates.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_id: Mapped[int | None] = mapped_column(ForeignKey("list_template_sections.id", ondelete="SET NULL"), index=True)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    detail: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    template: Mapped[ListTemplate] = relationship(back_populates="items")
+    section: Mapped[ListTemplateSection | None] = relationship(back_populates="items")
+
+
 BODY_PARTS = ("Chest", "Back", "Shoulders", "Biceps", "Triceps", "Legs", "Core", "Other")
 
 
