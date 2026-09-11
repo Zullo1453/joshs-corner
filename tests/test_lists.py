@@ -14,6 +14,17 @@ def test_lists_navigation_order_and_pages(client):
     assert client.get("/lists/templates").status_code == 200
 
 
+def test_lists_refined_ui_keeps_clear_buttons_and_auto_growing_fields(client):
+    overview = client.get("/lists/").data.decode()
+    assert "Create a new list" in overview
+    assert "View archived lists" in overview
+    assert "✓ My lists" in overview and "▦ Templates" in overview
+    css = client.get("/static/css/lists.css").data.decode()
+    javascript = client.get("/static/js/lists.js").data.decode()
+    assert "resize: none" in css and ".editor-panel[open]" in css
+    assert "resizeTextarea" in javascript
+
+
 def test_list_sections_items_completion_and_template_copy(client, app):
     created = client.post("/lists/", data={"name": "Groceries", "description": "Fresh food"})
     assert created.status_code == 302
@@ -45,6 +56,8 @@ def test_template_copies_content_without_live_link(client, app):
     client.post(f"/lists/templates/{template_id}/sections", data={"name": "Kitchen"})
     with app.app_context(): section = db.session.scalar(select(ListTemplateSection)); section_id = section.id
     client.post(f"/lists/templates/{template_id}/items", data={"text": "Mug", "detail": "Metal", "section_id": section_id})
+    page = client.get(f"/lists/templates/{template_id}")
+    assert b"Use this template" in page.data and b"Edit section" in page.data and b"Save changes" in page.data
     created = client.post(f"/lists/templates/{template_id}/to-list", data={"name": "Blue Mountains"})
     assert created.status_code == 302
     with app.app_context():

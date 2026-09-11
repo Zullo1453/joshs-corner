@@ -3,7 +3,13 @@
 {% block body_class %}lists-page{% endblock %}
 {% block body %}
 <main class="lists-shell">
-  <header class="lists-heading"><div><p class="eyebrow">Josh's Corner</p><h1>Lists</h1></div><nav class="lists-tabs" aria-label="Lists views"><a href="{{ url_for('lists.index') }}"{% if lists_page == 'lists' %} aria-current="page"{% endif %}>My lists</a><a href="{{ url_for('lists.templates') }}"{% if lists_page == 'templates' %} aria-current="page"{% endif %}>Templates</a></nav></header>
+  <header class="lists-heading">
+    <div><p class="eyebrow">Josh's Corner</p><h1>Lists</h1></div>
+    <nav class="lists-tabs" aria-label="Lists views">
+      <a href="{{ url_for('lists.index') }}"{% if lists_page == 'lists' %} aria-current="page"{% endif %}>✓ My lists</a>
+      <a href="{{ url_for('lists.templates') }}"{% if lists_page == 'templates' %} aria-current="page"{% endif %}>▦ Templates</a>
+    </nav>
+  </header>
   {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="lists-flash {{ category }}">{{ message }}</p>{% endfor %}{% endwith %}
   {% block lists_content %}{% endblock %}
 </main>

@@ -1,5 +1,18 @@
 <li class="list-item{% if item.is_completed %} is-completed{% endif %}" id="list-item-{{ item.id }}" data-list-item data-section-id="{{ item.section_id or '' }}">
-  <form method="post" action="{{ url_for('lists.toggle_item', list_id=checklist.id, item_id=item.id) }}" data-list-toggle><button class="check-button" aria-label="{{ 'Mark incomplete' if item.is_completed else 'Mark complete' }}">{{ '✓' if item.is_completed else '' }}</button></form>
+  <form method="post" action="{{ url_for('lists.toggle_item', list_id=checklist.id, item_id=item.id) }}" data-list-toggle>
+    <button class="check-button" aria-label="{{ 'Mark incomplete' if item.is_completed else 'Mark complete' }}">{{ '✓' if item.is_completed else '' }}</button>
+  </form>
   <div class="list-item__copy"><strong>{{ item.text }}</strong>{% if item.detail %}<p>{{ item.detail }}</p>{% endif %}</div>
-  <details class="item-menu"><summary aria-label="Item actions">•••</summary><form method="post" action="{{ url_for('lists.edit_item', list_id=checklist.id, item_id=item.id) }}" class="stacked-form"><input name="text" value="{{ item.text }}" maxlength="500" required><textarea name="detail" maxlength="5000">{{ item.detail }}</textarea><button class="button secondary">Save item</button></form><div class="move-row">{% for action, label in [('top','Top'),('up','Up'),('down','Down'),('bottom','Bottom')] %}<form method="post" action="{{ url_for('lists.move_item', list_id=checklist.id, item_id=item.id) }}"><button name="action" value="{{ action }}" class="link-button">{{ label }}</button></form>{% endfor %}</div><form method="post" action="{{ url_for('lists.delete_item', list_id=checklist.id, item_id=item.id) }}"><input type="hidden" name="confirm" value="yes"><button class="link-button danger">Delete item</button></form></details>
+  <details class="item-menu editor-panel">
+    <summary class="action-button small">Edit</summary>
+    <form method="post" action="{{ url_for('lists.edit_item', list_id=checklist.id, item_id=item.id) }}" class="stacked-form">
+      <div class="field-group"><label for="item-{{ item.id }}-name">Item</label><input id="item-{{ item.id }}-name" name="text" value="{{ item.text }}" maxlength="500" required></div>
+      <div class="field-group"><label for="item-{{ item.id }}-detail">Details <span class="muted">(optional)</span></label><textarea id="item-{{ item.id }}-detail" name="detail" maxlength="5000" rows="1">{{ item.detail }}</textarea></div>
+      <button class="button secondary">Save changes</button>
+    </form>
+    <div class="editor-actions">
+      <div class="move-row" aria-label="Move item">{% for action, label in [('top','⇈ Top'),('up','↑ Up'),('down','↓ Down'),('bottom','⇊ Bottom')] %}<form method="post" action="{{ url_for('lists.move_item', list_id=checklist.id, item_id=item.id) }}"><button name="action" value="{{ action }}" class="link-button">{{ label }}</button></form>{% endfor %}</div>
+      <form method="post" action="{{ url_for('lists.delete_item', list_id=checklist.id, item_id=item.id) }}" onsubmit="return confirm('Permanently delete this item?')"><input type="hidden" name="confirm" value="yes"><button class="link-button danger">Delete item</button></form>
+    </div>
+  </details>
 </li>
