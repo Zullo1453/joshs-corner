@@ -74,19 +74,26 @@ completion, history, aggregation, and uniqueness behaviour. Exercise session,
 set-numbering, ordering, and autosave also remain unchanged. Stage 2/3 must add
 idempotent conflict handling before simultaneous devices are supported.
 
-## Stage 2 starting point
+## Stage 2A result
 
-Use a disposable Supabase/PostgreSQL compatibility project to add and test:
+Online Stage 2A now provides Psycopg 3 URL normalisation, dialect-separated
+serverless engine settings, native PostgreSQL Boolean defaults, a database-side
+`PostgresSearchAdapter`, a shared future ownership hook, savepoint-protected
+recurrence generation, PostgreSQL model/search compilation tests, and a complete
+offline PostgreSQL migration rendering from zero through head. SQLite remains
+the default and its full regression suite remains mandatory.
 
-1. a serverless-safe SQLAlchemy PostgreSQL connection and migration workflow;
-2. a Search adapter with SQLite output/ranking parity;
-3. single-user Supabase Auth, ownership fields, RLS, and multi-user-ready tests;
-4. Supabase Storage plus signed/direct upload handling.
+No PostgreSQL service, Docker, or Podman was available locally, so executed
+PostgreSQL connectivity, migrations, CRUD, constraints, transactions, and Search
+parity remain explicitly pending. See `docs/postgresql-stage-2a.md` for the audit
+and `docs/supabase-stage-2b-setup.md` for Josh's exact next steps.
 
-That work requires Josh to create or approve the Supabase project and provide
-server-side configuration. Likely future configuration categories are
-`DATABASE_URL`, a Flask production secret, Supabase URL, browser-safe Supabase
-configuration, server-only Supabase credentials, storage configuration, and a
-deployment version. Browser-safe values are not server secrets. A Supabase
-service-role/admin credential must never appear in browser JavaScript, HTML,
-static assets, a PWA manifest, or any frontend environment bundle.
+Stage 2B is database validation against a Josh-approved disposable Supabase
+staging project. Supabase Auth, ownership fields, profiles, RLS, cloud Storage,
+Vercel, deployment, and user-data migration are separate later stages. Likely
+future configuration categories remain `DATABASE_URL`, a Flask production
+secret, Supabase URL, browser-safe Supabase configuration, server-only Supabase
+credentials where unavoidable, storage configuration, and a deployment version.
+Browser-safe values are not server secrets. A Supabase service-role/admin
+credential must never appear in browser JavaScript, HTML, static assets, a PWA
+manifest, or any frontend environment bundle.

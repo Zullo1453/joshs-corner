@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 LOCAL_DATABASE_FILENAME = "joshs_corner.db"
@@ -27,7 +28,32 @@ def configured_database_uri(instance_path: str | Path, environ=None) -> str:
     database connection. Stage 1 continues to use SQLite by default.
     """
     environment = os.environ if environ is None else environ
-    return environment.get("DATABASE_URL") or local_database_uri(instance_path)
+    configured = environment.get("DATABASE_URL")
+    return normalize_database_uri(configured) if configured else local_database_uri(instance_path)
+
+
+def normalize_database_uri(uri: str) -> str:
+    """Select Psycopg 3 for common provider PostgreSQL URL forms."""
+    value = uri.strip()
+    if value.startswith("postgres://"):
+        return "postgresql+psycopg://" + value.removeprefix("postgres://")
+    if value.startswith("postgresql://"):
+        return "postgresql+psycopg://" + value.removeprefix("postgresql://")
+    return value
+
+
+def database_engine_options(uri: str) -> dict:
+    """Return dialect-safe engine settings without opening a connection."""
+    backend = urlsplit(uri).scheme.split("+", 1)[0]
+    if backend == "postgresql":
+        return {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 1,
+            "max_overflow": 0,
+            "connect_args": {"prepare_threshold": None},
+        }
+    return {}
 
 
 @dataclass(frozen=True)

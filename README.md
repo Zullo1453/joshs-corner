@@ -109,7 +109,7 @@ Stage 3D adds a read-only local Health page. It checks SQLite integrity, foreign
    python -m compileall app scripts
    ```
 
-The project currently has **198 automated tests**. A clone starts without any personal database, uploads, backups, or local settings.
+The project currently has **402 automated test cases**. A clone starts without any personal database, uploads, backups, or local settings.
 
 ## Local operations
 

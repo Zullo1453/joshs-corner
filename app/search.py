@@ -1,7 +1,7 @@
-"""Read-only, bounded universal search over the existing SQLite tables.
+"""Read-only, bounded universal search over supported database tables.
 
 No index, triggers, cached records, ownership assumptions, or persistent queries.
-A request-local SQLite function provides Unicode/plain-text matching in SQL.
+Dialect adapters keep candidate matching and ranking in the database.
 """
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -11,7 +11,7 @@ import re
 import unicodedata
 
 from flask import current_app, url_for
-from sqlalchemy import and_, case, func, literal, select
+from sqlalchemy import Text, and_, case, cast, func, literal, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from .extensions import db
@@ -166,6 +166,79 @@ class SQLiteSearchAdapter(SearchQueryAdapter):
             ).limit(RESULT_LIMIT)
         return statement.order_by(score.desc(), model.updated_at.desc(), model.id).limit(RESULT_LIMIT)
 
+class PostgresSearchAdapter(SearchQueryAdapter):
+    """PostgreSQL expressions matching the established deterministic ranking."""
+
+    _FULLWIDTH = "０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ"
+    _ASCII = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+    @contextmanager
+    def connection(self):
+        with db.engine.connect() as connection:
+            if connection.dialect.name != "postgresql":
+                raise RuntimeError("PostgreSQL universal search cannot run on this database dialect.")
+            yield connection
+
+    def _plain(self, expression, rich=False):
+        value = func.coalesce(cast(expression, Text), literal(""))
+        if rich:
+            # Removing complete tags keeps attributes and attachment paths out
+            # of Search while retaining the stored, sanitised visible text.
+            value = func.regexp_replace(value, literal("<[^>]*>"), literal(" "), literal("g"))
+            for entity, decoded in (
+                ("&nbsp;", " "), ("&amp;", "&"), ("&lt;", "<"),
+                ("&gt;", ">"), ("&quot;", '"'), ("&#x27;", "'"), ("&#39;", "'"),
+            ):
+                value = func.replace(value, entity, decoded)
+        value = func.translate(value, self._FULLWIDTH, self._ASCII)
+        value = func.replace(func.lower(value), literal("ß"), literal("ss"))
+        return func.btrim(func.regexp_replace(
+            value, literal("[^[:alnum:]]+"), literal(" "), literal("g")
+        ))
+
+    def statement(self, service, source, query, terms):
+        model = source.model
+        raw_title = (
+            func.to_char(
+                source.title,
+                literal("YYYY-MM-DD FMDay DD FMMonth YYYY DD Mon YYYY DD/MM/YYYY"),
+            )
+            if source.kind == "Journal" else source.title
+        )
+        title = self._plain(raw_title)
+        body = literal("")
+        for name in source.fields + source.rich_fields:
+            body = body + literal(" ") + self._plain(
+                getattr(model, name), name in source.rich_fields
+            )
+        combined = title + literal(" ") + body
+        contains = lambda text, value: func.strpos(text, value) > 0
+        score = case(
+            (title == query, 600),
+            (func.left(title, len(query)) == query, 500),
+            (contains(title, query), 400),
+            (and_(*(contains(title, term) for term in terms)), 300),
+            (contains(body, query), 200),
+            (and_(*(contains(combined, term) for term in terms)), 100),
+            else_=0,
+        )
+        statement = select(model.__table__, score.label("search_score")).where(score > 0)
+        if source.kind == "Play log":
+            statement = statement.join(GameJournal, GameJournal.id == model.game_id).add_columns(
+                GameJournal.title.label("game_title"), GameJournal.status.label("game_status"),
+            )
+        statement = service.scope_statement(statement, source)
+        if source.kind == "Play log":
+            ranked = statement.add_columns(func.row_number().over(
+                partition_by=model.game_id,
+                order_by=(score.desc(), model.updated_at.desc(), model.id),
+            ).label("game_rank")).subquery()
+            return select(ranked).where(ranked.c.game_rank == 1).order_by(
+                ranked.c.search_score.desc(), ranked.c.updated_at.desc(), ranked.c.id,
+            ).limit(RESULT_LIMIT)
+        return statement.order_by(
+            score.desc(), model.updated_at.desc(), model.id
+        ).limit(RESULT_LIMIT)
 
 class UniversalSearchService:
     def search(self, query):
@@ -207,6 +280,8 @@ class UniversalSearchService:
     def _adapter(self):
         if db.engine.dialect.name == "sqlite":
             return SQLiteSearchAdapter()
+        if db.engine.dialect.name == "postgresql":
+            return PostgresSearchAdapter()
         raise RuntimeError("Universal Search has no adapter for the active database dialect.")
 
     def _statement(self, source, query, terms):

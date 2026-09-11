@@ -20,7 +20,7 @@ def upgrade():
         sa.Column("latitude", sa.Float(), nullable=False), sa.Column("longitude", sa.Float(), nullable=False),
         sa.Column("timezone", sa.String(length=64), nullable=False), sa.Column("country_code", sa.String(length=8), server_default="", nullable=False),
         sa.Column("admin_area", sa.String(length=120), server_default="", nullable=False), sa.Column("sort_order", sa.Integer(), server_default="0", nullable=False),
-        sa.Column("active", sa.Boolean(), server_default="1", nullable=False), sa.Column("last_refreshed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("active", sa.Boolean(), server_default=sa.true(), nullable=False), sa.Column("last_refreshed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("cached_weather_json", sa.Text(), server_default="", nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"), sa.UniqueConstraint("display_name", "latitude", "longitude", name="weather_location_identity"),
     )

@@ -18,7 +18,7 @@ def upgrade():
         "currency_pair",
         sa.Column("id", sa.Integer(), nullable=False), sa.Column("base_currency", sa.String(length=3), nullable=False),
         sa.Column("quote_currency", sa.String(length=3), nullable=False), sa.Column("display_name", sa.String(length=120), server_default="", nullable=False),
-        sa.Column("sort_order", sa.Integer(), server_default="0", nullable=False), sa.Column("active", sa.Boolean(), server_default="1", nullable=False),
+        sa.Column("sort_order", sa.Integer(), server_default="0", nullable=False), sa.Column("active", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.Column("last_refreshed_at", sa.DateTime(timezone=True), nullable=True), sa.Column("cached_rates_json", sa.Text(), server_default="", nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("base_currency <> quote_currency", name="currency_pair_distinct"), sa.PrimaryKeyConstraint("id"),

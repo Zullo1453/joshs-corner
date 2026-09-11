@@ -16,7 +16,7 @@ def timestamps():
 
 
 def upgrade():
-    op.add_column("exercise", sa.Column("is_favorite", sa.Boolean(), server_default="0", nullable=False))
+    op.add_column("exercise", sa.Column("is_favorite", sa.Boolean(), server_default=sa.false(), nullable=False))
     op.create_table("workout_template",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("name", sa.String(160), nullable=False), *timestamps())

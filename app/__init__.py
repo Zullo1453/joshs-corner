@@ -5,15 +5,17 @@ from pathlib import Path
 from flask import Flask, request, url_for
 
 from .extensions import csrf, db, migrate
-from .runtime import RuntimePaths, configured_database_uri
+from .runtime import RuntimePaths, configured_database_uri, database_engine_options
 
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     paths = RuntimePaths.for_project(Path(app.root_path).parent)
+    database_uri = configured_database_uri(app.instance_path)
     app.config.from_mapping(
-        SECRET_KEY="local-development-only",
-        SQLALCHEMY_DATABASE_URI=configured_database_uri(app.instance_path),
+        SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "local-development-only"),
+        SQLALCHEMY_DATABASE_URI=database_uri,
+        SQLALCHEMY_ENGINE_OPTIONS=database_engine_options(database_uri),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         WTF_CSRF_TIME_LIMIT=None,
         BACKUP_SECONDARY_DIR=os.environ.get("JOSHS_CORNER_BACKUP_SECONDARY_DIR"),
@@ -23,6 +25,10 @@ def create_app(test_config=None):
         app.config.update(test_config)
     else:
         app.config.from_pyfile("local_config.py", silent=True)
+
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = database_engine_options(
+        app.config["SQLALCHEMY_DATABASE_URI"]
+    )
 
     app.config["RUNTIME_PATHS"] = paths
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)

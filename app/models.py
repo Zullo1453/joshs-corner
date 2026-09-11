@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text, Time, UniqueConstraint, false, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from .extensions import db
@@ -44,7 +44,7 @@ class Todo(TimestampMixin, db.Model):
     original_date: Mapped[date | None] = mapped_column(Date)
     carried_from_date: Mapped[date | None] = mapped_column(Date)
     carry_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    rollover_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
+    rollover_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"), index=True)
     project: Mapped["Project | None"] = relationship(back_populates="tasks")
@@ -61,8 +61,8 @@ class RecurrenceRule(TimestampMixin, db.Model):
     day_of_month: Mapped[int | None] = mapped_column(Integer)
     start_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     end_date: Mapped[date | None] = mapped_column(Date, index=True)
-    rollover_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    rollover_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False, index=True)
     occurrences: Mapped[list["TaskOccurrence"]] = relationship(back_populates="rule", cascade="all, delete-orphan")
 
 
@@ -274,7 +274,7 @@ class WeatherLocation(TimestampMixin, db.Model):
     country_code: Mapped[str] = mapped_column(String(8), default="", server_default="", nullable=False)
     admin_area: Mapped[str] = mapped_column(String(120), default="", server_default="", nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False, index=True)
     last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cached_weather_json: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
 
@@ -292,7 +292,7 @@ class CurrencyPair(TimestampMixin, db.Model):
     quote_currency: Mapped[str] = mapped_column(String(3), nullable=False)
     display_name: Mapped[str] = mapped_column(String(120), default="", server_default="", nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False, index=True)
     last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cached_rates_json: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
 
@@ -319,11 +319,11 @@ class Exercise(TimestampMixin, db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
-    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     tracking_type: Mapped[str] = mapped_column(String(12), default="reps", server_default="reps", nullable=False)
     body_part: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False, index=True)
     workout_exercises: Mapped[list["WorkoutExercise"]] = relationship(back_populates="exercise")
 
     @validates("body_part")
@@ -443,7 +443,7 @@ class Deadline(TimestampMixin, db.Model):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
-    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False, index=True)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False, index=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     source_journal_entry_id: Mapped[int | None] = mapped_column(
         ForeignKey("journal_entry.id", ondelete="SET NULL"), index=True

@@ -20,7 +20,7 @@ def upgrade():
         sa.Column("title", sa.String(length=200), nullable=False),
         sa.Column("description", sa.Text(), server_default="", nullable=False),
         sa.Column("due_date", sa.Date(), nullable=False),
-        sa.Column("is_completed", sa.Boolean(), server_default="0", nullable=False),
+        sa.Column("is_completed", sa.Boolean(), server_default=sa.false(), nullable=False),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),

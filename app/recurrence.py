@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from .extensions import db
 from .models import RecurrenceRule, TaskOccurrence, utc_now
@@ -62,7 +63,15 @@ def generate_occurrences(through: date):
         ).scalars())
         for due_date in recurrence_dates(rule, through):
             if due_date not in existing:
-                db.session.add(TaskOccurrence(recurrence_rule_id=rule.id, due_date=due_date))
+                try:
+                    # The unique rule/date constraint is authoritative. A
+                    # savepoint makes a concurrent insert harmless without
+                    # rolling back other generated dates in this request.
+                    with db.session.begin_nested():
+                        db.session.add(TaskOccurrence(recurrence_rule_id=rule.id, due_date=due_date))
+                        db.session.flush()
+                except IntegrityError:
+                    pass
     db.session.commit()
 
 

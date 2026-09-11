@@ -45,33 +45,24 @@ def upgrade():
     op.create_index("ix_todo_activity_source_date", "todo_activity", ["source_date"], unique=False)
     op.create_index("ix_todo_activity_destination_date", "todo_activity", ["destination_date"], unique=False)
 
-    connection = op.get_bind()
-    legacy_rows = connection.execute(
-        sa.text("SELECT id, is_completed, completed_at, created_at FROM todo")
-    ).mappings().all()
-    for row in legacy_rows:
-        if row["is_completed"]:
-            # Completed legacy tasks have a reliable completion timestamp but no
-            # supported scheduled date, so preserve them as archived history.
-            connection.execute(
-                sa.text("UPDATE todo SET current_location='archived', status='completed', archived_at=:completed_at WHERE id=:id"),
-                {"id": row["id"], "completed_at": row["completed_at"]},
-            )
-            event_type = "completed"
-            occurred_at = row["completed_at"] or row["created_at"]
-        else:
-            # No due-date existed in the legacy schema; incomplete tasks become
-            # unscheduled Backlog tasks rather than being assigned a guessed day.
-            connection.execute(
-                sa.text("UPDATE todo SET current_location='backlog', status='active' WHERE id=:id"),
-                {"id": row["id"]},
-            )
-            event_type = "created_backlog"
-            occurred_at = row["created_at"]
-        connection.execute(
-            sa.text("INSERT INTO todo_activity (todo_id, event_type, occurred_at, metadata_json) VALUES (:todo_id, :event_type, :occurred_at, :metadata_json)"),
-            {"todo_id": row["id"], "event_type": event_type, "occurred_at": occurred_at, "metadata_json": '{"legacy": true}'},
-        )
+    # Set-based SQL is equivalent to the original row loop, works on SQLite
+    # and PostgreSQL, and can be rendered by Alembic in offline mode.
+    op.execute(sa.text(
+        "UPDATE todo SET current_location='archived', status='completed', "
+        "archived_at=completed_at WHERE is_completed"
+    ))
+    op.execute(sa.text(
+        "UPDATE todo SET current_location='backlog', status='active' "
+        "WHERE NOT is_completed"
+    ))
+    op.execute(sa.text(
+        "INSERT INTO todo_activity "
+        "(todo_id, event_type, occurred_at, metadata_json) "
+        "SELECT id, "
+        "CASE WHEN is_completed THEN 'completed' ELSE 'created_backlog' END, "
+        "CASE WHEN is_completed THEN COALESCE(completed_at, created_at) ELSE created_at END, "
+        "'{\"legacy\": true}' FROM todo"
+    ))
 
 
 def downgrade():

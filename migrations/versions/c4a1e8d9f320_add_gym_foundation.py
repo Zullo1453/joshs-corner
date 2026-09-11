@@ -20,7 +20,7 @@ def upgrade():
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("body_part", sa.String(length=30), nullable=False),
         sa.Column("sort_order", sa.Integer(), server_default="0", nullable=False),
-        sa.Column("active", sa.Boolean(), server_default="1", nullable=False),
+        sa.Column("active", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("body_part IN ('Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Core', 'Other')", name="exercise_body_part_valid"),

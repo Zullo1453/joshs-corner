@@ -27,8 +27,8 @@ def upgrade():
     sa.Column('day_of_month', sa.Integer(), nullable=True),
     sa.Column('start_date', sa.Date(), nullable=False),
     sa.Column('end_date', sa.Date(), nullable=True),
-    sa.Column('rollover_enabled', sa.Boolean(), server_default='1', nullable=False),
-    sa.Column('is_active', sa.Boolean(), server_default='1', nullable=False),
+    sa.Column('rollover_enabled', sa.Boolean(), server_default=sa.true(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.true(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id')
